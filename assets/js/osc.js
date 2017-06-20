@@ -67,7 +67,7 @@ function loop() {
     
     requestAnimationFrame(loop);
 }
-loop();
+
 
 /// oscillator object
 function osc() {
@@ -113,3 +113,6 @@ function mixer() {
     return sum / d + horizon;
 }
 
+$(document).ready(function(){
+    loop();
+});
