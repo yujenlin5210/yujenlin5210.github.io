@@ -100,10 +100,12 @@ body {
 
 .footer {
     padding: 1rem 0;
-
     .content {
         padding-left: 0.5rem; 
         padding-right: 0.5rem; 
         
+    }
+    .level-item div:not(first-child) {
+        margin-left: 0.5rem;
     }
 }
