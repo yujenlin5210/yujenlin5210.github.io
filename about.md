@@ -74,10 +74,12 @@ skills:
       - name: Unity3D | C#
       - name: OpenFrameworks | C++
       - name: Flash | ActionScript 3.0
-  - name: Mobile
+  - name: Developing
     items:
-      - name: Android | Java
+      - name: Android | Jav
       - name: iOS | Objective-C
+      - name: Computer Vision
+      - name: Machine Learning
   - name: Web Design
     items:
       - name: HTML5 | CSS3 | SCSS
