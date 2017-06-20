@@ -1,0 +1,22 @@
+<header>
+    <nav class="nav">
+        <div class="container">
+            <div class="nav-left">
+                <a class="nav-item
+                {% if page.title == 'Home' %} is-active
+                {% endif %}" href="/">
+                    Yu-Jen Lin
+                </a>
+                <a class="nav-item" href="https://github.com/{{ site.github_username }}" target="_blank"><i class="fa fa-github"></i></a>
+                <a class="nav-item" href="https://www.linkedin.com/in/ {{ site.linkedin_username }}" target="_blank"><i class="fa fa-linkedin"></i></a>
+            </div>
+            <div class="nav-right">
+                <a class="nav-item 
+                {% if page.title == 'About' %} is-active
+                {% endif %}" href=" {{ 'about' | prepend: site.baseurl }} ">About</a>
+                <a class="nav-item" href="#">Projects</a>
+                <a class="nav-item" href="#">Lab</a>
+            </div>
+        </div>
+    </nav>
+</header>

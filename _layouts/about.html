@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+{% include html-head.html %}
+
+<body>
+  {% include header.html %}
+  <section class="section bio">
+    <div class="container">
+      <div class="content">
+        Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy
+        text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen
+        book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially
+        unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and
+        more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.
+      </div>
+      <a class="button is-primary" href="{{ site.baseurl }}assets/docs/about/{{ page.resume }}" target="_blank">Download Resume</a>
+    </div>
+  </section>
+  <section class="section education">
+    <div class="container">
+      <h1 class="title">Education</h1>
+      {% for school in page.edu %}
+      <div class="level">
+        <div class="level-left">
+          <div class="level-item">
+            <figure class="image is-96x96">
+              <img src="{{ site.baseurl }}assets/images/about/{{ school.icon }}">
+              </figure>
+          </div>
+          <div class="level-item">
+            <div>
+              <h2 class="title">{{ school.name }}</h2>
+              <p>{{ school.role }}</p>
+              <p>{{ school.specialization }}</p>
+              <p>{{ school.time }}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="section experience">
+    <div class="container">
+      <h1 class="title">Experience</h1>
+      {% for work in page.experience %}
+      <div class="level">
+        <div class="level-left">
+          <div class="level-item">
+            <figure class="image is-96x96">
+              <img src="{{ site.baseurl }}assets/images/about/{{ work.icon }}">
+              </figure>
+          </div>
+          <div class="level-item">
+            <div>
+              <h2 class="title">
+                {% if work.url %}
+                <a href="{{ work.url }}" target="_blank">{{ work.name }}</a>
+                {% else %}
+                {{ work.name }}
+                {% endif %}
+              </h2>
+              <p>{{ work.role }}</p>
+              <p>{{ work.specialization }}</p>
+              <p>{{ work.time }}</p>
+              <ul>
+                {% for description in work.description %}
+                <li>{{ description }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  <section class="section proact">
+    <div class="container">
+      <h1 class="title">Professional Activities</h1>
+      {% for work in page.proact %}
+      <div class="level">
+        <div class="level-left">
+          <div class="level-item">
+            <figure class="image is-96x96">
+              <img src="{{ site.baseurl }}assets/images/about/{{ work.icon }}">
+              </figure>
+          </div>
+          <div class="level-item">
+            <div>
+              <h2 class="title">
+                {% if work.url %}
+                <a href="{{ work.url }}" target="_blank">{{ work.name }}</a>
+                {% else %}
+                {{ work.name }}
+                {% endif %}
+              </h2>
+              <p>{{ work.role }}</p>
+              <p>{{ work.specialization }}</p>
+              <p>{{ work.time }}</p>
+              <ul>
+                {% for description in work.description %}
+                <li>{{ description }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% include footer.html %} {% include js.html %}
+</body>
+
+</html>
