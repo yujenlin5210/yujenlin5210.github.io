@@ -68,5 +68,29 @@ awards:
     quote: Jurors said this project is "Immersive, participatory and surprising. Visitors are taken on a magical adventure with the help of a mobile device and digital exhibits. It takes the immersive experience up several notches, creates an engaging and fully interactive experience for users, moves the device to an integral part of the experience." And "Their innovative use of location-based technologies and augmented reality ensures that this mobile experience bleeds into the physical environment."
   - name: UMSI expoSItion 2012 Best Overall Award
     organization: University of Michigan, School of Information
+skills:
+  - name: Game Engines
+    items: 
+      - name: Unity3D | C#
+      - name: OpenFrameworks | C++
+      - name: Flash | ActionScript 3.0
+  - name: Mobile
+    items:
+      - name: Android | Java
+      - name: iOS | Objective-C
+  - name: Web Design
+    items:
+      - name: HTML5 | CSS3 | SCSS
+      - name: Javascript | jQuery
+      - name: Electron | Node.js | AngularJS
+      - name: Flask | Django
+      - name: Jekyll
+  - name: Prototyping
+    items:
+      - name: Arduino | Photon
+      - name: Rhino 3D | SOLIDWORKS
+      - name: 3D Printing | CNC-Routing
+      - name: Vinyl Cutting | Laser Cutting
+      - name: Illustrator | Photoshop
 ---
 

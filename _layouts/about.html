@@ -16,24 +16,39 @@
       <a class="button is-primary" href="{{ site.baseurl }}assets/docs/about/{{ page.resume }}" target="_blank">Download Resume</a>
     </div>
   </section>
+  <section class="section skill">
+    <div class="container">
+      <h1 class="title">Skills</h1>
+      <div class="columns">
+        {% for category in page.skills %}
+        <div class="column">
+          <h2 class="category">{{ category.name }}</h2>
+          <ul>
+            {% for item in category.items %}
+            <li>{{ item.name }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
   <section class="section education">
     <div class="container">
       <h1 class="title">Education</h1>
       {% for school in page.edu %}
-      <div class="level">
-        <div class="level-left">
-          <div class="level-item">
-            <figure class="image is-96x96">
-              <img src="{{ site.baseurl }}assets/images/about/{{ school.icon }}">
-              </figure>
-          </div>
-          <div class="level-item">
-            <div>
-              <h2 class="title">{{ school.name }}</h2>
-              <p>{{ school.role }}</p>
-              <p>{{ school.specialization }}</p>
-              <p>{{ school.time }}</p>
-            </div>
+      <div class="columns">
+        <div class="column is-2">
+          <figure class="image is-128x128">
+            <img src="{{ site.baseurl }}assets/images/about/{{ school.icon }}">
+          </figure>
+        </div>
+        <div class="column">
+          <div>
+            <h2 class="title">{{ school.name }}</h2>
+            <p>{{ school.role }}</p>
+            <p>{{ school.specialization }}</p>
+            <p>{{ school.time }}</p>
           </div>
         </div>
       </div>
@@ -44,21 +59,17 @@
     <div class="container">
       <h1 class="title">Experience</h1>
       {% for work in page.experience %}
-      <div class="level">
-        <div class="level-left">
-          <div class="level-item">
-            <figure class="image is-96x96">
+      <div class="columns">
+          <div class="column is-2">
+            <figure class="image is-128x128">
               <img src="{{ site.baseurl }}assets/images/about/{{ work.icon }}">
-              </figure>
+            </figure>
           </div>
-          <div class="level-item">
+          <div class="column">
             <div>
               <h2 class="title">
                 {% if work.url %}
-                <a href="{{ work.url }}" target="_blank">{{ work.name }}</a>
-                {% else %}
-                {{ work.name }}
-                {% endif %}
+                <a href="{{ work.url }}" target="_blank">{{ work.name }}</a> {% else %} {{ work.name }} {% endif %}
               </h2>
               <p>{{ work.role }}</p>
               <p>{{ work.specialization }}</p>
@@ -70,7 +81,6 @@
               </ul>
             </div>
           </div>
-        </div>
       </div>
       {% endfor %}
     </div>
@@ -79,21 +89,17 @@
     <div class="container">
       <h1 class="title">Professional Activities</h1>
       {% for work in page.proact %}
-      <div class="level">
-        <div class="level-left">
-          <div class="level-item">
-            <figure class="image is-96x96">
+      <div class="columns">
+          <div class="column is-2">
+            <figure class="image is-128x128">
               <img src="{{ site.baseurl }}assets/images/about/{{ work.icon }}">
-              </figure>
+            </figure>
           </div>
-          <div class="level-item">
+          <div class="column">
             <div>
               <h2 class="title">
                 {% if work.url %}
-                <a href="{{ work.url }}" target="_blank">{{ work.name }}</a>
-                {% else %}
-                {{ work.name }}
-                {% endif %}
+                <a href="{{ work.url }}" target="_blank">{{ work.name }}</a> {% else %} {{ work.name }} {% endif %}
               </h2>
               <p>{{ work.role }}</p>
               <p>{{ work.specialization }}</p>
@@ -105,7 +111,6 @@
               </ul>
             </div>
           </div>
-        </div>
       </div>
       {% endfor %}
     </div>
@@ -114,30 +119,24 @@
     <div class="container">
       <h1 class="title">Awards</h1>
       {% for award in page.awards %}
-      <div class="level">
-        <div class="level-left">
-          <div class="level-item">
+      <div class="columns">
+          <div class="column">
             <div>
               <h2 class="title">
                 {% if award.url %}
-                <a href="{{ award.url }}" target="_blank">{{ award.name }}</a>
-                {% else %}
-                {{ award.name }}
-                {% endif %}
+                <a href="{{ award.url }}" target="_blank">{{ award.name }}</a> {% else %} {{ award.name }} {% endif %}
               </h2>
               <p>{{ award.organization }}</p>
               {% if award.quote %}
               <div class="quote message">
                 <div class="message-body">
-                  <i class="fa fa-quote-left" aria-hidden="true"></i>
-                  {{ award.quote }}
+                  <i class="fa fa-quote-left" aria-hidden="true"></i> {{ award.quote }}
                   <i class="fa fa-quote-right" aria-hidden="true"></i>
                 </div>
               </div>
               {% endif %}
             </div>
           </div>
-        </div>
       </div>
       {% endfor %}
     </div>
