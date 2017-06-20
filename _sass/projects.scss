@@ -1,0 +1,44 @@
+.feature-projects {
+    // background-color: #003;
+    color: #fff;
+    // padding: 0;
+    padding-top: 0;
+    .columns {
+        // margin-bottom: 0;
+    }
+    .column{
+        // padding: 0;
+        // background-color: grey;
+        background-repeat: no-repeat;
+        background-size: cover;
+        background-position: center;
+        &.main-project {
+            // height: 40rem;
+        }
+        &.feature-project {
+            // height: 25rem;
+            filter: grayscale(100%);
+            transition: 0.5s ease-in-out;
+
+            &:hover {
+                filter: none;
+            }
+            @include mobile {
+                filter: none;
+            }
+        }
+    }
+    .card {
+        // box-shadow: none;
+        .title {
+            margin-bottom: 0.5rem;
+        }
+        .tags {
+            margin-bottom: 0.5rem;
+        }
+        transition: background-color 0.5s ease-in-out;
+        &:hover {
+            background-color: #f5f5ff;
+        }
+    }
+}

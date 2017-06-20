@@ -4,6 +4,71 @@
 
 <body>
   {% include header.html %}
+  <section class="section feature-projects">
+      <div class="container">
+          <div class="columns">
+              <div class="column main-project">
+                  <a href="#">
+                    <div class="card">
+                        <div class="card-image">
+                            <figure class="image">
+                                <img src="/assets/images/landing/comic-reader.png">
+                            </figure>
+                        </div>
+                        <div class="card-content">
+                            <p class="title">
+                                {{ page.main-project.name }}
+                            </p>
+                            <div class="tags">
+                                <span class="tag">Tag1</span>
+                                <span class="tag">Tag2</span>
+                                <span class="tag">Tag3</span>
+                                <span class="tag">Tag4</span>
+                            </div>
+                            <div class="content">
+                                <p>
+                                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis consequat, felis vel rutrum finibus, tortor turpis scelerisque eros, et mattis lacus diam at enim. Integer pellentesque purus non est viverra, ac eleifend risus hendrerit. Nam quis odio ac erat consequat elementum. Donec quis mollis enim, vel pellentesque eros. Praesent enim diam, vulputate id malesuada sed, tempor eu erat. Sed pulvinar blandit tellus non commodo. Etiam sem arcu, lobortis quis molestie et, rutrum sit amet lacus. Cras sodales molestie facilisis. Nullam rhoncus nisi aliquet, finibus felis ac, blandit felis.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                  </a>
+              </div>
+          </div>
+          <div class="columns is-multiline">
+              
+              {% for post in page.featured %}
+              <div class="column is-half feature-project">
+                <a href="#">
+                    <div class="card">
+                        <div class="card-image">
+                            <figure class="image">
+                                <img src="/assets/images/landing/comic-reader.png">
+                            </figure>
+                        </div>
+                        <div class="card-content">
+                            <p class="title">
+                                {{ post.name }}
+                            </p>
+                            <div class="tags">
+                                <span class="tag">Tag1</span>
+                                <span class="tag">Tag2</span>
+                                <span class="tag">Tag3</span>
+                                <span class="tag">Tag4</span>
+                            </div>
+                            <div class="content">
+                                <p>
+                                   {{ post.description }} 
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                  </a>
+              </div>
+              {% endfor %}
+          </div>
+      </div>
+  </section>
   {% include footer.html %} {% include js.html %}
 </body>
 
