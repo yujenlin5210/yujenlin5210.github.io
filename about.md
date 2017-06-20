@@ -44,7 +44,7 @@ proact:
     time: Ann Arbor, MI | 2015 - 2017
     description: 
       - Designed lab sections assignments to provide students hands-on experiences associate with lecture material
-      - Delivered a range of teaching activities including tutorials directed towards the delivery of subjects at both undergraduate and gradu- ate level
+      - Delivered a range of teaching activities including tutorials directed towards the delivery of subjects at both undergraduate and graduate level
   - name: DOIIIT Maker Space @ UMSI
     url: https://doiiit.github.io
     role: Co-Founder
@@ -53,6 +53,20 @@ proact:
     description: 
       - Setup a hardware space to built up a maker culture in School of Information.
       - Consulted students proj- ects and coordinated machine tools including laser cutter, 3D-printer and more.
-
+awards:
+  - name: UMSI expoSItion 2017 Academic/Research Award - 1st Prize
+    organization: University of Michigan, School of Information
+  - name: UMSI expoSItion 2016 Academic/Research Award - 1st Prize
+    organization: University of Michigan, School of Information
+  - name: 2014 MUSE Award - Games and Augmented Reality - Silver Prize
+    organization: American Alliance of Museum
+    url: http://www.aam-us.org/about-us/grants-awards-and-competitions/muse-awards/past-award-winners/2014-muse-awards
+    quote: It is just like a dream comes true, romantic but tangible.  In the Square of Aspiration, visitors explored and recalled their childhood through the diversity dream windows. Through a smart phone and augmented reality (AR) technology visitors can become the characters in tiny miniature landscapes, taking pictures as digital souvenirs for the journey.
+  - name: 2014 MUSE Award - Mobile Applications - Silver Prize
+    organization: American Alliance of Museum
+    url: http://www.aam-us.org/about-us/grants-awards-and-competitions/muse-awards/past-award-winners/2014-muse-awards
+    quote: Jurors said this project is "Immersive, participatory and surprising. Visitors are taken on a magical adventure with the help of a mobile device and digital exhibits. It takes the immersive experience up several notches, creates an engaging and fully interactive experience for users, moves the device to an integral part of the experience." And "Their innovative use of location-based technologies and augmented reality ensures that this mobile experience bleeds into the physical environment."
+  - name: UMSI expoSItion 2012 Best Overall Award
+    organization: University of Michigan, School of Information
 ---
 

@@ -110,6 +110,38 @@
       {% endfor %}
     </div>
   </section>
+  <section class="section awards">
+    <div class="container">
+      <h1 class="title">Awards</h1>
+      {% for award in page.awards %}
+      <div class="level">
+        <div class="level-left">
+          <div class="level-item">
+            <div>
+              <h2 class="title">
+                {% if award.url %}
+                <a href="{{ award.url }}" target="_blank">{{ award.name }}</a>
+                {% else %}
+                {{ award.name }}
+                {% endif %}
+              </h2>
+              <p>{{ award.organization }}</p>
+              {% if award.quote %}
+              <div class="quote message">
+                <div class="message-body">
+                  <i class="fa fa-quote-left" aria-hidden="true"></i>
+                  {{ award.quote }}
+                  <i class="fa fa-quote-right" aria-hidden="true"></i>
+                </div>
+              </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
   {% include footer.html %} {% include js.html %}
 </body>
 
