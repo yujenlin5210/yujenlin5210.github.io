@@ -76,7 +76,7 @@ skills:
       - name: Flash | ActionScript 3.0
   - name: Developing
     items:
-      - name: Android | Jav
+      - name: Android | Java
       - name: iOS | Objective-C
       - name: Computer Vision
       - name: Machine Learning
