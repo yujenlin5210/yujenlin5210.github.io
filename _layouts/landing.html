@@ -1,67 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
-  {% include html-head.html %}
-  <body>
-    {% include header.html %}
+{% include html-head.html %}
 
-    <section class="section landing is-flex" style="background-image: url('{{ "assets/images/landing/landing.jpg" | prepend: site.baseurl }}')">
-      <div class="container">
-        <section class="sections slogan">
-          <div>
-              I'm a software engineer
-              <br>
-              who designs interactive things
-              <br>
-              to make life
-              <br>
-              fun and simple
-          </div>
-        </section>
-      </div>
-    </section>
-    <section class="section feature-posts">
-      <div class="container">
-        <div class="columns">
-          <div class="column">
-            <a href="#">
-              <div class="column-cover" style="background-image: url('{{ "assets/images/landing/dream2.jpg" | prepend: site.baseurl }}')">
-                <p class="title">
-                 A Dream Journey in Taipei
-                </p>
-                <p class="description">
-                  An award-winning museum exhibition
-                </p>
-              </div>
-            </a>
-          </div>
-          <div class="column">
-            <a href="#">
-              <div class="column-cover" style="background-image: url('{{ "assets/images/landing/comic-reader.png" | prepend: site.baseurl }}')">
-               <p class="title">
-                 Comic Reader
-               </p>
-                <p class="description">
-                  The best app for reading comics
-                </p>
-              </div>
-            </a>
-          </div>
-          <div class="column">
-            <a href="#">
-              <div class="column-cover" style="background-image: url('{{ "assets/images/landing/lux.png" | prepend: site.baseurl }}')">
-                <p class="title">
-                 Lux
-                </p>
-                <p class="description">
-                  An astonishing platform game on PC
-                </p>
-              </div>
-            </a>
+<body>
+  {% include header.html %}
+
+  <!--<section class="section landing is-flex" style="background-image: url('{{ "assets/images/landing/landing.jpg" | prepend: site.baseurl }}')">-->
+  <section class="section landing is-flex">
+    <canvas id="canvas"></canvas>
+    <div class="container">
+      <section class="sections slogan">
+        <div>
+          I'm a software engineer
+          <br> who designs interactive things
+          <br> to make life
+          <br> fun and simple
+        </div>
+      </section>
+      <section class="section feature-posts">
+        <div class="container">
+          <div class="columns">
+            <div class="column">
+              <a href="#">
+                <div class="column-cover" style="background-image: url('{{ "assets/images/landing/dream2.jpg" | prepend: site.baseurl }}')">
+                  <p class="title">
+                    A Dream Journey in Taipei
+                  </p>
+                  <p class="description">
+                    An award-winning museum exhibition
+                  </p>
+                </div>
+              </a>
+            </div>
+            <div class="column">
+              <a href="#">
+                <div class="column-cover" style="background-image: url('{{ "assets/images/landing/comic-reader.png" | prepend: site.baseurl }}')">
+                  <p class="title">
+                    Comic Reader
+                  </p>
+                  <p class="description">
+                    The best app for reading comics
+                  </p>
+                </div>
+              </a>
+            </div>
+            <div class="column">
+              <a href="#">
+                <div class="column-cover" style="background-image: url('{{ "assets/images/landing/lux.png" | prepend: site.baseurl }}')">
+                  <p class="title">
+                    Lux
+                  </p>
+                  <p class="description">
+                    An astonishing platform game on PC
+                  </p>
+                </div>
+              </a>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
-    {% include footer.html %}
-    {% include js.html %}
-  </body>
+      </section>
+    </div>
+  </section>
+  {% include footer.html %} {% include js.html %}
+</body>
+
 </html>

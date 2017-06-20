@@ -4,5 +4,7 @@
 # See: https://jekyllrb.com/docs/themes/#overriding-theme-defaults
 layout: landing
 title: Home
+js:
+  - path: osc.js
 ---
 Test
