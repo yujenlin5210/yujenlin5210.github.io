@@ -20,42 +20,20 @@
       <section class="section feature-posts">
         <div class="container">
           <div class="columns">
+            {% for post in page.featured %}
             <div class="column">
               <a href="#">
-                <div class="column-cover" style="background-image: url('{{ "assets/images/landing/dream2.jpg" | prepend: site.baseurl }}')">
+                <div class="column-cover" style="background-image: url('{{ site.baseurl }}assets/images/landing/{{ post.cover }}')">
                   <p class="title">
-                    A Dream Journey in Taipei
+                    {{ post.title }} 
                   </p>
                   <p class="description">
-                    An award-winning museum exhibition
+                    {{ post.description }}
                   </p>
                 </div>
               </a>
             </div>
-            <div class="column">
-              <a href="#">
-                <div class="column-cover" style="background-image: url('{{ "assets/images/landing/comic-reader.png" | prepend: site.baseurl }}')">
-                  <p class="title">
-                    Comic Reader
-                  </p>
-                  <p class="description">
-                    The best app for reading comics
-                  </p>
-                </div>
-              </a>
-            </div>
-            <div class="column">
-              <a href="#">
-                <div class="column-cover" style="background-image: url('{{ "assets/images/landing/lux.png" | prepend: site.baseurl }}')">
-                  <p class="title">
-                    Lux
-                  </p>
-                  <p class="description">
-                    An astonishing platform game on PC
-                  </p>
-                </div>
-              </a>
-            </div>
+            {% endfor %}
           </div>
         </div>
       </section>
