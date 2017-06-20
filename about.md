@@ -5,7 +5,7 @@ permalink: /about/
 resume: Yu-Jen_Lin_Resume2017.pdf
 edu:
   - name: University of Michigan, School of Information
-    role: M.S. in Information | UX Research/Design, Human-Computer Interaction
+    role: M.S. in Information | UX Research &amp; Design, Human-Computer Interaction
     time: Ann Arbor, MI | 2011-2014
     icon: umsi.png
   - name: National Taiwan University
