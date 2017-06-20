@@ -15,7 +15,7 @@
         &.main-project {
             // height: 40rem;
         }
-        &.feature-project {
+        &.feature-project, &.project {
             // height: 25rem;
             filter: grayscale(100%);
             transition: 0.5s ease-in-out;
