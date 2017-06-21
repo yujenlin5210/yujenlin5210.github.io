@@ -74,6 +74,21 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
             color: #E3E3E3;
             font-size: $size-4;
         }
+        a.links {
+            text-decoration: underline;
+            &:hover {
+                color: #0088b2
+            }
+        }
+        .tags {
+            margin-top: 0.5rem;
+        }
+        .tag {
+            background-color: rgba(255, 255, 255, 0.6);
+            color: #222;
+            margin-left: 0.1rem;
+            margin-bottom: 0.5rem;
+        }
         // border: 0;
         .delete {
             position: absolute;
