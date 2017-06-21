@@ -2,7 +2,7 @@
 layout: project-page
 title: Magic Table
 categories: project
-slogan: Designed for gradations of touch and pressure sensitive input
+slogan: Blurring the line between the digital and the physical worlds
 description: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis consequat, felis vel rutrum finibus, tortor turpis scelerisque eros, et mattis lacus diam at enim.
 folder: magic_table
 cover: cover.jpg
