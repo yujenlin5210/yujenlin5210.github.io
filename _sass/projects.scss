@@ -30,6 +30,7 @@
     }
     .card {
         // box-shadow: none;
+        cursor: pointer;
         .title {
             margin-bottom: 0.5rem;
         }
@@ -40,5 +41,13 @@
         &:hover {
             background-color: #f5f5ff;
         }
+    }
+}
+
+.modal-content {
+    width: 100%;
+    min-height: calc(100vh - 40px);
+    .modal-card-body {
+      min-height: calc(100vh - 40px);
     }
 }

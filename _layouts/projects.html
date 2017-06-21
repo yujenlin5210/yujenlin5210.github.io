@@ -9,8 +9,7 @@
       <div class="columns">
         <div class="column main-project">
           {% for post in site.tags.project-main %}
-          <a href="#">
-            <div class="card">
+            <div class="card" onclick="onProjectClick('{{ post.url }}')">
               <div class="card-image">
                 <figure class="image">
                   <img src="{{ site.baseurl }}assets/images/projects/{{ post.folder }}/{{ post.cover }}">
@@ -29,15 +28,13 @@
                 </div>
               </div>
             </div>
-          </a>
           {% endfor %}
         </div>
       </div>
       <div class="columns is-multiline">
         {% for post in site.tags.project-feature %}
         <div class="column is-half feature-project">
-          <a href="#">
-            <div class="card">
+            <div class="card" onclick="onProjectClick('{{ post.url }}')">
               <div class="card-image">
                 <figure class="image">
                   <img src="{{ site.baseurl }}assets/images/projects/{{ post.folder }}/{{ post.cover }}">
@@ -58,7 +55,6 @@
                 </div>
               </div>
             </div>
-          </a>
         </div>
         {% endfor %}
       </div>
@@ -66,8 +62,7 @@
         {% for post in site.categories.projects %}
         {% unless post.tags contains "project-feature" or post.tags contains "project-main" %}
         <div class="column is-one-third project">
-          <a href="#">
-            <div class="card">
+            <div class="card" onclick="onProjectClick('{{ post.url }}')">
               <div class="card-image">
                 <figure class="image">
                   <img src="{{ site.baseurl }}assets/images/projects/{{ post.folder }}/{{ post.cover }}">
@@ -88,13 +83,21 @@
                 </div>
               </div>
             </div>
-          </a>
         </div>
         {% endunless %}
         {% endfor %}
       </div>
     </div>
   </section>
+  <div class="modal" id="project-modal">
+    <div class="modal-background" onclick="closeModal('project-modal')"></div>
+    <div class="container">
+      <div class="modal-content" id="project-modal-content">
+        <!-- Any other Bulma elements you want -->
+      </div>
+    </div>
+    <button class="modal-close" onclick="closeModal('project-modal')"></button>
+  </div>
   {% include footer.html %} {% include js.html %}
 </body>
 

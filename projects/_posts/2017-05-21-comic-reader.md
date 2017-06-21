@@ -1,5 +1,5 @@
 ---
-layout: about
+layout: project-page
 title: Comic Reader
 categories: project
 description: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis consequat, felis vel rutrum finibus, tortor turpis scelerisque eros, et mattis lacus diam at enim.
