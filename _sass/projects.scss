@@ -54,7 +54,7 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
 .modal-card {
     .header {
         border-radius: 0;
-        background-color: #718A7D;
+        background-color: #5B7876;
         margin-bottom: 0;
         .level-item {
             height: 20rem;
@@ -93,8 +93,14 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
                 padding: 2rem;
             }
         }
-
     }
+    
+    .modal-card-foot {
+        border-radius: 0;
+        color: #7B9896;
+        // background-color: #5B7876;
+    }
+
     min-height: calc(100vh - 40px);
     @include desktop {
         width: 960px;
@@ -105,4 +111,5 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
     @include fullhd {
         width: 1344px;
     }
+
 }

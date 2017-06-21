@@ -1,6 +1,6 @@
 function onProjectClick(url) {
     // window.scrollTo(0,1);
-    $('html, body').addClass('is-clipped');
+    $('html').addClass('is-clipped');
     // $('html, body').on('touchmove', function(e) {
     //     e.preventDefault();
         
@@ -12,7 +12,7 @@ function onProjectClick(url) {
 }
 
 function closeModal(id) {
-    $('html, body').removeClass('is-clipped');
+    $('html').removeClass('is-clipped');
     // $('html, body').off('touchmove');
     $("#"+id).removeClass("is-active");
 }
