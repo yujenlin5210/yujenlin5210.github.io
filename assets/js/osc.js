@@ -106,10 +106,10 @@ function init() {
 
 
     horizon = h * 0.5;
-    count = 100,
+    count = 80;
     step = Math.ceil(w / count),
     //points = new Array(count);
-    buffer = new ArrayBuffer(count * 4),
+    buffer = new ArrayBuffer(count * 4);
     points = new Float32Array(buffer);
 
     osc1.max = h * 0.5;
@@ -123,9 +123,9 @@ function init() {
 
     fill();
 
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 2;
     ctx.strokeStyle = 'rgb(66, 235, 244)';
-    ctx.fillStyle = 'rgba(0, 0, 51, 0.02)';
+    ctx.fillStyle = 'rgba(0, 0, 31, 0.05)';
 }
 
 $(document).ready(function () {
