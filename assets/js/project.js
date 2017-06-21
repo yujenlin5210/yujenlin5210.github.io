@@ -1,4 +1,5 @@
 function onProjectClick(url) {
+    window.scrollTo(0,1);
     $('html, body').addClass('is-clipped');
     $('html, body').on('touchmove', function(e) {
         e.preventDefault();
