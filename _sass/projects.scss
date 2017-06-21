@@ -12,8 +12,9 @@
         background-repeat: no-repeat;
         background-size: cover;
         background-position: center;
-        &.main-project {
+        &.main-project:first-child {
             // height: 40rem;
+            padding-top: 0;
         }
         &.feature-project, &.project {
             // height: 25rem;
