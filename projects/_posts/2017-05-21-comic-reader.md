@@ -3,11 +3,12 @@ layout: project-page
 title: Comic Reader
 categories: project
 slogan: The best way to read comics
+landing-slogan: The best way to read comics
 description: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis consequat, felis vel rutrum finibus, tortor turpis scelerisque eros, et mattis lacus diam at enim.
 folder: comic-reader
 cover: comic-reader.png
 title-cover: comic-reader-title.png
-tags: [project-main, Electron, Open Source]
+tags: [project-main, landing, Electron, Open Source]
 links:
   - text: Official Website
     url: https://yjlintw.github.io/comic-reader

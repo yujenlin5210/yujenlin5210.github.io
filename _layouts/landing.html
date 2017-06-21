@@ -22,18 +22,16 @@
       <section class="section feature-posts">
         <div class="container">
           <div class="columns">
-            {% for post in page.featured %}
+            {% for post in site.tags.landing %}
             <div class="column">
-              <a href="#">
-                <div class="column-cover" style="background-image: url('{{ site.baseurl }}assets/images/landing/{{ post.cover }}')">
+                <div class="column-cover" style="background-image: url('{{ site.baseurl }}assets/images/projects/{{ post.folder }}/{{ post.cover }}')" onclick="onProjectClick('{{ post.url }}')">
                   <p class="title">
                     {{ post.title }} 
                   </p>
                   <p class="description">
-                    {{ post.description }}
+                    {{ post.landing-slogan }}
                   </p>
                 </div>
-              </a>
             </div>
             {% endfor %}
           </div>
@@ -41,6 +39,13 @@
       </section>
     </div>
   </section>
+  <div class="modal" id="project-modal">
+    <div class="modal-background" onclick="closeModal('project-modal')"></div>
+    <section class="modal-card" id="project-modal-content">
+      
+    </section>
+    <!--<button class="modal-close" onclick="closeModal('project-modal')"></button>-->
+  </div>
   {% include footer.html %} {% include js.html %}
 </body>
 
