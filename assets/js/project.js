@@ -1,6 +1,6 @@
 function onProjectClick(url) {
     $('html, body').addClass('is-clipped');
-    $('html, body').addEventListener('touchmove', function(e) {
+    $('html, body').on('touchmove', function(e) {
         e.preventDefault();
     }, false);
     
@@ -11,6 +11,6 @@ function onProjectClick(url) {
 
 function closeModal(id) {
     $('html, body').removeClass('is-clipped');
-    $('html, body').removeEventListener('touchmove');
+    $('html, body').off('touchmove');
     $("#"+id).removeClass("is-active");
 }
