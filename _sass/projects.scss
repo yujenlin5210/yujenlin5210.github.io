@@ -53,14 +53,19 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
 }
 .modal-card {
     .header {
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center;
         border-radius: 0;
         background-color: #5B7876;
         margin-bottom: 0;
-        .level-item {
+        .level-item.heading{
             height: 20rem;
+            align-items: flex-end;
         }
-        // padding-left: 2rem;
-        // padding-right: 2rem; 
+        padding-left: 2rem;
+        padding-right: 2rem; 
+        padding-bottom: 1rem;
         .modal-card-title {
             color: #FCFFF5;
             font-size: $size-1;
@@ -80,6 +85,9 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
             min-width: 2rem;
             @include mobile {
                 right: 0.2rem;
+                // right: 0;
+                // top: 0;
+                position: fixed;
             }
         }
     }
