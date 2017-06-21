@@ -36,9 +36,9 @@ function fill() {
 }
 fill();
 
-ctx.lineWidth = 20;
+ctx.lineWidth = 1;
 ctx.strokeStyle = 'rgb(66, 235, 244)';
-ctx.fillStyle = 'rgba(0, 0, 51, 0.05)';
+ctx.fillStyle = 'rgba(0, 0, 51, 0.02)';
 
 function loop() {
 
