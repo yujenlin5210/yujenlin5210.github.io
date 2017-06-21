@@ -59,6 +59,9 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
         border-radius: 0;
         background-color: #5B7876;
         margin-bottom: 0;
+        .level-left, .level-item.heading {
+            max-width: 100%;
+        }
         .level-item.heading{
             height: 20rem;
             align-items: flex-end;
@@ -73,6 +76,7 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
         .modal-card-subtitle {
             color: #E3E3E3;
             font-size: $size-4;
+            text-transform: none;
         }
         a.links {
             text-decoration: underline;
