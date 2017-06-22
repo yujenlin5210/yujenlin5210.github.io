@@ -34,7 +34,9 @@ function showModal(url) {
     $("#project-modal-content").load(url);
     
     // force redraw, fix bug on mac/safari
-    $('#project-modal').hide().show(0);
+    setTimeout(function(){
+        $('#project-modal').hide().show(0);
+    }, 200);
 }
 
 function closeModal(id) {
