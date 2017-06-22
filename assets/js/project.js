@@ -42,6 +42,7 @@ function closeModal(id) {
     $('html').removeClass('is-clipped');
     // $('html, body').off('touchmove');
     $("#"+id).removeClass("is-active");
+    $("#project-modal-content").empty();
     
 }
 
