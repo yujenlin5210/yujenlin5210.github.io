@@ -32,13 +32,16 @@ function showModal(url) {
     // $("#project-modal-content").css("overflow", "auto");
     
     $("#project-modal-content").load(url);
+    
+    // force redraw, fix bug on mac/safari
+    $('#project-modal').hide().show(0);
 }
 
 function closeModal(id) {
     $('html').removeClass('is-clipped');
     // $('html, body').off('touchmove');
     $("#"+id).removeClass("is-active");
-    // $("#project-modal-content").css("overflow", "hidden");
+    
 }
 
 $(document).ready(function () {

@@ -50,10 +50,10 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
     transition: all 0.2s ease-in-out;
     transform: scale(0);
     display: flex;
-    visibility: 0;
+    visibility: hidden;
     &.is-active {
         transform: scale(1);
-        visibility: 1;
+        visibility: visible;
     }
 }
 .modal-background {
