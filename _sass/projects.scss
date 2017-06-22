@@ -136,6 +136,7 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
         // overflow: scroll;
         color: #193441;
         .content {
+            background-color: #fcfff5;
             padding: 2rem 4rem;
             @include mobile {
                 padding: 2rem;
