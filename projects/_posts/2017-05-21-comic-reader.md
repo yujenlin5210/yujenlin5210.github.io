@@ -4,7 +4,7 @@ title: Comic Reader
 categories: project
 slogan: The best way to read comics
 landing-slogan: The best way to read comics
-description: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis consequat, felis vel rutrum finibus, tortor turpis scelerisque eros, et mattis lacus diam at enim.
+description: An open source comics reading app. It supports search and subscription which let you manage the comics with ease.
 folder: comic-reader
 cover: comic-reader.png
 title-cover: comic-reader-title.png

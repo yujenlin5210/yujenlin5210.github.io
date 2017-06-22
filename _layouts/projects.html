@@ -9,7 +9,7 @@
       <div class="columns">
         <div class="column main-project">
           {% for post in site.tags.project-main %}
-            <div class="card" onclick="onProjectClick('{{ post.url }}')">
+            <div class="card" id="{{ post.folder }}" onclick="onProjectClick('{{ post.url }}', '{{ post.folder }}')">
               <div class="card-image">
                 <figure class="image">
                   <img src="{{ site.baseurl }}assets/images/projects/{{ post.folder }}/{{ post.cover }}">
@@ -34,7 +34,7 @@
       <div class="columns is-multiline">
         {% for post in site.tags.project-feature %}
         <div class="column is-half feature-project">
-            <div class="card" onclick="onProjectClick('{{ post.url }}')">
+            <div class="card" id="{{ post.folder }}" onclick="onProjectClick('{{ post.url }}', '{{ post.folder }}')">
               <div class="card-image">
                 <figure class="image is-16by9">
                   <img src="{{ site.baseurl }}assets/images/projects/{{ post.folder }}/{{ post.cover }}">
@@ -62,7 +62,7 @@
         {% for post in site.categories.projects %}
         {% unless post.tags contains "project-feature" or post.tags contains "project-main" %}
         <div class="column is-one-third-desktop is-half-tablet project">
-            <div class="card" onclick="onProjectClick('{{ post.url }}')">
+            <div class="card" id="{{ post.folder }}" onclick="onProjectClick('{{ post.url }}', '{{ post.folder }}')">
               <div class="card-image">
                 <figure class="image is-16by9">
                   <img src="{{ site.baseurl }}assets/images/projects/{{ post.folder }}/{{ post.cover }}">
