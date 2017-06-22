@@ -64,9 +64,11 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
             max-width: 100%;
         }
         .level-item.heading{
-            height: 20rem;
+            min-height: 20rem;
             align-items: flex-end;
+            justify-content: flex-start;
         }
+        padding-top: 2rem;
         padding-left: 2rem;
         padding-right: 2rem; 
         padding-bottom: 1rem;
@@ -103,6 +105,13 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
             width: 2rem;
             max-height: 2rem;
             min-width: 2rem;
+            background-color: black;
+            &:hover {
+                background-color: #e3e3e3;
+                &::before, &::after {
+                    background-color: #222;
+                }
+            }
             @include mobile {
                 right: 0.2rem;
                 // right: 0;
@@ -130,6 +139,9 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
     }
 
     min-height: calc(100vh - 40px);
+    @include touch {
+        width: calc(100vw - 40px);
+    }
     @include desktop {
         width: 960px;
     }
