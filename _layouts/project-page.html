@@ -11,7 +11,7 @@
           {% endfor %}
           <div class="tags">
             {% for tag in page.tags %} 
-              {% unless tag == "project-feature" or tag == "project-main" %}
+              {% unless tag == "project-feature" or tag == "project-main" or tag == "landing" %}
             <span class="tag">{{ tag }}</span> {% endunless %} {% endfor %}
           </div>
         </div>
