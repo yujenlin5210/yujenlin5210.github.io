@@ -43,7 +43,7 @@ $(document).ready(function () {
     window.onpopstate = function(event) {
         // alert("location: " + document.location + ", state: " + JSON.stringify(event.state));
         if (event.state === null) {
-            alert(current_id);
+            closeModal("project-modal");
         } else if (event.state.action === 0) {
             closeModal(event.state.id);
         } else if (event.state.action === 1) {
