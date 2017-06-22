@@ -21,7 +21,7 @@
           <div class="columns">
             {% for post in site.tags.landing %}
             <div class="column">
-                <div class="column-cover" style="background-image: url('{{ site.baseurl }}assets/images/projects/{{ post.folder }}/{{ post.cover }}')" onclick="onProjectClick('{{ post.url }}')">
+                <div class="column-cover" id="{{ post.folder }}" style="background-image: url('{{ site.baseurl }}assets/images/projects/{{ post.folder }}/{{ post.cover }}')" onclick="onProjectClick('{{ post.url }}', '{{ post.folder }}')">
                   <p class="title">
                     {{ post.title }} 
                   </p>
