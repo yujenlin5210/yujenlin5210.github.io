@@ -18,7 +18,9 @@ body {
     background-repeat: no-repeat;
     padding: 0;
     height: calc((100vh - 3.25rem - 3.5rem) );
-    min-height: 45rem;
+    @include tablet {
+        min-height: 45rem;
+    }
     #canvas-container {
         position: absolute;
         width: 100%;
@@ -36,8 +38,11 @@ body {
             // height: 50%;
             font-size: 3rem;
             padding: 5rem 5rem;
-            height: calc((100vh - 3.25rem - 3.5rem)* 2 / 3);
-            min-height: 30rem;
+            min-height: 20rem;
+            @include tablet {
+                height: calc((100vh - 3.25rem - 3.5rem)* 2 / 3);
+                min-height: 30rem;
+            }
             // padding: 10rem;
             // background-color: rgba(0, 0, 0, 0.4);
             display: flex;
@@ -60,7 +65,9 @@ body {
     bottom: 0;
     width: 100%;
     height: calc((100vh - 3.25rem - 3.5rem) / 3);
-    min-height: 15rem;
+    @include tablet {
+        min-height: 15rem;
+    }
     background-color: rgba(0, 0 ,51, 0.5);
     padding: 0;
     .columns {
