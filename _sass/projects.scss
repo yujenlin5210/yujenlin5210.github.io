@@ -133,6 +133,7 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
     .modal-card-body {
         padding: 0;
         background-color: #fcfff5;
+        // overflow: scroll;
         color: #193441;
         .content {
             padding: 2rem 4rem;

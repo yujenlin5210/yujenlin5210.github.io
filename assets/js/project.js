@@ -29,6 +29,7 @@ function showModal(url) {
     // }, false);
     
     $("#project-modal").addClass("is-active");
+    // $("#project-modal-content").css("overflow", "auto");
     
     $("#project-modal-content").load(url);
 }
@@ -37,6 +38,7 @@ function closeModal(id) {
     $('html').removeClass('is-clipped');
     // $('html, body').off('touchmove');
     $("#"+id).removeClass("is-active");
+    // $("#project-modal-content").css("overflow", "hidden");
 }
 
 $(document).ready(function () {
@@ -48,6 +50,7 @@ $(document).ready(function () {
             closeModal(event.state.id);
         } else if (event.state.action === 1) {
             showModal(event.state.url);
+            current_id = event.state.id;
         }
     };
 });
