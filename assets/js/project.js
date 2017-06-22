@@ -7,7 +7,7 @@ function onProjectClick(url, id="project-modal") {
         action: 1,
         url: url,
         id: id
-    }, document.getElementsByTagName("title")[0].innerHTML, "#noback");
+    }, $.trim(document.getElementsByTagName("title")[0].innerHTML), "");
 }
 
 function onCloseClick() {
@@ -15,9 +15,8 @@ function onCloseClick() {
     history.pushState({
         action: 0,
         id: current_id
-    }, document.getElementsByTagName("title")[0].innerHTML, "");
+    }, $.trim(document.getElementsByTagName("title")[0].innerHTML), "");
     current_id = "";
-    
 }
 
 function showModal(url) {
@@ -36,7 +35,7 @@ function showModal(url) {
     // force redraw, fix bug on mac/safari
     setTimeout(function(){
         $('#project-modal').hide().show(0);
-    }, 200);
+    }, 500);
 }
 
 function closeModal(id) {
