@@ -82,14 +82,23 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
         padding-left: 2rem;
         padding-right: 2rem; 
         padding-bottom: 1rem;
+        @include mobile {
+            padding: 2rem 1rem 0.5rem;
+        }
         .modal-card-title {
             color: #FCFFF5;
             font-size: $size-1;
+            @include mobile {
+                font-size: $size-3;
+            }
         }
         .modal-card-subtitle {
             color: #E3E3E3;
             font-size: $size-4;
             text-transform: none;
+            @include mobile {
+                font-size: $size-5;
+            }
         }
         a.links {
             text-decoration: underline;

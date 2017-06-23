@@ -1,6 +1,6 @@
 ---
 layout: project-page
-title: Social Sensory Architectures
+title: Social Sensory Architecture
 categories: project
 slogan: Designed for gradations of touch and pressure sensitive input
 description: A research project led by Prof. Sean Ahlquist at the University of Michigan to design technology-embedded multi-sensory environments for children with autism spectrum disorder.
