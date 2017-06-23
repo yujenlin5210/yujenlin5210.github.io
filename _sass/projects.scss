@@ -161,6 +161,12 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
                 padding: 1rem;
             }
         }
+        @include mobile {
+        .column {
+            padding-left: 0;
+            padding-right: 0;
+        }
+    }
     }
     
     .modal-card-foot {
