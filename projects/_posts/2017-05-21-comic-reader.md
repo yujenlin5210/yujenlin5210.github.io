@@ -32,7 +32,7 @@ Comic Reader is an open source project based on Electron. It is under <a href="h
   </div>
   <div class="column">
     <figure class="image">
-      <img src="/assets/images/projects/comic-reader/ex01.png">
+      <img src="/assets/images/projects/comic-reader/ex01.png" alt="Comic Reader - Search View">
     </figure>
   </div>
 </section>
@@ -46,7 +46,7 @@ Comic Reader is an open source project based on Electron. It is under <a href="h
   </div>
   <div class="column">
     <figure class="image">
-      <img src="/assets/images/projects/comic-reader/ex02.png">
+      <img src="/assets/images/projects/comic-reader/ex02.png" alt="Comic Reader - Favorite View">
     </figure>
   </div>
 </section>
@@ -60,7 +60,7 @@ Comic Reader is an open source project based on Electron. It is under <a href="h
   </div>
   <div class="column">
     <figure class="image">
-      <img src="/assets/images/projects/comic-reader/ex03.png">
+      <img src="/assets/images/projects/comic-reader/ex03.png" alt="Comic Reader - Read View">
     </figure>
   </div>
 </section>
@@ -75,7 +75,7 @@ Comic Reader is an open source project based on Electron. It is under <a href="h
   </div>
   <div class="column">
     <figure class="image">
-      <img src="/assets/images/projects/comic-reader/dailyusers.png">
+      <img src="/assets/images/projects/comic-reader/dailyusers.png" alt="Comic Reader - Daily Users Chart">
     </figure>
   </div>
 </section>
@@ -88,7 +88,7 @@ Comic Reader is an open source project based on Electron. It is under <a href="h
   </div>
   <div class="column">
     <figure class="image" style="max-width:300px; margin: 0 auto;">
-      <img src="/assets/images/projects/comic-reader/retained_users.png">
+      <img src="/assets/images/projects/comic-reader/retained_users.png" alt="Comic Reader - Retained Users Chart">
     </figure>
   </div>
 </section>
@@ -101,7 +101,7 @@ Comic Reader is an open source project based on Electron. It is under <a href="h
   </div>
   <div class="column">
     <figure class="image" style="max-width:300px; margin: 0 auto;">
-      <img src="/assets/images/projects/comic-reader/os.png">
+      <img src="/assets/images/projects/comic-reader/os.png" alt="Comic Reader - OS Chart">
     </figure>
   </div>
 </section>
@@ -111,7 +111,7 @@ The app follows <a href="https://www.objc.io/issues/13-architecture/mvvm/">Model
 <section class="box">
 <h3>MVVM Design Pattern</h3>
 <figure class="image">
-  <img src="https://camo.githubusercontent.com/6e48eaf7e59b8eed3a9436563e9d6b638bea20bb/687474703a2f2f692e696d6775722e636f6d2f556a6d396d36582e706e67">
+  <img src="https://camo.githubusercontent.com/6e48eaf7e59b8eed3a9436563e9d6b638bea20bb/687474703a2f2f692e696d6775722e636f6d2f556a6d396d36582e706e67" alt="Comic Reader - MVVM Structure">
 </figure>
 </section>
 <!--</div>-->
