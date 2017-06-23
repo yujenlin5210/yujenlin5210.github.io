@@ -87,7 +87,7 @@ Comic Reader is an open source project based on Electron. It is under <a href="h
     </div>
   </div>
   <div class="column">
-    <figure class="image" style="max-width:300px">
+    <figure class="image" style="max-width:300px; margin: 0 auto;">
       <img src="/assets/images/projects/comic-reader/retained_users.png">
     </figure>
   </div>
@@ -100,7 +100,7 @@ Comic Reader is an open source project based on Electron. It is under <a href="h
     </div>
   </div>
   <div class="column">
-    <figure class="image" style="max-width:300px">
+    <figure class="image" style="max-width:300px; margin: 0 auto;">
       <img src="/assets/images/projects/comic-reader/os.png">
     </figure>
   </div>
