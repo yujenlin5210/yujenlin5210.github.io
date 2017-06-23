@@ -7,7 +7,7 @@ description: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis conse
 folder: magic_table
 cover: cover.jpg
 title-cover: cover-title.jpg
-tags: [project-feature, Tangible Interaction, Multi-touch Table, Computer Vision, OpenFrameworks, Unity3D, Projection Mapping]
+tags: [project-feature, Multi-touch Table, Computer Vision, OpenFrameworks, Projection Mapping]
 ---
 Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras nec lorem justo. Nulla ac ex mauris. In diam elit, malesuada
     at accumsan ut, semper auctor turpis. Etiam sed mauris quis mi condimentum imperdiet ut ut ligula. Sed malesuada orci

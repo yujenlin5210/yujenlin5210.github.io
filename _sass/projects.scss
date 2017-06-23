@@ -43,6 +43,16 @@
             background-color: #f5f5ff;
         }
     }
+
+    @include mobile {
+        &.section {
+            padding: 0;
+        }
+        .column {
+            padding-left: 0;
+            padding-right: 0;
+        }
+    }
 }
 $tmpcolor: rgba(200, 200, 255, 1);
 $tmpcolorInvert: findColorInvert($tmpcolor);
@@ -125,6 +135,7 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
             max-height: 2rem;
             min-width: 2rem;
             background-color: black;
+            z-index: 10000;
             &:hover {
                 background-color: #e3e3e3;
                 &::before, &::after {
@@ -147,7 +158,7 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
             background-color: #fcfff5;
             padding: 2rem 4rem;
             @include mobile {
-                padding: 2rem;
+                padding: 1rem;
             }
         }
     }
@@ -196,3 +207,4 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
 .no-box-shadow {
     box-shadow: none;
 }
+
