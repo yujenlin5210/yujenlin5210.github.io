@@ -16,7 +16,7 @@ tags: [project-feature, Kinect, Computer Vision, OpenFrameworks, Unity3D, Projec
     <iframe src="https://www.youtube.com/embed/_-piBtnnZXw" frameborder="0" allowfullscreen></iframe>
 </div>
 <h2>Technology-embedded multi-sensory environments for children with autism spectrum disorder</h2>
-Cotent is excertpted from the principal investigator, <a href="http://www.materialarchitectures.com/social-sensory/">Sean Ahlquist's website</a>:
+Excertpted from the principal investigator, <a href="http://www.materialarchitectures.com/social-sensory/">Sean Ahlquist's website</a>:
 <div class="quote message">
     <div class="message-body">
     <p>Social Sensory Architectures is an on-going research project led by Sean Ahlquist at the University of Michigan to design technology-embedded multi-sensory environments for children with autism spectrum disorder. The research involves the development of therapies which utilize the reinforcing capabilities of a multi-sensory experience for skill-building tasks related to fine/gross motor control and social interaction. Through the use of advanced textile design, sensing technology and bespoke software, complex textile landscapes are transformed into physically, visually and sonically interactive environments. The research was spurred initially by Ahlquist's observations of his daughter Ara, who has  autism along with specific issues such as non-verbal communication, sensory-seeking and hypotonia.</p>
