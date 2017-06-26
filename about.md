@@ -95,6 +95,6 @@ skills:
       - name: Vinyl Cutting | Laser Cutting
       - name: Illustrator | Photoshop
 ---
-<p>Hello, I am Yu-Jen Lin, a software engineer with UX design/research's mind inside. I've worked as a fulltime software engineer in a design agency in Taiwan a couple years where I focused in creating interactable installation for museums and exhibitions. I then got trained in UX deisgn and UX research at University of Michigan. I love making stuff, so a few students and I co-found a makerspace, DOIIIT Studio, at University of Michigan, School of Information to bring make culture to the school.</p>
-<p>I'd like to create interactive installation to give people fun and unforgetable experience. I've interned in Universal Creative and created a short exhibition at the theme park. </p>
+<p>Hello, I am Yu-Jen Lin, a software engineer with UX design/research's mind inside. I've worked as a fulltime software engineer in a design agency in Taiwan a couple years where I focused in creating interactable installation for museums and exhibitions. I then got trained in UX deisgn and UX research at University of Michigan.</p>
+<p>I love making stuff to create interactive installation to give people fun and unforgetable experience. A few students and I co-found a makerspace, DOIIIT Studio, at University of Michigan, School of Information to bring make culture to the school. I've interned in Universal Creative in Summer 2016 and created a short VR exhibition at the theme park. </p>
 <p>Currently, I'm looking for a FULLTIME JOB where I can combine technology and art together to bring magic to our life.</p>
