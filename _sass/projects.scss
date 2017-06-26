@@ -112,6 +112,7 @@ $tmpcolorInvert: findColorInvert($tmpcolor);
         }
         a.links {
             text-decoration: underline;
+            font-size: $size-6;
             &:hover {
                 color: #0088b2
             }

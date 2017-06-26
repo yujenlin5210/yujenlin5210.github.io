@@ -3,88 +3,56 @@ layout: project-page
 title: Bailey's Photobooth
 categories: project
 slogan: Give you a smoother skin
-description: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis consequat, felis vel rutrum finibus, tortor turpis scelerisque eros, et mattis lacus diam at enim.
+description: An art installation photobooth for Bailey's
 folder: baileys
 cover: cover.jpg
 title-cover: cover-title.jpg
 tags: [C++, ActionScripts 3.0, Computer Vision]
 ---
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras nec lorem justo. Nulla ac ex mauris. In diam elit, malesuada
-    at accumsan ut, semper auctor turpis. Etiam sed mauris quis mi condimentum imperdiet ut ut ligula. Sed malesuada orci
-    id maximus porttitor. Maecenas ante mauris, dapibus in sollicitudin sit amet, suscipit at diam. Ut sit amet turpis vitae
-    nulla sagittis vehicula. Ut ut imperdiet leo. Duis convallis erat ut leo congue, nec pretium dolor iaculis. Mauris quis
-    metus iaculis, placerat nisi vel, malesuada dolor. Ut at sagittis neque, ac convallis diam. Donec quis justo metus. Donec
-    non faucibus enim. Nulla blandit consequat eros, nec sollicitudin metus rhoncus ac. Donec tempus neque vitae magna fermentum
-    laoreet. Vivamus congue risus quis diam ornare pretium. Maecenas at sem ante. Lorem ipsum dolor sit amet, consectetur
-    adipiscing elit. Curabitur a eros et enim vehicula scelerisque in nec eros. In lorem tellus, tempus a congue eu, euismod
-    ac nulla. Ut venenatis orci lacus, eu accumsan massa tincidunt ac. Sed laoreet vel sem sit amet eleifend. Donec elementum
-    egestas nunc, vitae fringilla turpis interdum in. Proin id nibh ligula. Class aptent taciti sociosqu ad litora torquent
-    per conubia nostra, per inceptos himenaeos. Vivamus et metus cursus ex convallis faucibus id sit amet metus. Mauris a
-    dolor at nibh porttitor pretium. Quisque a sagittis sapien. Mauris fringilla dolor id erat elementum, ac ultricies nisi
-    bibendum. Duis commodo eu orci ac convallis. Aliquam varius, turpis nec consectetur fermentum, leo sapien malesuada leo,
-    nec euismod tellus dui nec libero. Nullam tincidunt odio a eros faucibus accumsan. Sed tellus odio, feugiat sit amet
-    porttitor non, rhoncus et nisl. Phasellus arcu erat, porttitor non urna sed, volutpat ullamcorper ligula. Donec vitae
-    auctor purus. In luctus tristique sem, ac tincidunt sem venenatis lacinia. Vestibulum ante ipsum primis in faucibus orci
-    luctus et ultrices posuere cubilia Curae; Sed rhoncus mi ex, nec aliquet diam eleifend at. Phasellus porttitor venenatis
-    magna ut iaculis. Proin eu luctus erat. Quisque laoreet tortor vel sapien ornare mollis. In blandit dolor quam, ut sagittis
-    odio euismod pharetra. Integer ac facilisis eros. Proin convallis convallis nulla, in pulvinar urna feugiat ut. Pellentesque
-    feugiat dui vel blandit venenatis. Nunc non dictum sapien. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras
-    nec lorem justo. Nulla ac ex mauris. In diam elit, malesuada at accumsan ut, semper auctor turpis. Etiam sed mauris quis
-    mi condimentum imperdiet ut ut ligula. Sed malesuada orci id maximus porttitor. Maecenas ante mauris, dapibus in sollicitudin
-    sit amet, suscipit at diam. Ut sit amet turpis vitae nulla sagittis vehicula. Ut ut imperdiet leo. Duis convallis erat
-    ut leo congue, nec pretium dolor iaculis. Mauris quis metus iaculis, placerat nisi vel, malesuada dolor. Ut at sagittis
-    neque, ac convallis diam. Donec quis justo metus. Donec non faucibus enim. Nulla blandit consequat eros, nec sollicitudin
-    metus rhoncus ac. Donec tempus neque vitae magna fermentum laoreet. Vivamus congue risus quis diam ornare pretium. Maecenas
-    at sem ante. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur a eros et enim vehicula scelerisque in
-    nec eros. In lorem tellus, tempus a congue eu, euismod ac nulla. Ut venenatis orci lacus, eu accumsan massa tincidunt
-    ac. Sed laoreet vel sem sit amet eleifend. Donec elementum egestas nunc, vitae fringilla turpis interdum in. Proin id
-    nibh ligula. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Vivamus et metus
-    cursus ex convallis faucibus id sit amet metus. Mauris a dolor at nibh porttitor pretium. Quisque a sagittis sapien.
-    Mauris fringilla dolor id erat elementum, ac ultricies nisi bibendum. Duis commodo eu orci ac convallis. Aliquam varius,
-    turpis nec consectetur fermentum, leo sapien malesuada leo, nec euismod tellus dui nec libero. Nullam tincidunt odio
-    a eros faucibus accumsan. Sed tellus odio, feugiat sit amet porttitor non, rhoncus et nisl. Phasellus arcu erat, porttitor
-    non urna sed, volutpat ullamcorper ligula. Donec vitae auctor purus. In luctus tristique sem, ac tincidunt sem venenatis
-    lacinia. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Sed rhoncus mi ex, nec
-    aliquet diam eleifend at. Phasellus porttitor venenatis magna ut iaculis. Proin eu luctus erat. Quisque laoreet tortor
-    vel sapien ornare mollis. In blandit dolor quam, ut sagittis odio euismod pharetra. Integer ac facilisis eros. Proin
-    convallis convallis nulla, in pulvinar urna feugiat ut. Pellentesque feugiat dui vel blandit venenatis. Nunc non dictum
-    sapien. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras nec lorem justo. Nulla ac ex mauris. In diam elit,
-    malesuada at accumsan ut, semper auctor turpis. Etiam sed mauris quis mi condimentum imperdiet ut ut ligula. Sed malesuada
-    orci id maximus porttitor. Maecenas ante mauris, dapibus in sollicitudin sit amet, suscipit at diam. Ut sit amet turpis
-    vitae nulla sagittis vehicula. Ut ut imperdiet leo. Duis convallis erat ut leo congue, nec pretium dolor iaculis. Mauris
-    quis metus iaculis, placerat nisi vel, malesuada dolor. Ut at sagittis neque, ac convallis diam. Donec quis justo metus.
-    Donec non faucibus enim. Nulla blandit consequat eros, nec sollicitudin metus rhoncus ac. Donec tempus neque vitae magna
-    fermentum laoreet. Vivamus congue risus quis diam ornare pretium. Maecenas at sem ante. Lorem ipsum dolor sit amet, consectetur
-    adipiscing elit. Curabitur a eros et enim vehicula scelerisque in nec eros. In lorem tellus, tempus a congue eu, euismod
-    ac nulla. Ut venenatis orci lacus, eu accumsan massa tincidunt ac. Sed laoreet vel sem sit amet eleifend. Donec elementum
-    egestas nunc, vitae fringilla turpis interdum in. Proin id nibh ligula. Class aptent taciti sociosqu ad litora torquent
-    per conubia nostra, per inceptos himenaeos. Vivamus et metus cursus ex convallis faucibus id sit amet metus. Mauris a
-    dolor at nibh porttitor pretium. Quisque a sagittis sapien. Mauris fringilla dolor id erat elementum, ac ultricies nisi
-    bibendum. Duis commodo eu orci ac convallis. Aliquam varius, turpis nec consectetur fermentum, leo sapien malesuada leo,
-    nec euismod tellus dui nec libero. Nullam tincidunt odio a eros faucibus accumsan. Sed tellus odio, feugiat sit amet
-    porttitor non, rhoncus et nisl. Phasellus arcu erat, porttitor non urna sed, volutpat ullamcorper ligula. Donec vitae
-    auctor purus. In luctus tristique sem, ac tincidunt sem venenatis lacinia. Vestibulum ante ipsum primis in faucibus orci
-    luctus et ultrices posuere cubilia Curae; Sed rhoncus mi ex, nec aliquet diam eleifend at. Phasellus porttitor venenatis
-    magna ut iaculis. Proin eu luctus erat. Quisque laoreet tortor vel sapien ornare mollis. In blandit dolor quam, ut sagittis
-    odio euismod pharetra. Integer ac facilisis eros. Proin convallis convallis nulla, in pulvinar urna feugiat ut. Pellentesque
-    feugiat dui vel blandit venenatis. Nunc non dictum sapien. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Cras
-    nec lorem justo. Nulla ac ex mauris. In diam elit, malesuada at accumsan ut, semper auctor turpis. Etiam sed mauris quis
-    mi condimentum imperdiet ut ut ligula. Sed malesuada orci id maximus porttitor. Maecenas ante mauris, dapibus in sollicitudin
-    sit amet, suscipit at diam. Ut sit amet turpis vitae nulla sagittis vehicula. Ut ut imperdiet leo. Duis convallis erat
-    ut leo congue, nec pretium dolor iaculis. Mauris quis metus iaculis, placerat nisi vel, malesuada dolor. Ut at sagittis
-    neque, ac convallis diam. Donec quis justo metus. Donec non faucibus enim. Nulla blandit consequat eros, nec sollicitudin
-    metus rhoncus ac. Donec tempus neque vitae magna fermentum laoreet. Vivamus congue risus quis diam ornare pretium. Maecenas
-    at sem ante. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur a eros et enim vehicula scelerisque in
-    nec eros. In lorem tellus, tempus a congue eu, euismod ac nulla. Ut venenatis orci lacus, eu accumsan massa tincidunt
-    ac. Sed laoreet vel sem sit amet eleifend. Donec elementum egestas nunc, vitae fringilla turpis interdum in. Proin id
-    nibh ligula. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Vivamus et metus
-    cursus ex convallis faucibus id sit amet metus. Mauris a dolor at nibh porttitor pretium. Quisque a sagittis sapien.
-    Mauris fringilla dolor id erat elementum, ac ultricies nisi bibendum. Duis commodo eu orci ac convallis. Aliquam varius,
-    turpis nec consectetur fermentum, leo sapien malesuada leo, nec euismod tellus dui nec libero. Nullam tincidunt odio
-    a eros faucibus accumsan. Sed tellus odio, feugiat sit amet porttitor non, rhoncus et nisl. Phasellus arcu erat, porttitor
-    non urna sed, volutpat ullamcorper ligula. Donec vitae auctor purus. In luctus tristique sem, ac tincidunt sem venenatis
-    lacinia. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia Curae; Sed rhoncus mi ex, nec
-    aliquet diam eleifend at. Phasellus porttitor venenatis magna ut iaculis. Proin eu luctus erat. Quisque laoreet tortor
-    vel sapien ornare mollis. In blandit dolor quam, ut sagittis odio euismod pharetra. Integer ac facilisis eros. Proin
-    convallis convallis nulla, in pulvinar urna feugiat ut. Pellentesque feugiat dui vel blandit venenatis. Nunc non dictum
-    sapien.
+<p>It is an art installation for Bailey's event in Taipei. Our company make a photobooth for them. I implemented a portrait enhanced algorithm for the photobooth.</p>
+<h2>Photos at the exhibition</h2>
+<div class="columns is-multiline">
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/baileys/1.jpg">
+        </figure>
+    </div>
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/baileys/2.jpg">
+        </figure>
+    </div>
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/baileys/5.jpg">
+        </figure>
+    </div>
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/baileys/6.jpg">
+        </figure>
+    </div>
+</div>
+<h2>Portrait Enhanced algorithm's result</h2>
+<div class="columns is-multiline">
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/baileys/7.jpg">
+        </figure>
+    </div>
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/baileys/3.jpg">
+        </figure>
+    </div>
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/baileys/8.jpg">
+        </figure>
+    </div>
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/baileys/4.jpg">
+        </figure>
+    </div>
+</div>
