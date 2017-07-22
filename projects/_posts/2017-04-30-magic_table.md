@@ -1,7 +1,7 @@
 ---
 layout: project-page
 title: Magic Table
-categories: project
+categories: projects
 slogan: Blurring the line between the digital and the physical worlds
 description: Magic Table is aiming for creating an easy-to-use prototype platform for tabletop interaction. It can sense multiple touch inputs as well as fiducial markers for object tracking. The user can also use speech command to interact with it.
 folder: magic_table

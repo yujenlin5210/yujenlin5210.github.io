@@ -1,7 +1,7 @@
 ---
 layout: project-page
 title: Comic Reader
-categories: project
+categories: projects
 slogan: The best way to read comics
 landing-slogan: The best way to read comics
 description: Comic Reader is an open source comics reading app. It supports search and subscription which can let you manage the comics with ease. It displays each episode in a single scrolling page, and automatically adjust the page size to provide maximum reading area. Reading comic can never be this easy.

@@ -1,7 +1,7 @@
 ---
 layout: project-page
 title: Bailey's Photobooth
-categories: project
+categories: projects
 slogan: Give you a smoother skin
 description: An art installation photobooth for Bailey's
 folder: baileys

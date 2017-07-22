@@ -1,7 +1,7 @@
 ---
 layout: project-page
 title: Whisper of the Hear•t
-categories: project
+categories: projects
 slogan: Experience a 2D drawing in a new and immersive way
 description: Whisper of the Hear•t is an immersive sound room that translates a two dimensional painting into a four dimensional representation.
 folder: whisper
