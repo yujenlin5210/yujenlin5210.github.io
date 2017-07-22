@@ -10,7 +10,6 @@ title-cover: cover-title.jpg
 tags: [Kinect, Computer Vision, Unity3D]
 ---
 Most of the paintings in the galleries and museums are prohibited from touching; therefore, it is hard for visual- impaired people to admire an artwork. Whisper of the Hear•t is an immersive sound room that translates a two dimensional painting into a four dimensional representation, 3D space ant time which invites both visual-impaired and sighted people to explore not only the color or shape on the painting, but also the background and technique of the painting. We hope that one day, more people can enjoy those heritages our ancestors left in a more immersive way.
-
 <div class="columns">
     <div class="column">
         <div class="video-container">
@@ -31,3 +30,6 @@ Most of the paintings in the galleries and museums are prohibited from touching;
         </figure>
     </div>
 </div>
+
+<h3>Background Track</h3>
+<iframe style="border: 0; width: 100%; height: 42px;" src="https://bandcamp.com/EmbeddedPlayer/track=3982162663/size=small/bgcol=ffffff/linkcol=0687f5/transparent=true/" seamless><a href="http://pdsoundlab.bandcamp.com/track/ambient">Ambient by PD</a></iframe>
