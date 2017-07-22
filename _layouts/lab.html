@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+{% include html-head.html %}
+
+<body>
+  {% include header.html %}
+  <section class="section feature-projects">
+    <div class="container">
+      <div class="columns">
+        <div class="column main-project">
+          {% for post in site.tags.lab-main %}
+            <div class="card" id="{{ post.folder }}" onclick="onProjectClick('{{ post.url }}', '{{ post.folder }}')">
+              <div class="card-image">
+                <figure class="image">
+                  <img src="{{ site.baseurl }}assets/images/lab/{{ post.folder }}/{{ post.cover }}">
+                </figure>
+              </div>
+              <div class="card-content">
+                <p class="title">
+                  {{ post.title }}
+                </p>
+                <div class="tags">
+                  {% for tag in post.tags %} {% unless tag contains "project-main" or tag contains "project-feature" or tag contains "landing" %}
+                  <span class="tag">{{ tag }}</span> {% endunless %} {% endfor %}
+                </div>
+                <div class="content">
+                  <p>{{ post.description }}</p>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="columns is-multiline">
+        {% for post in site.tags.lab-feature %}
+        <div class="column is-half feature-project">
+            <div class="card" id="{{ post.folder }}" onclick="onProjectClick('{{ post.url }}', '{{ post.folder }}')">
+              <div class="card-image">
+                <figure class="image is-16by9">
+                  <img src="{{ site.baseurl }}assets/images/lab/{{ post.folder }}/{{ post.cover }}">
+                </figure>
+              </div>
+              <div class="card-content">
+                <p class="title">
+                  {{ post.title }}
+                </p>
+                <div class="tags">
+                  {% for tag in post.tags %} {% unless tag contains "project-main" or tag contains "project-feature" or tag contains "landing" %}
+                  <span class="tag">{{ tag }}</span> {% endunless %} {% endfor %}
+                </div>
+                <div class="content">
+                  <p>
+                    {{ post.description }}
+                  </p>
+                </div>
+              </div>
+            </div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="columns is-multiline">
+        {% for post in site.categories.lab %}
+        {% unless post.tags contains "lab-feature" or post.tags contains "lab-main" %}
+        <div class="column is-one-third-desktop is-half-tablet project">
+            <div class="card" id="{{ post.folder }}" onclick="onProjectClick('{{ post.url }}', '{{ post.folder }}')">
+              <div class="card-image">
+                <figure class="image is-16by9">
+                  <img src="{{ site.baseurl }}assets/images/lab/{{ post.folder }}/{{ post.cover }}">
+                </figure>
+              </div>
+              <div class="card-content">
+                <p class="title">
+                  {{ post.title }}
+                </p>
+                <div class="tags">
+                  {% for tag in post.tags %} {% unless tag contains "project-main" or tag contains "project-feature" or tag contains "landing" %}
+                  <span class="tag">{{ tag }}</span> {% endunless %} {% endfor %}
+                </div>
+                <div class="content">
+                  <p>
+                    {{ post.description }}
+                  </p>
+                </div>
+              </div>
+            </div>
+        </div>
+        {% endunless %}
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  <div class="modal" id="project-modal">
+    <div class="modal-background" onclick="onCloseClick()"></div>
+    <section class="modal-card" id="project-modal-content">
+      
+    </section>
+    <!--<button class="modal-close" onclick="closeModal('project-modal')"></button>-->
+  </div>
+  {% include footer.html %} {% include js.html %}
+</body>
+
+</html>
