@@ -97,4 +97,4 @@ skills:
 ---
 <p>Hello, I am Yu-Jen Lin, a software engineer with UX design/research's mind inside. I've worked as a fulltime software engineer in a design agency in Taiwan a couple years where I focused on creating interactable installations for museums and exhibitions. I then got trained in UX design and UX research at University of Michigan.</p>
 <p>I love making stuff to create interactive installations to give people fun and unforgettable experience. A few students and I co-found a maker space, DOIIIT Studio, at University of Michigan, School of Information to bring maker culture to the school. I've interned in Universal Creative in Summer 2016 and created a short VR exhibition at the theme park.</p>
-<p>Currently, I'm looking for a FULLTIME JOB where I can combine technology and art together to bring magic to our life.</p>
+<p>Currently, I'm looking for a FULLTIME JOB where I can combine technology and art together to bring magic to our lives.</p>
