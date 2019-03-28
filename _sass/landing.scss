@@ -130,7 +130,7 @@ body {
         }
     }
     @include mobile {
-        height: 100%;
+        height: auto;
         position: static;
     }
 }
