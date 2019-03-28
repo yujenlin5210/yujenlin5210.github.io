@@ -2,7 +2,7 @@
 layout: about
 title: About
 permalink: /about/
-resume: Yu-Jen_Lin_Resume2017.pdf
+resume: Yu-Jen_Lin_Resume2018.pdf
 edu:
   - name: University of Michigan, School of Information
     role: M.S. in Information | UX Research &amp; Design, Human-Computer Interaction
@@ -15,11 +15,20 @@ edu:
 experience:
   - name: Universal Creative
     url: http://www.nbcunicareers.com/our-businesses/universal-parks-resorts
-    role: Software Engineer Intern
-    time: Orlando, FL | Jun 2016 - Aug 2016 
+    role: Software Developer
+    time: Orlando, FL | Aug 2017 - present
     icon: universalcreative.png
     description:
-      - Prototyped VR and Hololens applications and evaluated the poten- tial of incorporating these future technologies in the theme park 
+      - Design and develop interactive theme park attraction prototypes with a wide range of software and hardware including face tracking, image recognition, skeletal tracking and AR/VR headset
+      - Design and conduct user testing and play testing and consolidate design guidance to help project team making design decision
+      - Develop Universal platforms and tools shared between project teams to minimize the attraction develpment cost
+  - name: Universal Creative
+    url: http://www.nbcunicareers.com/our-businesses/universal-parks-resorts
+    role: Software Developer Intern
+    time: Orlando, FL | Jun 2016 - Aug 2016
+    icon: universalcreative.png
+    description:
+      - Prototyped VR and Hololens applications and evaluated the potential of incorporating these future technologies in the theme park 
       - Ran VR shows in the park which accommodated more than 1500 guests per day
   - name: Tanvas
     url: https://tanvas.co
@@ -97,4 +106,4 @@ skills:
 ---
 <p>Hello, I am Yu-Jen Lin, a software engineer with UX design/research's mind inside. I've worked as a fulltime software engineer in a design agency in Taiwan a couple years where I focused on creating interactable installations for museums and exhibitions. I then got trained in UX design and UX research at University of Michigan.</p>
 <p>I love making stuff to create interactive installations to give people fun and unforgettable experience. A few students and I co-found a maker space, DOIIIT Studio, at University of Michigan, School of Information to bring maker culture to the school. I've interned in Universal Creative in Summer 2016 and created a short VR exhibition at the theme park.</p>
-<p>Currently, I'm looking for a FULLTIME JOB where I can combine technology and art together to bring magic to our lives.</p>
+<p>Currently, I'm at Universal Creative and creating innovative and immersive experiences for our guests.</p>
