@@ -19,9 +19,8 @@
         } 
         ul li {
             list-style-type: circle;
-            list-style-position: inside;
-            text-indent: -1em;
-            padding-left: 1em;
+            list-style-position: outside;
+            margin-left: 1em;
         }
     }
     h2.title {

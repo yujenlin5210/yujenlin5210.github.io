@@ -7,7 +7,7 @@ description: Magic Table is aiming for creating an easy-to-use prototype platfor
 folder: magic_table
 cover: cover.jpg
 title-cover: cover-title.jpg
-tags: [project-feature, Multi-touch Table, Computer Vision, OpenFrameworks, Projection Mapping]
+tags: [project-main, Multi-touch Table, Computer Vision, OpenFrameworks, Projection Mapping]
 ---
 <div class="columns is-gapless">
     <div class="column is-half">

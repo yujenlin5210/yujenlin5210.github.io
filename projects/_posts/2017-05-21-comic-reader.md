@@ -8,7 +8,7 @@ description: Comic Reader is an open source comics reading app. It supports sear
 folder: comic-reader
 cover: comic-reader.png
 title-cover: comic-reader-title.png
-tags: [project-main, landing, Electron, Open Source]
+tags: [project-feature, landing, Electron, Open Source]
 links:
   - text: Official Website
     url: https://yjlintw.github.io/comic-reader

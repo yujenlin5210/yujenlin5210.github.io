@@ -5,6 +5,10 @@ permalink: /about/
 resume: Yu-Jen_Lin_Resume2018.pdf
 edu:
   - name: University of Michigan, School of Information
+    role: Three years of studies in pursuit of PhD (Human-Computer Interaction)
+    time: Ann Arbor, MI | 2015-2017
+    icon: umsi.png
+  - name: University of Michigan, School of Information
     role: M.S. in Information | UX Research &amp; Design, Human-Computer Interaction
     time: Ann Arbor, MI | 2011-2014
     icon: umsi.png
@@ -20,8 +24,8 @@ experience:
     icon: universalcreative.png
     description:
       - Design and develop interactive theme park attraction prototypes with a wide range of software and hardware including face tracking, image recognition, skeletal tracking and AR/VR headset
-      - Design and conduct user testing and play testing and consolidate design guidance to help project team making design decision
-      - Develop Universal platforms and tools shared between project teams to minimize the attraction develpment cost
+      - Design and conduct user testing, define interaction design guidance that help project team making proper design decision
+      - Develop Unity system architecture pipeline, coding guideline and code review process to improve internal codebase’s readability and maintainability
   - name: Universal Creative
     url: http://www.nbcunicareers.com/our-businesses/universal-parks-resorts
     role: Software Developer Intern
