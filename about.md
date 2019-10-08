@@ -56,7 +56,7 @@ proact:
     icon: umsi.png
     time: Ann Arbor, MI | 2015 - 2017
     description: 
-      - Designed lab sections assignments to provide students hands-on experiences associate with lecture material
+      - Designed lab sections assignments that provides students hands-on experiences associate with lecture material
       - Delivered a range of teaching activities including tutorials directed towards the delivery of subjects at both undergraduate and graduate level
   - name: DOIIIT Maker Space @ UMSI
     url: https://doiiit.github.io
@@ -85,6 +85,7 @@ skills:
   - name: Game Engines
     items: 
       - name: Unity3D | C#
+      - name: Unreal | C++
       - name: OpenFrameworks | C++
       - name: Flash | ActionScript 3.0
   - name: Developing
