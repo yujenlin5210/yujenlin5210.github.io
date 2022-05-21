@@ -10,7 +10,7 @@ title-cover: cover-title.jpg
 links:
   - text: Project Website
     url: http://www.materialarchitectures.com/social-sensory/
-tags: [project-feature, Kinect, Computer Vision, OpenFrameworks, Unity3D, Projection Mapping]
+tags: [Kinect, Computer Vision, OpenFrameworks, Unity3D, Projection Mapping]
 ---
 <div class="video-container">
     <iframe src="https://www.youtube.com/embed/_-piBtnnZXw" frameborder="0" allowfullscreen></iframe>
