@@ -2,7 +2,7 @@
 layout: about
 title: About
 permalink: /about/
-resume: Yu-Jen_Lin_Resume2018.pdf
+resume: Yu-Jen_Lin_Resume2022.pdf
 edu:
   - name: University of Michigan, School of Information
     role: Three years of studies in pursuit of PhD (Human-Computer Interaction)
@@ -17,15 +17,24 @@ edu:
     time: Taipei, Taiwan | 2005-2009
     icon: ntu.png
 experience:
+  - name: Meta Platforms, Reality Labs Research
+    url:  https://about.facebook.com/realitylabs/
+    role: Product Design Prototyper
+    time: Redmond, WA | March 2020 - present
+    icon: realitylab.png
+    description: 
+      - Develop prototypes to experientialize a variety of concepts on how VR/AR with AI assistant can create an ultra-low friction future
+      - Work with Research Scientists and Engineers to spin up various internal hardware and software prototypes
+      - Work with User Experience Researchers to develop user study experiences that help us understand human perceptions, product usabilities, and more
   - name: Universal Creative
     url: http://www.nbcunicareers.com/our-businesses/universal-parks-resorts
     role: Software Developer
-    time: Orlando, FL | Aug 2017 - present
+    time: Orlando, FL | Aug 2017 - Jan 2020
     icon: universalcreative.png
     description:
-      - Design and develop interactive theme park attraction prototypes with a wide range of software and hardware including face tracking, image recognition, skeletal tracking and AR/VR headset
-      - Design and conduct user testing, define interaction design guidance that help project team making proper design decision
-      - Develop Unity system architecture pipeline, coding guideline and code review process to improve internal codebase’s readability and maintainability
+      - Designed and developed interactive theme park attraction prototypes with a wide range of software and hardware solutions including face tracking, image recognition, skeletal tracking and AR/VR headset
+      - Designed user studies to define interaction design guidance that help project team making proper design decision
+      - Developed Unity system architecture pipeline, coding guidelines and code review process to improve internal codebase’s readability and maintainability
   - name: Universal Creative
     url: http://www.nbcunicareers.com/our-businesses/universal-parks-resorts
     role: Software Developer Intern
@@ -111,4 +120,4 @@ skills:
 ---
 <p>Hello, I am Yu-Jen Lin, a software engineer with UX design/research's mind inside. I've worked as a fulltime software engineer in a design agency in Taiwan a couple years where I focused on creating interactable installations for museums and exhibitions. I then got trained in UX design and UX research at University of Michigan.</p>
 <p>I love making stuff to create interactive installations to give people fun and unforgettable experience. A few students and I co-found a maker space, DOIIIT Studio, at University of Michigan, School of Information to bring maker culture to the school. I've interned in Universal Creative in Summer 2016 and created a short VR exhibition at the theme park.</p>
-<p>Currently, I'm at Universal Creative creating innovative and immersive experiences for our guests.</p>
+<p>Currently, I'm at Meta Platform's Reality Labs Research creating innovative and immersive experiences in AR/VR and pushing future research directions.</p>
