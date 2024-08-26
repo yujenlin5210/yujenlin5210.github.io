@@ -2,7 +2,7 @@
 layout: about
 title: About
 permalink: /about/
-resume: Yu-Jen_Lin_Resume2022.pdf
+resume: Yu-Jen_Lin_Resume2024.pdf
 edu:
   - name: University of Michigan, School of Information
     role: Three years of studies in pursuit of PhD (Human-Computer Interaction)
@@ -17,10 +17,17 @@ edu:
     time: Taipei, Taiwan | 2005-2009
     icon: ntu.png
 experience:
+  - name: Samsung Research America
+    url:  https://sra.samsung.com/
+    role: UX Engineer Lead
+    time: Remote, WA | June 2024 - Present
+    icon: sra_logo.jpeg
+    description: 
+      - Leading the UX engineering team on a confidential extended reality (XR) project
   - name: Meta Platforms, Reality Labs Research
     url:  https://about.facebook.com/realitylabs/
     role: Product Design Prototyper
-    time: Redmond, WA | March 2020 - present
+    time: Redmond, WA | March 2020 - June 2024
     icon: realitylab.png
     description: 
       - Develop prototypes to experientialize a variety of concepts on how VR/AR with AI assistant can create an ultra-low friction future
