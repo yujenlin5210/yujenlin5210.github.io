@@ -1,0 +1,8 @@
+I"!<div class="flash-container">
+    <object>
+        <param name="flash" value="/assets/swf/time.swf" />
+        <!--[if !IE]>-->
+        <embed src="/assets/swf/time.swf" quality="high" type="application/x-shockwave-flash" scale="default" width="100%" height="100%" />
+    </object>
+</div>
+:ET

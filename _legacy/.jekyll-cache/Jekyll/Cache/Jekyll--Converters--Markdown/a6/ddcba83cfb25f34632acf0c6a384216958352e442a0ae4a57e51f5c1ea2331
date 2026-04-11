@@ -1,0 +1,50 @@
+I"€<p>It is a project for Microsoft Taiwan. At the time Windows 8 just about to release, Microsoft Taiwan would like to promote their newst Operating System Windows 8 at an art festival in Taipei, Taiwan. We, therefore, created this art installation for Microsoft. In the installation, we used an All-In-One windows 8 computer to create an immersive and playable environment. While giving the audience a fun and special moment, they also experienced all of the new highlight features that comes with Windows 8.</p>
+<div class="columns">
+    <div class="column">
+        <div class="video-container">
+        <iframe src="https://www.youtube.com/embed/LB0hnsfK9pw" frameborder="0" webkitallowfullscreen="" mozallowfullscreen="" allowfullscreen=""></iframe>
+        </div>
+    </div>
+</div>
+
+<div class="columns">
+    <div class="column">
+        <figure scr="images">
+            <img src="/assets/images/projects/win8/6.jpg" />
+        </figure>
+    </div>
+</div>
+
+<div class="columns is-multiline">
+<div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/win8/3.jpg" />
+        </figure>
+    </div>
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/win8/5.jpg" />
+        </figure>
+    </div>
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/win8/8.jpg" />
+        </figure>
+    </div>
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/win8/9.jpg" />
+        </figure>
+    </div>
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/win8/10.jpg" />
+        </figure>
+    </div>
+    <div class="column is-half">
+        <figure scr="images">
+            <img src="/assets/images/projects/win8/11.jpg" />
+        </figure>
+    </div>
+</div>
+:ET

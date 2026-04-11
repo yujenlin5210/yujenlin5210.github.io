@@ -1,0 +1,237 @@
+.feature-projects {
+    // background-color: #003;
+    color: #fff;
+    // padding: 0;
+    padding-top: 0;
+    .columns {
+        // margin-bottom: 0;
+    }
+    .column{
+        // padding: 0;
+        // background-color: grey;
+        background-repeat: no-repeat;
+        background-size: cover;
+        background-position: center;
+        &.main-project:first-child {
+            // height: 40rem;
+            padding-top: 0;
+        }
+        &.feature-project, &.project {
+            // height: 25rem;
+            filter: grayscale(100%);
+            transition: 0.5s ease-in-out;
+
+            &:hover {
+                filter: none;
+            }
+            @include mobile {
+                filter: none;
+            }
+        }
+    }
+    .card {
+        box-shadow: none;
+        cursor: pointer;
+        .title {
+            margin-bottom: 0.5rem;
+        }
+        .tags {
+            margin-bottom: 0.5rem;
+        }
+        transition: background-color 0.5s ease-in-out;
+        &:hover {
+            background-color: #f5f5ff;
+        }
+    }
+
+    @include mobile {
+        &.section {
+            padding: 0;
+        }
+        .column {
+            padding-left: 0;
+            padding-right: 0;
+        }
+    }
+}
+$tmpcolor: rgba(200, 200, 255, 1);
+$tmpcolorInvert: findColorInvert($tmpcolor);
+.modal {
+    transition: all 0.2s ease-in-out;
+    transform: scale(0);
+    display: flex;
+    visibility: hidden;
+    &.is-active {
+        transform: scale(1);
+        visibility: visible;
+    }
+}
+.modal-background {
+    background-color: rgba(25, 52, 65, 0.9);
+}
+.modal-content {
+    // min-height: calc(100vh - 40px);
+}
+.modal-card {
+    .header {
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-position: center;
+        border-radius: 0;
+        background-color: #5B7876;
+        margin-bottom: 0;
+        .level-left, .level-item.heading {
+            max-width: 100%;
+        }
+        .level-item.heading{
+            min-height: 20rem;
+            align-items: flex-end;
+            justify-content: flex-start;
+        }
+        padding-top: 2rem;
+        padding-left: 2rem;
+        padding-right: 2rem; 
+        padding-bottom: 1rem;
+        @include mobile {
+            padding: 2rem 1rem 0.5rem;
+        }
+        .modal-card-title {
+            color: #FCFFF5;
+            font-size: $size-1;
+            @include mobile {
+                font-size: $size-3;
+            }
+        }
+        .modal-card-subtitle {
+            color: #E3E3E3;
+            font-size: $size-4;
+            text-transform: none;
+            @include mobile {
+                font-size: $size-5;
+            }
+        }
+        a.links {
+            text-decoration: underline;
+            font-size: $size-6;
+            &:hover {
+                color: #0088b2
+            }
+        }
+        .tags {
+            margin-top: 0.5rem;
+        }
+        .tag {
+            background-color: rgba(255, 255, 255, 0.6);
+            color: #222;
+            margin-left: 0.1rem;
+            margin-bottom: 0.5rem;
+        }
+        // border: 0;
+        .delete {
+            position: absolute;
+            top: 1.25rem;
+            right: 1rem;
+            height: 2rem;
+            width: 2rem;
+            max-height: 2rem;
+            min-width: 2rem;
+            background-color: black;
+            z-index: 10000;
+            &:hover {
+                background-color: #e3e3e3;
+                &::before, &::after {
+                    background-color: #222;
+                }
+            }
+            @include mobile {
+                right: 0.2rem;
+                // right: 0;
+                // top: 0;
+                // position: fixed;
+            }
+        }
+    }
+    .modal-card-body {
+        padding: 0;
+        background-color: #fcfff5;
+        color: #193441;
+        .content {
+            background-color: #fcfff5;
+            padding: 2rem 4rem;
+            @include mobile {
+                padding: 1rem;
+            }
+        }
+        @include mobile {
+        .column {
+            padding-left: 0;
+            padding-right: 0;
+        }
+    }
+    }
+    
+    .modal-card-foot {
+        border-radius: 0;
+        color: #7B9896;
+        width: 100%;
+        // background-color: #5B7876;
+    }
+
+    // min-height: calc(100vh - 40px);
+    @include touch {
+        width: 100vw;
+        // height: 100vh;
+        max-height: 100vh;
+        margin: 0 auto;
+    }
+    @include desktop {
+        width: 960px;
+    }
+    @include widescreen {
+        width: 1152px;
+    }
+    @include fullhd {
+        width: 1344px;
+    }
+
+}
+
+.video-container {
+    position: relative;
+    padding-bottom: 56.25%; /* 16:9 */
+	padding-top: 25px;
+	height: 0;
+    margin-bottom: 1rem;
+    iframe {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+}
+
+.no-box-shadow {
+    box-shadow: none;
+}
+
+.flash-container {
+    position: relative;
+	padding-bottom: 56.25%; /* 16:9 */
+	padding-top: 25px;
+	height: 0;
+    .ratio {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+    object, embed {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+}
+

@@ -1,0 +1,36 @@
+---
+import { getCollection, render } from 'astro:content';
+import Layout from '../../layouts/Layout.astro';
+import { getCoverUrl } from '../../utils/getCoverUrl';
+
+export async function getStaticPaths() {
+  const labs = await getCollection('lab');
+  return labs.map(lab => ({
+    params: { id: lab.id },
+    props: { lab },
+  }));
+}
+
+const { lab } = Astro.props;
+const { Content } = await render(lab);
+const coverUrl = getCoverUrl('lab', lab.data);
+---
+
+<Layout title={`Lab: ${lab.data.title} - Yu-Jen Lin`} description={lab.data.description}>
+  <div class="py-20 flex-grow max-w-4xl mx-auto w-full">
+    <header class="mb-10 text-center">
+      <h1 class="text-3xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-4">{lab.data.title}</h1>
+      {lab.data.description && <p class="text-xl text-slate-500 dark:text-slate-400 font-light">{lab.data.description}</p>}
+    </header>
+    
+    {coverUrl && (
+      <div class="w-full aspect-video rounded-2xl overflow-hidden shadow-2xl mb-12">
+        <img src={coverUrl} alt={lab.data.title} class="w-full h-full object-cover" />
+      </div>
+    )}
+
+    <article class="prose dark:prose-invert prose-indigo mx-auto prose-img:rounded-xl prose-img:shadow-lg">
+      <Content />
+    </article>
+  </div>
+</Layout>

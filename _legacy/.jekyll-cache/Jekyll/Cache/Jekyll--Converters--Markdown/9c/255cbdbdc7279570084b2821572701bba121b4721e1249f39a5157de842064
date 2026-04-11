@@ -1,0 +1,23 @@
+I"<ul>
+  <li>Developed the interactive experience that uses facial features tracking to turn guests into cats and dogs</li>
+</ul>
+<div class="columns">
+    <div class="column">
+        <div class="video-container">
+        <iframe src="https://www.youtube.com/embed/fRYm2maNEBQ" frameborder="0" webkitallowfullscreen="" mozallowfullscreen="" allowfullscreen=""></iframe>
+        </div>
+    </div>
+</div>
+<div class="columns is-multiline">
+    <div class="column is-half">
+        <figure class="image">
+            <img src="/assets/images/projects/pets/interactive.webp" />
+        </figure>
+    </div>
+    <div class="column is-half">
+        <figure class="image">
+            <img src="/assets/images/projects/pets/ridephoto1.jpg" />
+        </figure>
+    </div>
+</div>
+:ET

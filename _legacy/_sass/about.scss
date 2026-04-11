@@ -1,0 +1,40 @@
+.section.bio {
+    background-color: #eee;
+}
+
+.education,.experience, .proact, .awards {
+    .columns {
+        // border-bottom: solid 1px #aaa;
+        // padding: 0 0.5rem;
+        // .level-left, .level-item {
+        //     flex-shrink: 1;
+        // }
+        // .level-item:not(first-child) {
+        //     margin-right: 1.5em;
+        // }
+        div.column {
+            flex-direction: column;
+            justify-content: center;
+            display: flex;
+        } 
+        ul li {
+            list-style-type: circle;
+            list-style-position: outside;
+            margin-left: 1em;
+        }
+    }
+    h2.title {
+        font-size: $size-4;
+        margin-bottom: 0;
+    }
+}
+
+.quote {
+    font-style: italic;
+    white-space: normal;
+}
+.skill {
+    .category {
+        font-size: $size-4;
+    }
+}

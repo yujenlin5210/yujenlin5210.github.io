@@ -1,0 +1,33 @@
+---
+title: "Interactive Web3D Templates"
+date: "2026-04-11"
+description: "A demonstration of embedding native React Three Fiber components and Unity WebGL builds directly within Markdown."
+---
+
+import LabExampleScene from '../../components/LabExampleScene.jsx';
+import UnityEmbed from '../../components/UnityEmbed.astro';
+
+## Native WebGL with React Three Fiber
+
+This is a live native WebGL component built using React Three Fiber. Because we are using MDX, we can simply drop React components directly into our markdown documentation.
+
+Try clicking and dragging to rotate the camera. You can also hover and click on the cube itself to interact with it.
+
+<LabExampleScene client:load height="400px" />
+
+## Embedding Unity WebGL Builds
+
+For more complex game logic or physics simulations that rely heavily on the Unity Engine, you can export your Unity project to WebGL and embed it using the `UnityEmbed` Astro component.
+
+Below is an example of what that embed looks like. *(Note: The `src` here is a placeholder. To embed a real Unity game, you would drop the built WebGL folder into the `public/` directory and set the `src` to the `index.html` file of the build).*
+
+```astro
+<UnityEmbed src="/path/to/your/unity-build/index.html" height="500px" title="My Unity Game" />
+```
+
+<UnityEmbed src="about:blank" height="300px" title="Unity Embed Placeholder" />
+
+## Why a Hybrid Approach?
+
+- **R3F / Three.js**: Ideal for subtle page interactions, UI flourishes, and lightweight physics (using `@react-three/cannon`). It integrates perfectly with your React/Tailwind state.
+- **Unity WebGL**: Perfect for porting existing museum installations, complex VR prototypes, or heavy 3D games where rebuilding in Three.js would be too time-consuming.

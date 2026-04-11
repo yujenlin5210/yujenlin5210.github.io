@@ -1,0 +1,247 @@
+---
+import Layout from '../layouts/Layout.astro';
+import FadeIn from '../components/FadeIn.jsx';
+
+const experience = [
+  {
+    name: "Meta Platforms, Reality Labs Research",
+    url: "https://about.facebook.com/realitylabs/",
+    role: "Product Design Prototyper",
+    time: "Redmond, WA | Oct 2024 - Present",
+    description: [
+      "Developing prototypes to experientialize a variety of concepts on how VR/AR with AI assistants can create an ultra-low friction future.",
+      "Working with Research Scientists and Engineers to spin up various internal hardware and software prototypes."
+    ]
+  },
+  {
+    name: "Samsung Research America",
+    url: "https://sra.samsung.com/",
+    role: "UX Engineer Lead",
+    time: "Remote, WA | June 2024 - Sep 2024",
+    description: [
+      "Led the UX engineering team on a confidential extended reality (XR) project."
+    ]
+  },
+  {
+    name: "Meta Platforms, Reality Labs Research",
+    url: "https://about.facebook.com/realitylabs/",
+    role: "Product Design Prototyper",
+    time: "Redmond, WA | March 2020 - June 2024",
+    description: [
+      "Developed prototypes to experientialize a variety of concepts on how VR/AR with AI assistants can create an ultra-low friction future.",
+      "Worked with Research Scientists and Engineers to spin up various internal hardware and software prototypes.",
+      "Worked with User Experience Researchers to develop user study experiences that helped us understand human perceptions and product usabilities."
+    ]
+  },
+  {
+    name: "Universal Creative",
+    url: "http://www.nbcunicareers.com/our-businesses/universal-parks-resorts",
+    role: "Software Developer",
+    time: "Orlando, FL | Aug 2017 - Jan 2020",
+    description: [
+      "Designed and developed interactive theme park attraction prototypes with a wide range of software and hardware solutions including face tracking, image recognition, skeletal tracking, and AR/VR headsets.",
+      "Designed user studies to define interaction design guidance that helped the project team make proper design decisions.",
+      "Developed Unity system architecture pipeline, coding guidelines, and code review processes to improve the internal codebase’s readability and maintainability."
+    ]
+  },
+  {
+    name: "Universal Creative",
+    url: "http://www.nbcunicareers.com/our-businesses/universal-parks-resorts",
+    role: "Software Developer Intern",
+    time: "Orlando, FL | Jun 2016 - Aug 2016",
+    description: [
+      "Prototyped VR and HoloLens applications and evaluated the potential of incorporating these future technologies in the theme park.",
+      "Ran VR shows in the park which accommodated more than 1500 guests per day."
+    ]
+  },
+  {
+    name: "Tanvas",
+    url: "https://tanvas.co",
+    role: "Software Engineer Intern",
+    time: "Chicago, IL | Jun 2015 - Aug 2015",
+    description: [
+      "Designed Android haptic applications which demoed the surface haptic technology in academic and industrial conferences.",
+      "Designed the preliminary SDK framework for Android developers to communicate with the hardware."
+    ]
+  },
+  {
+    name: "Techart Group",
+    url: "http://www.techartgroup.com",
+    role: "Software Engineer",
+    time: "Taipei, Taiwan | May 2012 - Aug 2013",
+    description: [
+      "Designed UX interaction flows and mockups, and implemented the prototypes into real products.",
+      "Surveyed and implemented state-of-the-art research papers including computer vision and machine learning that suited different projects’ needs."
+    ]
+  }
+];
+
+const education = [
+  {
+    name: "University of Michigan, School of Information",
+    role: "Three years of studies in pursuit of PhD (Human-Computer Interaction)",
+    time: "Ann Arbor, MI | 2015 - 2017"
+  },
+  {
+    name: "University of Michigan, School of Information",
+    role: "M.S. in Information | UX Research & Design, Human-Computer Interaction",
+    time: "Ann Arbor, MI | 2011 - 2014"
+  },
+  {
+    name: "National Taiwan University",
+    role: "B.S. in Electrical Engineering",
+    time: "Taipei, Taiwan | 2005 - 2009"
+  }
+];
+
+const teachingAndLeadership = [
+  {
+    name: "University of Michigan",
+    role: "Teaching Assistant - Python and Web Develop",
+    time: "Ann Arbor, MI | 2015 - 2017",
+    description: [
+      "Designed lab sections assignments that provided students hands-on experiences associated with lecture material.",
+      "Delivered a range of teaching activities including tutorials directed towards the delivery of subjects at both undergraduate and graduate levels."
+    ]
+  },
+  {
+    name: "DOIIIT Maker Space @ UMSI",
+    url: "https://doiiit.github.io",
+    role: "Co-Founder",
+    time: "Ann Arbor, MI | 2014 - 2017",
+    description: [
+      "Setup a hardware space to build up a maker culture in the School of Information.",
+      "Consulted students on projects and coordinated machine tools including laser cutters, 3D-printers, and more."
+    ]
+  }
+];
+
+const skills = [
+  {
+    category: "Game Engines",
+    items: ["Unity3D | C#", "Unreal | C++", "OpenFrameworks | C++", "Flash | ActionScript 3.0"]
+  },
+  {
+    category: "Software Development",
+    items: ["Android | Java", "iOS | Objective-C", "Computer Vision", "Machine Learning"]
+  },
+  {
+    category: "Web & Tools",
+    items: ["HTML5 | CSS3 | SCSS", "Javascript | jQuery", "Electron | Node.js | AngularJS", "Flask | Django", "Jekyll", "Astro | React | Tailwind"]
+  },
+  {
+    category: "Prototyping & Fabrication",
+    items: ["Arduino | Photon", "Rhino 3D | SOLIDWORKS", "3D Printing | CNC-Routing", "Vinyl Cutting | Laser Cutting", "Illustrator | Photoshop"]
+  }
+];
+---
+
+<Layout title="About - Yu-Jen Lin" description="AR/VR developer and UX engineer based in WA.">
+  <section class="py-20 flex-grow max-w-4xl mx-auto w-full">
+    
+    <FadeIn client:visible className="mb-24">
+      <h1 class="text-4xl md:text-6xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-8">About Me</h1>
+      <div class="prose dark:prose-invert prose-indigo prose-xl font-light text-slate-700 dark:text-slate-300 leading-relaxed max-w-none">
+        <p>Hello, I am Yu-Jen Lin, a software engineer with a UX design/research mind. I worked as a full-time software engineer in a design agency in Taiwan for a couple of years where I focused on creating interactive installations for museums and exhibitions. I then trained in UX design and UX research at the University of Michigan.</p>
+        
+        <p>I love making stuff to create interactive installations to give people fun and unforgettable experiences. A few students and I co-founded a maker space, DOIIIT Studio, at the University of Michigan, School of Information to bring maker culture to the school. I interned at Universal Creative and later worked there full-time, creating VR exhibitions and interactive attractions.</p>
+        
+        <p>Currently, I am a Product Design Prototyper at Meta Platform's Reality Labs Research, returning to my original team to create innovative and immersive experiences in AR/VR. Before this, I spent a brief period as a UX Engineer Lead at Samsung Research America after an initial four-year tenure at Meta pushing future research directions.</p>
+      </div>
+
+      <div class="mt-12 flex gap-4">
+        <a href="/assets/docs/about/Yu-Jen_Lin_Resume2024.pdf" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center gap-2 px-8 py-4 bg-indigo-600 text-white font-semibold rounded-full hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/50 hover:-translate-y-0.5 no-underline">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+          Download PDF Resume
+        </a>
+        <a href="https://linkedin.com/in/yujenlin" target="_blank" rel="noopener noreferrer" class="inline-flex items-center justify-center px-8 py-4 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold rounded-full hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all hover:-translate-y-0.5 no-underline">
+          LinkedIn
+        </a>
+      </div>
+    </FadeIn>
+
+    <div class="flex flex-col gap-24 md:gap-32">
+      <FadeIn client:visible delay={0.1}>
+        <div class="flex flex-col md:flex-row gap-8 md:gap-16">
+          <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white w-48 shrink-0">Experience</h2>
+          <div class="flex-grow space-y-10">
+            {experience.map((job) => (
+              <div class="group">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-baseline mb-2">
+                  <h3 class="text-xl font-bold text-slate-900 dark:text-white group-hover:text-indigo-500 transition-colors">
+                    {job.url ? <a href={job.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{job.name}</a> : job.name}
+                  </h3>
+                  <span class="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 md:mt-0">{job.time}</span>
+                </div>
+                <div class="text-lg text-indigo-600 dark:text-indigo-400 font-medium mb-4">{job.role}</div>
+                <ul class="list-disc list-outside ml-5 space-y-2 text-slate-700 dark:text-slate-300 font-light leading-relaxed">
+                  {job.description.map(desc => <li>{desc}</li>)}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </FadeIn>
+
+      <FadeIn client:visible delay={0.1}>
+        <div class="flex flex-col md:flex-row gap-8 md:gap-16">
+          <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white w-48 shrink-0">Education</h2>
+          <div class="flex-grow space-y-6">
+            {education.map((edu) => (
+              <div>
+                <div class="flex flex-col md:flex-row md:justify-between md:items-baseline mb-2">
+                  <h3 class="text-xl font-bold text-slate-900 dark:text-white">{edu.name}</h3>
+                  <span class="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 md:mt-0">{edu.time}</span>
+                </div>
+                <div class="text-lg text-slate-700 dark:text-slate-300 font-light">{edu.role}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </FadeIn>
+
+      <FadeIn client:visible delay={0.1}>
+        <div class="flex flex-col md:flex-row gap-8 md:gap-16">
+          <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white w-48 shrink-0">Leadership & Teaching</h2>
+          <div class="flex-grow space-y-8">
+            {teachingAndLeadership.map((item) => (
+              <div class="group">
+                <div class="flex flex-col md:flex-row md:justify-between md:items-baseline mb-2">
+                  <h3 class="text-xl font-bold text-slate-900 dark:text-white group-hover:text-indigo-500 transition-colors">
+                    {item.url ? <a href={item.url} target="_blank" rel="noopener noreferrer" class="hover:underline">{item.name}</a> : item.name}
+                  </h3>
+                  <span class="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1 md:mt-0">{item.time}</span>
+                </div>
+                <div class="text-lg text-indigo-600 dark:text-indigo-400 font-medium mb-4">{item.role}</div>
+                <ul class="list-disc list-outside ml-5 space-y-2 text-slate-700 dark:text-slate-300 font-light leading-relaxed">
+                  {item.description.map(desc => <li>{desc}</li>)}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      </FadeIn>
+
+      <FadeIn client:visible delay={0.1}>
+        <div class="flex flex-col md:flex-row gap-8 md:gap-16">
+          <h2 class="text-2xl font-bold tracking-tight text-slate-900 dark:text-white w-48 shrink-0">Skills</h2>
+          <div class="flex-grow grid grid-cols-1 md:grid-cols-2 gap-8">
+            {skills.map((skillGroup) => (
+              <div>
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4">{skillGroup.category}</h3>
+                <div class="flex flex-wrap gap-2">
+                  {skillGroup.items.map(item => (
+                    <span class="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-sm font-medium rounded-lg border border-slate-200 dark:border-slate-700">{item}</span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </FadeIn>
+
+    </div>
+  </section>
+</Layout>
+on>
+</Layout>

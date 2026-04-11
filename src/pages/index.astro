@@ -1,0 +1,58 @@
+---
+import Layout from '../layouts/Layout.astro';
+import HeroScene from '../components/HeroScene.jsx';
+import { getCollection } from 'astro:content';
+import { getCoverUrl } from '../utils/getCoverUrl';
+
+const projects = await getCollection('projects');
+const sortedProjects = projects.sort((a, b) => {
+	const dateA = new Date(a.data.date || a.id.slice(0,10));
+	const dateB = new Date(b.data.date || b.id.slice(0,10));
+	return dateB.getTime() - dateA.getTime();
+});
+// Sort by date if we have them, else just take a few
+const featuredProjects = sortedProjects.slice(0, 3);
+---
+
+<Layout title="Yu-Jen Lin - AR/VR & Interactive Design Portfolio">
+	<div class="fixed inset-0 z-0 pointer-events-none w-full h-full opacity-60 dark:opacity-40">
+		<HeroScene client:load />
+	</div>
+
+	<section class="min-h-[70vh] flex flex-col justify-center items-start pt-20 pb-32 relative z-10">
+		<h1 class="text-5xl md:text-7xl font-extrabold tracking-tighter mb-6 text-slate-900 dark:text-white drop-shadow-sm">
+			Interactive <br/><span class="text-indigo-500">Experiences</span>
+		</h1>
+		<p class="text-xl md:text-2xl text-slate-600 dark:text-slate-300 max-w-2xl font-light mb-10 leading-relaxed">
+			Hi, I'm Yu-Jen. I'm an AR/VR prototyper and interactive designer with a background in building engaging theme park attractions and future-facing XR experiences at Meta Reality Labs.
+		</p>
+		<div class="flex gap-4">
+			<a href="/projects" class="px-8 py-3 bg-indigo-600 text-white font-medium rounded-full hover:bg-indigo-700 transition-all shadow-lg hover:shadow-indigo-500/25 cursor-pointer pointer-events-auto">View Work</a>
+			<a href="/about" class="px-8 py-3 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-medium rounded-full hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 transition-all cursor-pointer pointer-events-auto">About Me</a>
+		</div>
+	</section>
+
+	<section class="py-20 border-t border-slate-200 dark:border-slate-800 pointer-events-auto">
+		<div class="flex justify-between items-end mb-10">
+			<h2 class="text-3xl font-bold tracking-tight">Featured Projects</h2>
+			<a href="/projects" class="text-indigo-500 hover:text-indigo-600 font-medium transition-colors">See all &rarr;</a>
+		</div>
+		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+			{featuredProjects.map((project) => {
+				const coverUrl = getCoverUrl('projects', project.data);
+				return (
+				<a href={`/projects/${project.id}`} class="group block relative rounded-2xl overflow-hidden bg-slate-100 dark:bg-slate-900 aspect-video hover:-translate-y-1 hover:shadow-xl transition-all duration-300 border border-transparent hover:border-indigo-500/50">
+					{coverUrl ? (
+						<img src={coverUrl} alt={project.data.title} class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+					) : (
+						<div class="w-full h-full flex items-center justify-center text-slate-400">No Image</div>
+					)}
+					<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+						<h3 class="text-xl font-bold text-white mb-2">{project.data.title}</h3>
+						{project.data.description && <p class="text-slate-200 text-sm line-clamp-2">{project.data.description}</p>}
+					</div>
+				</a>
+			)})}
+		</div>
+	</section>
+</Layout>

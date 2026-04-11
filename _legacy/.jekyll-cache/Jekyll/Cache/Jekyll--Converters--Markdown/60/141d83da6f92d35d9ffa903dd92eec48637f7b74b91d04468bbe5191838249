@@ -1,0 +1,26 @@
+I"š<p>This is our EECS 594 Computer Visionâ€™s final project. This paper studies recent development in face alignment. We summarize and critique three regression based face alignment algorithms. We also implement the supervised descent method. Our implementation of the algorithm reproduces its experiments on both image and video data and achieves comparable result to the one reported.</p>
+
+<div class="columns">
+    <div class="column">
+        <div class="video-container">
+            <iframe src="https://www.youtube.com/embed/JCIR_BmhGfY" frameborder="0" webkitallowfullscreen="" mozallowfullscreen="" allowfullscreen=""></iframe>
+        </div>
+        <p>* The algorithm can run in real-time. The bottle neck of the demo in this video is due to the video decoding algorithm we used.</p>
+    </div>
+</div>
+<h2>Results</h2>
+<div class="columns">
+    <div class="column">
+        <figure class="images">
+            <img src="/assets/images/projects/sdm/3.png" />
+        </figure>
+    </div>
+</div>
+<div class="columns">
+    <div class="column">
+        <figure class="images">
+            <img src="/assets/images/projects/sdm/4.png" />
+        </figure>
+    </div>
+</div>
+:ET

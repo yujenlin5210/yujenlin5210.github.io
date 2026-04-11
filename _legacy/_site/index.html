@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- SEO -->
+  <meta name="description" content="Yu-Jen Lin's portfolio site
+">
+  <meta name="keyword" content="portfolio site, interaction designer, maker, software engineer">
+  <meta name="subject" content="portfolio site">
+  <meta name="author" content="Yu-Jen Lin">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="http://localhost:4000">
+  <meta property="og:title" content="
+    
+      Home | Yu-Jen Lin
+    
+  ">
+  <meta property="og:image" content="http://localhost:4000/assets/images/meta.png">
+  <meta property="og:description" content="Yu-Jen Lin's portfolio site
+">
+  <meta property="og:site_name" content="Yu-Jen Lin">
+  <title>
+    
+      Home | Yu-Jen Lin
+    
+  </title>
+  <!-- Favicon -->
+  <link rel="shortcut icon" href="/assets/images/favicon.png">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="/assets/css/main.css">
+  
+  
+
+  <!-- JS -->
+
+</head>
+
+<body>
+  <header>
+    <nav class="nav">
+        <div class="container">
+            <div class="nav-left">
+                <a class="nav-item
+                 is-active
+                " href="/">
+                    Yu-Jen Lin
+                </a>
+                <a class="nav-item 
+                " href="/about">About</a>
+                <a class="nav-item " href="/projects">Projects</a>
+                <a class="nav-item " href="/lab">Lab</a>
+                <!--<a class="nav-item" href="#">Lab</a>-->
+            </div>
+        </div>
+    </nav>
+</header>
+
+  <!--<section class="section landing is-flex" style="background-image: url('/assets/images/landing/landing.jpg')">-->
+  <section class="section landing is-flex">
+    <div id="canvas-container">
+      <canvas id="canvas"></canvas>
+    </div>
+    <div class="container">
+      <section class="sections slogan">
+        <div>
+          I'm a software engineer<br> who designs interactive things<br>to make life<br>fun and simple
+        </div>
+      </section>
+      <section class="section feature-posts">
+        <!--<div class="container">-->
+          <div class="columns">
+            
+            <div class="column">
+                <div class="column-cover" id="bsv" style="background-image: url('/assets/images/projects/bsv/cover.png')" onclick="onProjectClick('/projects/2023/08/01/bsv.html', 'bsv')">
+                  <p class="title">
+                    Retinal-Resolution Varifocal VR 
+                  </p>
+                  <p class="description">
+                    Bringing seamless, eye-focused clarity to virtual reality
+                  </p>
+                </div>
+            </div>
+            
+            <div class="column">
+                <div class="column-cover" id="retina-resolution" style="background-image: url('/assets/images/projects/retina-resolution/cover.jpg')" onclick="onProjectClick('/projects/2021/10/01/retinaresolution-copy.html', 'retina-resolution')">
+                  <p class="title">
+                    Retina Resolution Prototype 
+                  </p>
+                  <p class="description">
+                    VR display as clear as your eyes
+                  </p>
+                </div>
+            </div>
+            
+            <div class="column">
+                <div class="column-cover" id="pets" style="background-image: url('/assets/images/projects/pets/cover.jpg')" onclick="onProjectClick('/projects/2019/02/01/pets.html', 'pets')">
+                  <p class="title">
+                    The Secret Life of Pets: Off the Leash 
+                  </p>
+                  <p class="description">
+                    Transforms guests into adorable kittens and puppies
+                  </p>
+                </div>
+            </div>
+            
+            <div class="column">
+                <div class="column-cover" id="dream2" style="background-image: url('/assets/images/projects/dream2/cover.jpg')" onclick="onProjectClick('/projects/2013/08/07/dream2.html', 'dream2')">
+                  <p class="title">
+                    A Dream Journey in Taipei 
+                  </p>
+                  <p class="description">
+                    An award-winning museum exhibition
+                  </p>
+                </div>
+            </div>
+            
+          </div>
+        <!--</div>-->
+      </section>
+    </div>
+  </section>
+  <div class="modal" id="project-modal">
+    <div class="modal-background" onclick="onCloseClick()"></div>
+    <section class="modal-card" id="project-modal-content">
+      
+    </section>
+    <!--<button class="modal-close" onclick="closeModal('project-modal')"></button>-->
+  </div>
+  <footer class="footer">
+  <div class="container">
+    <div class="content">
+      <div class="level">
+        <div class="level-left">
+          <div class="level-item">
+            <div>
+              <p>© 2019 Yu-Jen Lin</p>
+            </div>
+            <div>
+              <a href="https://github.com/yjlintw" target="_blank"><span class="icon"><i class="fa fa-github"></i></span></a>
+              <a href="https://www.linkedin.com/in/ yujenlin1" target="_blank"><span class="icon"><i class="fa fa-linkedin"></i></span></a>
+              <a href="mailto:yjlin5210@gmail.com"><span class="icon"><i class="fa fa-envelope"></i></span></a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</footer> <script src="https://code.jquery.com/jquery-3.2.1.min.js"   integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+<script src="/assets/js/main.js"></script>
+
+<script src="/assets/js/osc.js"></script>
+
+<script src="/assets/js/project.js"></script>
+
+
+</body>
+
+</html>
