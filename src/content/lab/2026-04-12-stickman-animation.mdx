@@ -5,6 +5,7 @@ description: "A deep dive into building an extensible, boundary-aware SVG Stickm
 ---
 
 import StickmanPreview from '../../components/StickmanPreview.jsx';
+import StickmanInteractivePreview from '../../components/StickmanInteractivePreview.jsx';
 
 In this lab session, we explore the engineering behind the interactive Stickman companion that roams the bottom of the screen. We wanted to build a character that felt alive, reacted to the page content, and was easily extensible for future projects.
 
@@ -40,3 +41,6 @@ Certain animations require the Stickman to wear or interact with objects. We imp
 ## Graceful Interruptions
 
 Navigating through the site means the Stickman frequently needs to switch contexts. Our internal state machine intercepts changes to the active animation ID. If an action defines an `exit` or `interrupted` phase, the state machine plays that exit sequence before seamlessly transitioning to the new action, preventing jarring cuts or sudden teleportation of limbs.
+e car (or helmet) before changing to the next action!
+
+<StickmanInteractivePreview client:visible />
