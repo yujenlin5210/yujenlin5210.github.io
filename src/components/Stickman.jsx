@@ -1,65 +1,65 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@nanostores/react';
 import { activeProjectId } from '../store/projectStore';
+import { getActiveAction } from './stickman-actions/registry';
+import { WALKING_LEGS, WALKING_ARMS, STANDING_LEGS } from './stickman-actions/utils';
 
 export default function Stickman() {
-  const [posX, setX] = useState(200); // Represents the CENTER of the stickman
+  const [posX, setX] = useState(200);
   const [direction, setDirection] = useState(1);
   const $activeId = useStore(activeProjectId);
 
-  const isVarifocalProject = $activeId === '2023-08-01-bsv';
   const [phase, setPhase] = useState('walking');
   const [isFirstEntry, setIsFirstEntry] = useState(true);
 
-  // Reset logic when scrolling away
+  const action = useMemo(() => getActiveAction($activeId, phase), [$activeId, phase]);
+
   useEffect(() => {
-    if (!isVarifocalProject) {
+    if (action.id === 'idle') {
       setIsFirstEntry(true);
       setPhase('walking');
     }
-  }, [isVarifocalProject]);
+  }, [action.id]);
 
-  // State Machine for Varifocal Cycle
   useEffect(() => {
     let timeout;
-    if (isVarifocalProject) {
+    if (action.id !== 'idle') {
       if (phase === 'walking') {
         if (isFirstEntry) {
           setPhase('stopping');
           setIsFirstEntry(false);
         } else {
-          timeout = setTimeout(() => setPhase('stopping'), 6000);
+          timeout = setTimeout(() => setPhase('stopping'), action.config.walkBreakDuration || 6000);
         }
       } else if (phase === 'stopping') {
-        timeout = setTimeout(() => setPhase('donning'), 600);
-      } else if (phase === 'donning') {
-        timeout = setTimeout(() => setPhase('inspecting'), 1000);
-      } else if (phase === 'inspecting') {
-        timeout = setTimeout(() => setPhase('doffing'), 12000);
-      } else if (phase === 'doffing') {
-        timeout = setTimeout(() => setPhase('walking'), 1500);
+        timeout = setTimeout(() => setPhase(action.config.phases[0].name), action.config.stopDuration || 600);
+      } else {
+        const currentPhaseIdx = action.config.phases.findIndex(p => p.name === phase);
+        if (currentPhaseIdx !== -1) {
+          const currentPhase = action.config.phases[currentPhaseIdx];
+          const nextPhase = action.config.phases[currentPhaseIdx + 1];
+          if (nextPhase) {
+            timeout = setTimeout(() => setPhase(nextPhase.name), currentPhase.duration);
+          } else {
+            timeout = setTimeout(() => setPhase('walking'), currentPhase.duration);
+          }
+        }
       }
     }
     return () => clearTimeout(timeout);
-  }, [isVarifocalProject, phase, isFirstEntry]);
+  }, [$activeId, phase, isFirstEntry, action.id]);
 
   const isActuallyWalking = phase === 'walking';
-  const isInspecting = phase === 'inspecting';
-  const showHeadset = phase === 'donning' || phase === 'inspecting';
-  const showCar = phase === 'inspecting';
 
-  // Boundary-aware Movement
   useEffect(() => {
     const move = () => {
       setX(prev => {
         if (!isActuallyWalking) return prev;
-        
-        const speed = 1.2;
+        const speed = 1.2 * (action.config.speedMultiplier || 1);
         const next = prev + (speed * direction);
-        const margin = 50; 
+        const margin = 50;
         const width = window.innerWidth;
-
         if (next > width - margin) {
           setDirection(-1);
           return width - margin;
@@ -73,31 +73,10 @@ export default function Stickman() {
     };
     const interval = setInterval(move, 16);
     return () => clearInterval(interval);
-  }, [direction, isActuallyWalking]);
+  }, [direction, isActuallyWalking, action.config.speedMultiplier]);
 
   const walkDuration = 0.8;
-  const vDuration = 6;
-  const vTime = [0, 0.35, 0.5, 0.85, 1];
-  
-  // Varifocal Positions - Scaled back for shorter arms (0.8x)
-  const vX = [62, 62, 92, 92, 62]; 
-  const vY = [45, 40, 55, 50, 45];
-
-  const getArmPath = (sX, sY, tX, tY) => {
-    const dx = tX - sX;
-    const dy = tY - sY;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const armLen = 60; // 0.8x of previous 75
-    const bendBase = Math.sqrt(Math.max(0, (armLen * armLen) - (dist * dist))) / 1.5;
-    const minimumBend = 8; 
-    const bend = bendBase + minimumBend;
-    const midX = (sX + tX) / 2;
-    const midY = (sY + tY) / 2;
-    return `M ${sX},${sY} Q ${midX},${midY + bend} ${tX},${tY}`;
-  };
-
-  const walkArmsFront = ["M 35,45 Q 30,60 25,75", "M 35,45 Q 35,60 35,75", "M 35,45 Q 50,60 55,75", "M 35,45 Q 35,60 35,75", "M 35,45 Q 30,60 25,75"];
-  const walkArmsBack = ["M 25,45 Q 30,60 35,75", "M 25,45 Q 25,60 25,75", "M 25,45 Q 10,60 5,75", "M 25,45 Q 25,60 25,75", "M 25,45 Q 30,60 35,75"];
+  const limbs = action.getLimbs();
 
   return (
     <div className="fixed bottom-0 left-0 w-full h-32 pointer-events-none z-[100] overflow-visible">
@@ -114,100 +93,67 @@ export default function Stickman() {
           style={{ originX: "30px" }}
           transition={{ duration: 0.3 }}
         >
-          {/* Person Group - Vertical bounce ONLY when walking */}
+          {/* Main Person Group - Bobbing only when walking */}
           <motion.g
             animate={isActuallyWalking ? { y: [0, -4, 0] } : { y: 0 }}
             transition={{ duration: walkDuration / 2, repeat: isActuallyWalking ? Infinity : 0, ease: "easeInOut" }}
           >
             {/* Body */}
-            <rect x="18" y="30" width="24" height="45" rx="12" fill="white" stroke="currentColor" strokeWidth="2.5" className="dark:fill-slate-950 text-slate-700 dark:text-slate-300" />
+            {!action.config.hideBody && (
+              <rect x="18" y="30" width="24" height="45" rx="12" fill="white" stroke="currentColor" strokeWidth="2.5" className="dark:fill-slate-950 text-slate-700 dark:text-slate-300" />
+            )}
             
             {/* Head Group */}
             <motion.g 
-              style={{ x: 30, y: 18 }}
-              animate={isInspecting ? { rotate: [10, 0, 20, 15, 10] } : { rotate: [-5, 5, -5] }}
-              transition={isInspecting ? { duration: vDuration, times: vTime, repeat: Infinity, ease: "easeInOut" } : { duration: 4, repeat: Infinity, ease: "easeInOut" }}
+              key={`head-${action.id}`}
+              style={{ x: 30 }}
+              animate={limbs?.head ? { y: 18, ...limbs.head } : { y: 18, rotate: [-5, 5, -5] }}
+              transition={limbs?.head?.transition || { 
+                y: { duration: 0.5 },
+                rotate: { duration: 4, repeat: Infinity, ease: "easeInOut" }
+              }}
             >
               <circle cx="0" cy="0" r="16" fill="white" stroke="currentColor" strokeWidth="2.5" className="dark:fill-slate-950 text-slate-700 dark:text-slate-300" />
-              
-              <AnimatePresence mode='wait'>
-                {!showHeadset && (
-                  <motion.circle 
-                    key="eye"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    cx="8" cy="-2" r="1.5" fill="currentColor" className="text-slate-700 dark:text-slate-300" 
-                  />
-                )}
-                {showHeadset && (
-                  <motion.g 
-                    key="headset"
-                    initial={{ y: -20, opacity: 0 }}
-                    animate={{ y: -8, opacity: 1 }}
-                    exit={{ y: -20, opacity: 0 }}
-                    style={{ x: -2 }}
-                  >
-                    <rect x="0" y="0" width="22" height="16" rx="4" fill="white" stroke="currentColor" strokeWidth="2.5" className="dark:fill-slate-900" />
-                    <path d="M 0,8 Q -10,8 -15,5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-                  </motion.g>
-                )}
-              </AnimatePresence>
+              {!action.config.showHeadset && (
+                <circle cx="8" cy="-2" r="1.5" fill="currentColor" className="text-slate-700 dark:text-slate-300" />
+              )}
+              {action.renderHeadAssets?.()}
             </motion.g>
 
             {/* Arms */}
-            <motion.path
-              animate={isInspecting ? { d: vX.map((x, i) => getArmPath(25, 45, x, vY[i])) } : (!isActuallyWalking ? { d: "M 25,45 Q 25,60 25,75" } : { d: walkArmsBack })}
-              transition={isInspecting ? { duration: vDuration, times: vTime, repeat: Infinity, ease: "easeInOut" } : { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
-              fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-slate-400 dark:text-slate-500 opacity-50"
-            />
-            <motion.path
-              animate={isInspecting ? { d: vX.map((x, i) => getArmPath(35, 45, x, vY[i])) } : (!isActuallyWalking ? { d: "M 35,45 Q 35,60 35,75" } : { d: walkArmsFront })}
-              transition={isInspecting ? { duration: vDuration, times: vTime, repeat: Infinity, ease: "easeInOut" } : { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
-              fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-slate-700 dark:text-slate-300" />
+            {!action.config.hideArms && (
+              <>
+                <motion.path
+                  animate={limbs?.arms?.back || (isActuallyWalking ? { d: WALKING_ARMS.back } : { d: "M 25,45 Q 25,60 25,75" })}
+                  transition={limbs?.arms?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
+                  fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-slate-400 dark:text-slate-500 opacity-50"
+                />
+                <motion.path
+                  animate={limbs?.arms?.front || (isActuallyWalking ? { d: WALKING_ARMS.front } : { d: "M 35,45 Q 35,60 35,75" })}
+                  transition={limbs?.arms?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
+                  fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-slate-700 dark:text-slate-300" />
+              </>
+            )}
 
-            {/* F1 Toy Car - Synchronized and properly positioned */}
-            <motion.g
-              animate={{ 
-                opacity: showCar ? 1 : 0,
-                scale: showCar ? 1 : 0.5,
-                x: showCar ? vX : 70,
-                y: showCar ? vY : 80 
-              }}
-              transition={{ 
-                opacity: { duration: 0.4 },
-                scale: { duration: 0.4 },
-                x: showCar ? { duration: vDuration, times: vTime, repeat: Infinity, ease: "easeInOut" } : { duration: 0.4 },
-                y: showCar ? { duration: vDuration, times: vTime, repeat: Infinity, ease: "easeInOut" } : { duration: 0.4 }
-              }}
-            >
-              <g transform="rotate(-45) translate(-22, -12) scale(0.7)">
-                <path d="M 0,10 L 10,10 L 15,5 L 25,5 L 35,8 L 45,8 L 45,12 L 0,12 Z" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-700 dark:text-slate-300" />
-                <path d="M 0,10 L 0,5 L 5,5" fill="none" stroke="currentColor" strokeWidth="2" />
-                <path d="M 40,12 L 50,12" fill="none" stroke="currentColor" strokeWidth="2" />
-                <circle cx="8" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
-                <circle cx="38" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
-              </g>
-            </motion.g>
+            {/* Custom Action Assets (Body level) */}
+            {action.renderAssets()}
           </motion.g>
 
-          {/* LEGS Group - No vertical bobbing, always grounded */}
-          <g>
-            <motion.path
-              animate={isActuallyWalking ? { 
-                d: ["M 25,75 Q 15,85 10,100", "M 25,75 Q 25,85 25,100", "M 25,75 Q 35,85 40,100", "M 25,75 Q 25,85 25,100", "M 25,75 Q 15,85 10,100"] 
-              } : { d: "M 25,75 L 25,100" }}
-              transition={{ duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
-              fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-slate-400 dark:text-slate-500 opacity-50"
-            />
-            <motion.path
-              animate={isActuallyWalking ? { 
-                d: ["M 35,75 Q 45,85 50,100", "M 35,75 Q 35,85 35,100", "M 35,75 Q 25,85 20,100", "M 35,75 Q 35,85 35,100", "M 35,75 Q 45,85 50,100"] 
-              } : { d: "M 35,75 L 35,100" }}
-              transition={{ duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
-              fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-slate-700 dark:text-slate-300"
-            />
-          </g>
+          {/* LEGS Group - No vertical bobbing, always grounded at y=100 */}
+          {!action.config.hideLegs && (
+            <g>
+              <motion.path
+                animate={isActuallyWalking ? { d: WALKING_LEGS.back } : { d: STANDING_LEGS.back }}
+                transition={{ duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
+                fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-slate-400 dark:text-slate-500 opacity-50"
+              />
+              <motion.path
+                animate={isActuallyWalking ? { d: WALKING_LEGS.front } : { d: STANDING_LEGS.front }}
+                transition={{ duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
+                fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-slate-700 dark:text-slate-300"
+              />
+            </g>
+          )}
         </motion.svg>
       </motion.div>
     </div>

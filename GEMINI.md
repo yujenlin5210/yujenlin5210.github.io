@@ -36,6 +36,11 @@ We have successfully rebuilt the portfolio website using a modern stack to suppo
     - Shared state management using `nanostores` to track the active project during scroll.
     - SVG-based line art that fluidly morphs between themes (e.g., VR Headset for *Retina/Varifocal*, Kart for *Mario Kart*) using `framer-motion`.
     - Added a "hand-drawn" shaky animation loop to the illustrations for a playful cartoon-ish feel.
+  - Refactored the **Stickman Animation System** for future extensibility:
+    - Decoupled core movement and boundary logic from project-specific animations.
+    - Implemented a **Plug-and-Play Action Registry** (`src/components/stickman-actions/`).
+    - Added a new **Mario Kart Steering Animation** alongside the existing Varifocal inspection routine.
+    - Improved robustness with standardized "Rubber Hose" limb math and isolated bobbing logic.
   - Verified Markdown rendering and successful compilation using `npm run build`.
 
 ## Next Steps
