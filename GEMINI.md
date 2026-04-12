@@ -27,6 +27,11 @@ We have successfully rebuilt the portfolio website using a modern stack to suppo
   - Overhauled the `About` page with a modern animated layout and updated work experience timeline.
   - Fixed z-index layering on the Home page to ensure main navigation buttons remain clickable above the 3D scene.
   - Corrected sorting logic across `Projects` and `Home` views so the newest projects accurately appear first.
+  - Implemented two "WOW" project layout variations for comparison:
+    - **Option 1: Cinematic Scroll** (`/projects-v1`): Large, full-width storytelling sections with parallax effects. (Updated: Animations now repeat on every scroll).
+    - **Option 2: Interactive Tilt Grid** (`/projects-v2`): 2-column staggered grid with 3D mouse-tilt and dynamic glow tracking.
+  - Enhanced project storytelling by adding metadata (Organization, Role, Year) to markdown frontmatter and displaying it in the Cinematic Scroll and Home grid.
+  - Replaced generic "Project 01" indices with high-signal context (e.g., "2023 • Meta Reality Labs") to improve professional value for recruiters.
   - Verified Markdown rendering and successful compilation using `npm run build`.
 
 ## Next Steps

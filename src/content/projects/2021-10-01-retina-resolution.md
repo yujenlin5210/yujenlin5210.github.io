@@ -6,6 +6,8 @@ slogan: VR display as clear as your eyes
 landing-slogan: VR display as clear as your eyes
 description: Retina Resolution Prototype is a Time Machine project help us look into the future where VR display has enough pixel density that it meets the resolving power of the human eye.
 folder: retina-resolution
+organization: Meta Reality Labs
+role: Product Design Prototyper
 cover: cover.jpg
 title-cover: title.jpg
 tags: [project-main, landing, Research, Unity3D, VR]

@@ -5,6 +5,8 @@ categories: projects
 slogan: Give you a smoother skin
 description: An art installation photobooth for Bailey's
 folder: baileys
+organization: Techart Group
+role: Software Engineer
 cover: cover.jpg
 title-cover: cover-title.jpg
 tags: [C++, ActionScripts 3.0, Computer Vision]

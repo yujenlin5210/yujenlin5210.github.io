@@ -2,6 +2,7 @@
 import { getCollection, render } from 'astro:content';
 import Layout from '../../layouts/Layout.astro';
 import { getCoverUrl } from '../../utils/getCoverUrl';
+import { filterTags } from '../../utils/filterTags';
 
 export async function getStaticPaths() {
   const projects = await getCollection('projects');
@@ -14,14 +15,35 @@ export async function getStaticPaths() {
 const { project } = Astro.props;
 const { Content } = await render(project);
 const coverUrl = getCoverUrl('projects', project.data);
+const cleanTags = filterTags(project.data.tags);
 ---
 
 <Layout title={`${project.data.title} - Yu-Jen Lin`} description={project.data.description}>
   <article class="py-20 flex-grow max-w-3xl mx-auto w-full prose dark:prose-invert prose-indigo prose-img:rounded-xl prose-img:shadow-lg prose-headings:tracking-tight">
     {coverUrl && <img src={coverUrl} alt={project.data.title} class="w-full aspect-video object-cover rounded-2xl mb-8 shadow-xl" />}
     <header class="mb-12 border-b border-slate-200 dark:border-slate-800 pb-8">
+      <div class="flex items-center gap-3 text-indigo-500 font-mono text-sm tracking-widest uppercase font-bold mb-4">
+        <span>{project.data.date ? new Date(project.data.date).getFullYear() : project.id.slice(0, 4)}</span>
+        {project.data.organization && (
+          <>
+            <span class="w-1 h-1 bg-indigo-500 rounded-full"></span>
+            <span>{project.data.organization}</span>
+          </>
+        )}
+      </div>
       <h1 class="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white mb-4 !mt-0">{project.data.title}</h1>
-      {project.data.description && <p class="text-xl text-slate-500 dark:text-slate-400 font-light !mb-0">{project.data.description}</p>}
+      {project.data.role && (
+        <p className="text-indigo-600 dark:text-indigo-400 font-medium text-xl mb-4">{project.data.role}</p>
+      )}
+      {project.data.description && <p class="text-xl text-slate-500 dark:text-slate-400 font-light !mb-6">{project.data.description}</p>}
+      
+      <div class="flex flex-wrap gap-2 not-prose">
+        {cleanTags.map((tag) => (
+          <span class="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-[10px] uppercase tracking-widest text-slate-600 dark:text-slate-400 font-bold border border-slate-200 dark:border-slate-700">
+            {tag}
+          </span>
+        ))}
+      </div>
     </header>
     <div class="content font-light leading-relaxed text-slate-700 dark:text-slate-300">
       <Content />
