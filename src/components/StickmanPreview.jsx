@@ -144,7 +144,10 @@ export default function StickmanPreview({ animationId = 'idle' }) {
   return (
     <div 
       ref={containerRef} 
-      className="relative w-full h-48 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-hidden my-8 border border-slate-200 dark:border-slate-800"
+      className={variant === 'inline' 
+        ? "relative w-full h-48 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-hidden my-8 border border-slate-200 dark:border-slate-800"
+        : "relative w-full h-48 overflow-hidden"
+      }
     >
       <div className="absolute bottom-10 w-full h-[1px] bg-slate-300 dark:bg-slate-700 opacity-50" />
       
