@@ -1,0 +1,42 @@
+---
+title: "Architecting a Modular Stickman Animation System"
+date: "2026-04-12"
+description: "A deep dive into building an extensible, boundary-aware SVG Stickman using React, Framer Motion, and Inverse Kinematics (IK)."
+---
+
+import StickmanPreview from '../../components/StickmanPreview.jsx';
+
+In this lab session, we explore the engineering behind the interactive Stickman companion that roams the bottom of the screen. We wanted to build a character that felt alive, reacted to the page content, and was easily extensible for future projects.
+
+<StickmanPreview animationId="idle" client:visible />
+
+## The Action Registry Architecture
+
+To support a wide variety of animations for different projects without cluttering a single React component, we decoupled the animation logic into custom hooks (e.g., `useVarifocalAction`, `useMarioKartAction`). By standardizing the interface (`config`, `getLimbs()`, `renderAssets()`), the core `Stickman.jsx` remains clean and agnostic to the actual animation being played.
+
+A central registry maps an `animation` string defined in a project's Markdown frontmatter directly to the corresponding action hook.
+
+## "Rubber Hose" Inverse Kinematics (IK)
+
+Instead of manually generating SVG paths for every frame of every animation, the system uses a generalized Inverse Kinematics (IK) math function. The custom hooks simply return `targetX` and `targetY` coordinates for the hands and feet.
+
+The component compiles these coordinates into a quadratic bezier (`Q`) curve on the fly. The math ensures that the "elbows" and "knees" always point in the correct direction based on the distance between the joint and the target, providing that classic, bouncy "Rubber Hose" animation style.
+
+<StickmanPreview animationId="varifocal" client:visible />
+
+*Above: The Stickman using IK math to reach for specific coordinates while inspecting a toy car.*
+
+## Z-Layering and Custom Assets
+
+Certain animations require the Stickman to wear or interact with objects. We implemented a robust Z-Layering hook system to render assets in relation to the Stickman's SVG body:
+- `renderBackAssets()`: Renders elements behind the Stickman's body (e.g., backpacks, vehicles).
+- `renderAssets()`: Renders elements in front of the body (e.g., held items).
+- `renderHeadAssets()`: Renders elements attached specifically to the head group (e.g., VR headsets, helmets) so they inherit head bobbing and rotation.
+
+<StickmanPreview animationId="mario-kart" client:visible />
+
+*Above: The Mario Kart animation utilizes `renderBackAssets` for the kart body, `renderHeadAssets` for the helmet, and overrides the arm/leg rendering entirely.*
+
+## Graceful Interruptions
+
+Navigating through the site means the Stickman frequently needs to switch contexts. Our internal state machine intercepts changes to the active animation ID. If an action defines an `exit` or `interrupted` phase, the state machine plays that exit sequence before seamlessly transitioning to the new action, preventing jarring cuts or sudden teleportation of limbs.
