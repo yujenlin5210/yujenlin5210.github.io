@@ -101,27 +101,29 @@ export default function CinematicProject({ project, coverUrl, index }) {
           transition={{ duration: 0.6, delay: 0.2 }}
           className="w-full md:w-2/5 space-y-6"
         >
-          <div className="space-y-2">
-            <div className="flex items-center gap-3 text-indigo-500 font-mono text-sm tracking-widest uppercase font-bold">
-              <span>{project.data.date ? new Date(project.data.date).getFullYear() : project.id.slice(0, 4)}</span>
-              {project.data.organization && (
-                <>
-                  <span className="w-1 h-1 bg-indigo-500 rounded-full"></span>
-                  <span>{project.data.organization}</span>
-                </>
+          <a href={`/projects/${project.id}`} className="block group/text space-y-6 no-underline">
+            <div className="space-y-2">
+              <div className="flex items-center gap-3 text-indigo-500 font-mono text-sm tracking-widest uppercase font-bold">
+                <span>{project.data.date ? new Date(project.data.date).getFullYear() : project.id.slice(0, 4)}</span>
+                {project.data.organization && (
+                  <>
+                    <span className="w-1 h-1 bg-indigo-500 rounded-full"></span>
+                    <span>{project.data.organization}</span>
+                  </>
+                )}
+              </div>
+              <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 dark:text-white leading-tight group-hover/text:text-indigo-500 transition-colors">
+                {project.data.title}
+              </h2>
+              {project.data.role && (
+                <p className="text-indigo-600 dark:text-indigo-400 font-medium text-lg">{project.data.role}</p>
               )}
             </div>
-            <h2 className="text-4xl md:text-5xl font-black tracking-tighter text-slate-900 dark:text-white leading-tight">
-              {project.data.title}
-            </h2>
-            {project.data.role && (
-              <p className="text-indigo-600 dark:text-indigo-400 font-medium text-lg">{project.data.role}</p>
-            )}
-          </div>
-          
-          <p className="text-lg text-slate-600 dark:text-slate-400 font-light leading-relaxed">
-            {project.data.description}
-          </p>
+            
+            <p className="text-lg text-slate-600 dark:text-slate-400 font-light leading-relaxed">
+              {project.data.description}
+            </p>
+          </a>
 
           <div className="flex flex-wrap gap-2">
             {cleanTags.slice(0, 4).map((tag) => (
