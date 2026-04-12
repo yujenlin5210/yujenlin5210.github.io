@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { filterTags } from '../utils/filterTags';
+import { activeProjectId } from '../store/projectStore';
 
 export default function CinematicProject({ project, coverUrl, index }) {
   const isEven = index % 2 === 0;
@@ -35,6 +36,11 @@ export default function CinematicProject({ project, coverUrl, index }) {
 
   return (
     <section className="relative min-h-[80vh] flex items-center py-24 overflow-hidden perspective-1000">
+      <motion.div 
+        onViewportEnter={() => activeProjectId.set(project.id)}
+        viewport={{ amount: 0.5 }}
+        className="absolute inset-0 pointer-events-none"
+      />
       {/* Background Parallax Image */}
       <div className="absolute inset-0 z-0">
         <motion.div 

@@ -32,6 +32,10 @@ We have successfully rebuilt the portfolio website using a modern stack to suppo
     - **Option 2: Interactive Tilt Grid** (`/projects-v2`): 2-column staggered grid with 3D mouse-tilt and dynamic glow tracking.
   - Enhanced project storytelling by adding metadata (Organization, Role, Year) to markdown frontmatter and displaying it in the Cinematic Scroll and Home grid.
   - Replaced generic "Project 01" indices with high-signal context (e.g., "2023 • Meta Reality Labs") to improve professional value for recruiters.
+  - Implemented a persistent **Morphing Background Illustration** system:
+    - Shared state management using `nanostores` to track the active project during scroll.
+    - SVG-based line art that fluidly morphs between themes (e.g., VR Headset for *Retina/Varifocal*, Kart for *Mario Kart*) using `framer-motion`.
+    - Added a "hand-drawn" shaky animation loop to the illustrations for a playful cartoon-ish feel.
   - Verified Markdown rendering and successful compilation using `npm run build`.
 
 ## Next Steps
