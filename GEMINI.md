@@ -21,30 +21,25 @@ We have successfully rebuilt the portfolio website using a modern stack to suppo
   - Rebuilt the Lab hub page to parse and display Lab posts elegantly.
   - Created native WebGL templates using React Three Fiber (`src/components/LabExampleScene.jsx`).
   - Created a `UnityEmbed.astro` component to easily drop in Unity WebGL exports.
-  - Demonstrated usage in `src/content/lab/2026-04-11-web3d-demo.mdx`.
 - **Phase 6: Final Polish & Deployment**
-  - Resolved all image link issues from the legacy Jekyll architecture using a unified `getCoverUrl` utility, restoring all project and lab thumbnail functionality.
+  - Resolved all image link issues from the legacy Jekyll architecture using a unified `getCoverUrl` utility.
   - Overhauled the `About` page with a modern animated layout and updated work experience timeline.
-  - Fixed z-index layering on the Home page to ensure main navigation buttons remain clickable above the 3D scene.
-  - Corrected sorting logic across `Projects` and `Home` views so the newest projects accurately appear first.
-  - Implemented two "WOW" project layout variations for comparison:
-    - **Option 1: Cinematic Scroll** (`/projects-v1`): Large, full-width storytelling sections with parallax effects. (Updated: Animations now repeat on every scroll).
-    - **Option 2: Interactive Tilt Grid** (`/projects-v2`): 2-column staggered grid with 3D mouse-tilt and dynamic glow tracking.
-  - Enhanced project storytelling by adding metadata (Organization, Role, Year) to markdown frontmatter and displaying it in the Cinematic Scroll and Home grid.
-  - Replaced generic "Project 01" indices with high-signal context (e.g., "2023 • Meta Reality Labs") to improve professional value for recruiters.
-  - Implemented a persistent **Morphing Background Illustration** system:
-    - Shared state management using `nanostores` to track the active project during scroll.
-    - SVG-based line art that fluidly morphs between themes (e.g., VR Headset for *Retina/Varifocal*, Kart for *Mario Kart*) using `framer-motion`.
-    - Added a "hand-drawn" shaky animation loop to the illustrations for a playful cartoon-ish feel.
-  - Refactored the **Stickman Animation System** for future extensibility:
-    - Decoupled core movement and boundary logic from project-specific animations.
-    - Implemented a **Plug-and-Play Action Registry** (`src/components/stickman-actions/`).
-    - Added a new **Mario Kart Steering Animation** alongside the existing Varifocal inspection routine.
-    - Improved robustness with standardized "Rubber Hose" limb math and isolated bobbing logic.
+  - Implemented the **Cinematic Scroll** as the default layout for `/projects` with integrated 3D tilt effects.
+  - Enhanced project storytelling by adding metadata (Organization, Role, Year) to markdown frontmatter.
+  - Implemented a **Modular Stickman Animation System**:
+    - Grounded, chubby character with logical limb structure and "Rubber Hose" bending math.
+    - **Action Registry Architecture**: Decoupled project-specific logic (e.g., Varifocal inspection, Mario Kart driving) into plug-and-play modules.
+    - Complex state machine handling transitions (e.g., Donning/Doffing gear, inspection pauses, walk breaks).
+    - Boundary-aware movement logic (turns at browser edges).
   - Verified Markdown rendering and successful compilation using `npm run build`.
 
+## Future Stickman Roadmap
+- **Generalized Hand Targets (IK)**: Replace manual hand math with a system where arms automatically bend to reach specific `{x, y}` targets.
+- **Z-Layering Hooks**: Support for `renderBackAssets` to allow equipment worn behind the character.
+- **Improved Interruptions**: Add "quick-exit" sequences when users scroll away mid-animation.
+- **Idle Variety**: Implement a randomizer for the `Idle` action (waving, checking watch, looking at user).
+
 ## Next Steps
-The new architecture is fully complete and functional. 
-- You can add your actual Unity WebGL builds by dropping the build folder into `public/` and using `<UnityEmbed src="/your-build/index.html" />` inside any `.mdx` file.
-- Start the development server anytime with `npm run dev`.
-- When ready, deploy the `dist/` folder to GitHub Pages or Vercel.
+- Add more project-specific animations using the new Action Registry.
+- Restrict Stickman visibility to the `/projects` page to maintain focus on other pages.
+- Add actual Unity WebGL builds to the Lab.

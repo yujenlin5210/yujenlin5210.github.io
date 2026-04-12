@@ -22,7 +22,7 @@ const { title, description = "Yu-Jen Lin - Portfolio" } = Astro.props;
 		<meta name="description" content={description} />
 	<ClientRouter /></head>
 	<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white dark:bg-slate-950 dark:text-slate-50">
-		<Stickman client:load />
+		{Astro.url.pathname.startsWith('/projects') && <Stickman client:load />}
 		<header class="w-full max-w-5xl mx-auto p-6 flex items-center justify-between sticky top-0 z-50 bg-slate-50/80 backdrop-blur-md dark:bg-slate-950/80">
 			<a href="/" class="text-xl font-bold tracking-tight hover:text-indigo-500 transition-colors">YJ.</a>
 			<nav class="flex gap-6 font-medium">
