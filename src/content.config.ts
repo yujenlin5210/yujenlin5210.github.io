@@ -38,6 +38,8 @@ const lab = defineCollection({
     author: z.string().optional(),
     mathjax: z.boolean().optional(),
     animation: z.string().optional(),
+    hideCover: z.boolean().optional().default(false),
+    hidden: z.boolean().optional().default(false),
   })
 });
 

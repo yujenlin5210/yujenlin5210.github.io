@@ -2,41 +2,47 @@
 import Layout from '../../layouts/Layout.astro';
 import { getCollection } from 'astro:content';
 import { getCoverUrl } from '../../utils/getCoverUrl';
+import LabRegistry from '../../components/LabRegistry.jsx';
 
-// Sort labs so the newest are first. Since some old ones don't have dates in a standard format, 
-// we will try to parse their IDs or dates, falling back to id sorting.
-const labs = await getCollection('lab');
-const sortedLabs = labs.sort((a, b) => {
+// Sort labs so the newest are first
+const labsData = await getCollection('lab', ({ data }) => {
+  return data.hidden !== true;
+});
+const sortedLabs = labsData.sort((a, b) => {
 	const dateA = new Date(a.data.date || a.id.slice(0,10));
 	const dateB = new Date(b.data.date || b.id.slice(0,10));
 	return dateB.getTime() - dateA.getTime();
-});
+}).map(lab => ({
+  ...lab,
+  coverUrl: getCoverUrl('lab', lab.data)
+}));
 ---
 
-<Layout title="Lab - Yu-Jen Lin" description="Playground for experimental interactive design and WebGL.">
-	<section class="py-20 flex-grow">
-		<h1 class="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 text-slate-900 dark:text-white">The Lab</h1>
-		<p class="text-lg text-slate-600 dark:text-slate-400 mb-12 max-w-2xl font-light">A playground for native WebGL experiments, heavy Unity WebGL exports, and playful micro-interactions. Expect things to break occasionally.</p>
+<Layout title="The Lab - Yu-Jen Lin" description="Playground for experimental interactive design and WebGL.">
+	{/* Technical Blueprint Background */}
+	<div class="fixed inset-0 z-0 pointer-events-none opacity-[0.03] dark:opacity-[0.07]" 
+		 style={{ backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)', backgroundSize: '32px 32px' }}>
+	</div>
+
+	<section class="relative z-10 py-20 flex-grow">
+		<header class="mb-12">
+			<div class="flex items-center gap-3 mb-4">
+				<div class="w-12 h-[1px] bg-indigo-500"></div>
+				<span class="text-xs font-mono font-bold tracking-[0.3em] text-indigo-500 uppercase">Interactive Archives</span>
+			</div>
+			<h1 class="text-5xl md:text-8xl font-black tracking-tighter mb-6 text-slate-900 dark:text-white">The Lab</h1>
+			<p class="text-xl text-slate-500 dark:text-slate-400 max-w-2xl font-light leading-relaxed">
+				A repository of native WebGL experiments, XR prototypes, and playful micro-interactions.
+				<span class="block mt-4 text-sm font-mono text-slate-400 italic">// Current_Registry_Size: {sortedLabs.length} modules</span>
+			</p>
+		</header>
 		
-		<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-			{sortedLabs.map((lab) => {
-				const coverUrl = getCoverUrl('lab', lab.data);
-				return (
-				<a href={`/lab/${lab.id}`} class="group relative flex flex-col bg-white dark:bg-slate-900 rounded-2xl shadow-sm hover:shadow-xl transition-all border border-slate-200 dark:border-slate-800 hover:border-indigo-500 overflow-hidden h-full">
-					{coverUrl ? (
-						<div class="w-full aspect-video bg-slate-100 dark:bg-slate-800 overflow-hidden">
-							<img src={coverUrl} alt={lab.data.title} class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-						</div>
-					) : (
-						<div class="w-full aspect-video bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400">No Image</div>
-					)}
-					<div class="p-6 relative z-10 flex flex-col flex-grow">
-						<h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2 group-hover:text-indigo-500 transition-colors">{lab.data.title}</h3>
-						{lab.data.description && <p class="text-sm text-slate-600 dark:text-slate-400 font-light flex-grow line-clamp-3">{lab.data.description}</p>}
-					</div>
-					<div class="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity z-0 pointer-events-none"></div>
-				</a>
-			)})}
+		<LabRegistry client:load labs={sortedLabs} />
+
+		<div class="mt-24 pt-12 border-t border-slate-200 dark:border-slate-800 text-center">
+			<p class="text-slate-400 font-mono text-xs uppercase tracking-widest animate-pulse">
+				End of registry // more experiments pending
+			</p>
 		</div>
 	</section>
 </Layout>

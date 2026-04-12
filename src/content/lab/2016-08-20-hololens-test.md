@@ -6,6 +6,7 @@ slogan:
 description: Align Hololens's projection image with physical object in real-time
 folder: hololens
 cover: cover.png
+hidden: true
 title-cover: 
 tags: [Hololens, Unity3D]
 ---

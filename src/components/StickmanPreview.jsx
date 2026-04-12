@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { getActiveAction } from './stickman-actions/registry';
 import { getRubberHosePath, WALKING_LEGS, WALKING_ARMS, STANDING_LEGS } from './stickman-actions/utils';
 
-export default function StickmanPreview({ animationId = 'idle' }) {
+export default function StickmanPreview({ animationId = 'idle', variant = 'inline' }) {
   const containerRef = useRef(null);
   const [posX, setX] = useState(100);
   const [direction, setDirection] = useState(1);
