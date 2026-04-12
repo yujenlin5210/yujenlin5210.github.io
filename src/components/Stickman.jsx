@@ -138,6 +138,10 @@ export default function Stickman() {
     return isActuallyWalking ? { d: WALKING_LEGS[side] } : { d: STANDING_LEGS[side] };
   };
 
+  const getInitialPath = (animateObj) => {
+    return Array.isArray(animateObj.d) ? animateObj.d[0] : animateObj.d;
+  };
+
   return (
     <div className="fixed bottom-0 left-0 w-full h-32 pointer-events-none z-[5] overflow-visible">
       <div className="absolute bottom-0 w-full h-[1px] bg-slate-300 dark:bg-slate-800 opacity-30" />
@@ -186,15 +190,13 @@ export default function Stickman() {
             {!action.config.hideArms && (
               <>
                 <motion.path
-                  initial={false}
-                  d={Array.isArray(getArmAnimate('back', limbs?.arms?.back).d) ? getArmAnimate('back', limbs?.arms?.back).d[0] : getArmAnimate('back', limbs?.arms?.back).d}
+                  initial={{ d: getInitialPath(getArmAnimate('back', limbs?.arms?.back)) }}
                   animate={getArmAnimate('back', limbs?.arms?.back)}
                   transition={limbs?.arms?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
                   fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-slate-400 dark:text-slate-500 opacity-50"
                 />
                 <motion.path
-                  initial={false}
-                  d={Array.isArray(getArmAnimate('front', limbs?.arms?.front).d) ? getArmAnimate('front', limbs?.arms?.front).d[0] : getArmAnimate('front', limbs?.arms?.front).d}
+                  initial={{ d: getInitialPath(getArmAnimate('front', limbs?.arms?.front)) }}
                   animate={getArmAnimate('front', limbs?.arms?.front)}
                   transition={limbs?.arms?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
                   fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-slate-700 dark:text-slate-300" />
@@ -209,15 +211,13 @@ export default function Stickman() {
           {!action.config.hideLegs && (
             <g>
               <motion.path
-                initial={false}
-                d={Array.isArray(getLegAnimate('back', limbs?.legs?.back).d) ? getLegAnimate('back', limbs?.legs?.back).d[0] : getLegAnimate('back', limbs?.legs?.back).d}
+                initial={{ d: getInitialPath(getLegAnimate('back', limbs?.legs?.back)) }}
                 animate={getLegAnimate('back', limbs?.legs?.back)}
                 transition={limbs?.legs?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
                 fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-slate-400 dark:text-slate-500 opacity-50"
               />
               <motion.path
-                initial={false}
-                d={Array.isArray(getLegAnimate('front', limbs?.legs?.front).d) ? getLegAnimate('front', limbs?.legs?.front).d[0] : getLegAnimate('front', limbs?.legs?.front).d}
+                initial={{ d: getInitialPath(getLegAnimate('front', limbs?.legs?.front)) }}
                 animate={getLegAnimate('front', limbs?.legs?.front)}
                 transition={limbs?.legs?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
                 fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-slate-700 dark:text-slate-300"
