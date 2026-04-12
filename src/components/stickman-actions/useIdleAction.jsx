@@ -12,6 +12,7 @@ export function useIdleAction(phase) {
     },
     getLimbs: () => null,
     renderHeadAssets: () => null,
-    renderAssets: () => null
+    renderAssets: () => null,
+    renderBackAssets: () => null
   };
 }

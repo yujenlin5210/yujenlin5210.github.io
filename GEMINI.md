@@ -28,15 +28,15 @@ We have successfully rebuilt the portfolio website using a modern stack to suppo
   - Enhanced project storytelling by adding metadata (Organization, Role, Year) to markdown frontmatter.
   - Implemented a **Modular Stickman Animation System**:
     - Grounded, chubby character with logical limb structure and "Rubber Hose" bending math.
-    - **Action Registry Architecture**: Decoupled project-specific logic (e.g., Varifocal inspection, Mario Kart driving) into plug-and-play modules.
-    - Complex state machine handling transitions (e.g., Donning/Doffing gear, inspection pauses, walk breaks).
+    - **Action Registry Architecture**: Decoupled project-specific logic into plug-and-play modules mapped via markdown frontmatter (`animation` field) instead of project IDs.
+    - Complex state machine handling transitions and **Graceful Interruptions** (quick-exit sequences when users scroll away).
     - Boundary-aware movement logic (turns at browser edges).
+    - **Z-Layering Hooks**: Supported `renderBackAssets` for equipment worn behind the character.
+    - **Generalized Hand & Leg Targets (IK)**: Replaced manual paths with a system where limbs automatically bend to reach specific `{targetX, targetY}` coordinates.
+  - Implemented **Apple Liquid Glassmorphism** background cards for Cinematic project descriptions, allowing the Stickman to pass safely between the background layer and the description card (with depth-aware Z-indexing) while maintaining readable typography.
   - Verified Markdown rendering and successful compilation using `npm run build`.
 
 ## Future Stickman Roadmap
-- **Generalized Hand Targets (IK)**: Replace manual hand math with a system where arms automatically bend to reach specific `{x, y}` targets.
-- **Z-Layering Hooks**: Support for `renderBackAssets` to allow equipment worn behind the character.
-- **Improved Interruptions**: Add "quick-exit" sequences when users scroll away mid-animation.
 - **Idle Variety**: Implement a randomizer for the `Idle` action (waving, checking watch, looking at user).
 
 ## Next Steps

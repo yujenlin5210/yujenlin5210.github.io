@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { filterTags } from '../utils/filterTags';
-import { activeProjectId } from '../store/projectStore';
+import { activeProjectId, activeAnimationId } from '../store/projectStore';
 
 export default function CinematicProject({ project, coverUrl, index }) {
   const isEven = index % 2 === 0;
@@ -35,9 +35,12 @@ export default function CinematicProject({ project, coverUrl, index }) {
   };
 
   return (
-    <section className="relative min-h-[80vh] flex items-center py-24 overflow-hidden perspective-1000">
+    <section className="relative min-h-[80vh] flex items-center py-24 overflow-hidden">
       <motion.div 
-        onViewportEnter={() => activeProjectId.set(project.id)}
+        onViewportEnter={() => {
+          activeProjectId.set(project.id);
+          activeAnimationId.set(project.data.animation || null);
+        }}
         viewport={{ amount: 0.5 }}
         className="absolute inset-0 pointer-events-none"
       />
@@ -70,7 +73,7 @@ export default function CinematicProject({ project, coverUrl, index }) {
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ amount: 0.3 }}
           transition={{ duration: 0.6, delay: 0.1 }}
-          className="w-full md:w-3/5"
+          className="w-full md:w-3/5 perspective-1000"
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
         >
@@ -99,7 +102,7 @@ export default function CinematicProject({ project, coverUrl, index }) {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ amount: 0.3 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="w-full md:w-2/5 space-y-6"
+          className="w-full md:w-2/5 space-y-6 p-6 md:p-8 rounded-3xl bg-white/10 dark:bg-white/5 backdrop-blur-lg backdrop-saturate-150 border border-white/20 dark:border-white/10 shadow-xl shadow-black/5 dark:shadow-black/50"
         >
           <a href={`/projects/${project.id}`} className="block group/text space-y-6 no-underline">
             <div className="space-y-2">

@@ -1,27 +1,39 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@nanostores/react';
-import { activeProjectId } from '../store/projectStore';
+import { activeAnimationId } from '../store/projectStore';
 import { getActiveAction } from './stickman-actions/registry';
-import { WALKING_LEGS, WALKING_ARMS, STANDING_LEGS } from './stickman-actions/utils';
+import { getRubberHosePath, WALKING_LEGS, WALKING_ARMS, STANDING_LEGS } from './stickman-actions/utils';
 
 export default function Stickman() {
   const [posX, setX] = useState(200);
   const [direction, setDirection] = useState(1);
-  const $activeId = useStore(activeProjectId);
+  const $storeAnimId = useStore(activeAnimationId);
 
+  const [currentAnimId, setCurrentAnimId] = useState($storeAnimId);
   const [phase, setPhase] = useState('walking');
   const [isFirstEntry, setIsFirstEntry] = useState(true);
 
-  const action = useMemo(() => getActiveAction($activeId, phase), [$activeId, phase]);
+  const action = useMemo(() => getActiveAction(currentAnimId, phase), [currentAnimId, phase]);
 
+  // Handle changes in store
   useEffect(() => {
-    if (action.id === 'idle') {
-      setIsFirstEntry(true);
+    if ($storeAnimId !== currentAnimId) {
+      if (action.id !== 'idle' && phase !== 'walking' && phase !== 'exit') {
+        const hasExit = action.config.phases?.some(p => p.name === 'exit');
+        if (hasExit) {
+          setPhase('exit');
+          return;
+        }
+      }
+      // If no exit phase or already walking/idle, switch immediately
+      setCurrentAnimId($storeAnimId);
       setPhase('walking');
+      setIsFirstEntry(true);
     }
-  }, [action.id]);
+  }, [$storeAnimId, currentAnimId, action.id, action.config.phases, phase]);
 
+  // Normal phase transitions
   useEffect(() => {
     let timeout;
     if (action.id !== 'idle') {
@@ -34,12 +46,19 @@ export default function Stickman() {
         }
       } else if (phase === 'stopping') {
         timeout = setTimeout(() => setPhase(action.config.phases[0].name), action.config.stopDuration || 600);
+      } else if (phase === 'exit') {
+        const exitPhase = action.config.phases.find(p => p.name === 'exit');
+        timeout = setTimeout(() => {
+          setCurrentAnimId($storeAnimId);
+          setPhase('walking');
+          setIsFirstEntry(true);
+        }, exitPhase?.duration || 500);
       } else {
         const currentPhaseIdx = action.config.phases.findIndex(p => p.name === phase);
         if (currentPhaseIdx !== -1) {
           const currentPhase = action.config.phases[currentPhaseIdx];
           const nextPhase = action.config.phases[currentPhaseIdx + 1];
-          if (nextPhase) {
+          if (nextPhase && nextPhase.name !== 'exit') { // Don't automatically go into exit
             timeout = setTimeout(() => setPhase(nextPhase.name), currentPhase.duration);
           } else {
             timeout = setTimeout(() => setPhase('walking'), currentPhase.duration);
@@ -48,7 +67,7 @@ export default function Stickman() {
       }
     }
     return () => clearTimeout(timeout);
-  }, [$activeId, phase, isFirstEntry, action.id]);
+  }, [currentAnimId, phase, isFirstEntry, action.id, action.config.phases, $storeAnimId]);
 
   const isActuallyWalking = phase === 'walking';
 
@@ -78,8 +97,49 @@ export default function Stickman() {
   const walkDuration = 0.8;
   const limbs = action.getLimbs();
 
+  // Helper to compile arm paths
+  const getArmAnimate = (side, armData) => {
+    const sX = side === 'back' ? 25 : 35;
+    const sY = 45;
+    if (!armData) {
+      return isActuallyWalking ? { d: WALKING_ARMS[side] } : { d: `M ${sX},45 Q ${sX},60 ${sX},75` };
+    }
+    if (armData.d) return { d: armData.d };
+    if (armData.targetX !== undefined && armData.targetY !== undefined) {
+      const paths = [];
+      const tx = Array.isArray(armData.targetX) ? armData.targetX : [armData.targetX];
+      const ty = Array.isArray(armData.targetY) ? armData.targetY : [armData.targetY];
+      for (let i = 0; i < tx.length; i++) {
+        paths.push(getRubberHosePath(sX, sY, tx[i], ty[i], 60));
+      }
+      return { d: paths.length === 1 ? paths[0] : paths };
+    }
+    return isActuallyWalking ? { d: WALKING_ARMS[side] } : { d: `M ${sX},45 Q ${sX},60 ${sX},75` };
+  };
+
+  // Helper to compile leg paths
+  const getLegAnimate = (side, legData) => {
+    const sX = side === 'back' ? 25 : 35;
+    const sY = 75;
+    if (!legData) {
+      return isActuallyWalking ? { d: WALKING_LEGS[side] } : { d: STANDING_LEGS[side] };
+    }
+    if (legData.d) return { d: legData.d };
+    if (legData.targetX !== undefined && legData.targetY !== undefined) {
+      const paths = [];
+      const tx = Array.isArray(legData.targetX) ? legData.targetX : [legData.targetX];
+      const ty = Array.isArray(legData.targetY) ? legData.targetY : [legData.targetY];
+      for (let i = 0; i < tx.length; i++) {
+        // Leg bend might be different from arm bend, using utility
+        paths.push(getRubberHosePath(sX, sY, tx[i], ty[i], 60, -10)); 
+      }
+      return { d: paths.length === 1 ? paths[0] : paths };
+    }
+    return isActuallyWalking ? { d: WALKING_LEGS[side] } : { d: STANDING_LEGS[side] };
+  };
+
   return (
-    <div className="fixed bottom-0 left-0 w-full h-32 pointer-events-none z-[100] overflow-visible">
+    <div className="fixed bottom-0 left-0 w-full h-32 pointer-events-none z-[5] overflow-visible">
       <div className="absolute bottom-0 w-full h-[1px] bg-slate-300 dark:bg-slate-800 opacity-30" />
       
       <motion.div
@@ -93,6 +153,9 @@ export default function Stickman() {
           style={{ originX: "30px" }}
           transition={{ duration: 0.3 }}
         >
+          {/* Custom Back Assets (rendered behind the body) */}
+          {action.renderBackAssets && action.renderBackAssets()}
+
           {/* Main Person Group - Bobbing only when walking */}
           <motion.g
             animate={isActuallyWalking ? { y: [0, -4, 0] } : { y: 0 }}
@@ -105,7 +168,6 @@ export default function Stickman() {
             
             {/* Head Group */}
             <motion.g 
-              key={`head-${action.id}`}
               style={{ x: 30 }}
               animate={limbs?.head ? { y: 18, ...limbs.head } : { y: 18, rotate: [-5, 5, -5] }}
               transition={limbs?.head?.transition || { 
@@ -124,32 +186,32 @@ export default function Stickman() {
             {!action.config.hideArms && (
               <>
                 <motion.path
-                  animate={limbs?.arms?.back || (isActuallyWalking ? { d: WALKING_ARMS.back } : { d: "M 25,45 Q 25,60 25,75" })}
+                  animate={getArmAnimate('back', limbs?.arms?.back)}
                   transition={limbs?.arms?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
                   fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-slate-400 dark:text-slate-500 opacity-50"
                 />
                 <motion.path
-                  animate={limbs?.arms?.front || (isActuallyWalking ? { d: WALKING_ARMS.front } : { d: "M 35,45 Q 35,60 35,75" })}
+                  animate={getArmAnimate('front', limbs?.arms?.front)}
                   transition={limbs?.arms?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
                   fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-slate-700 dark:text-slate-300" />
               </>
             )}
 
             {/* Custom Action Assets (Body level) */}
-            {action.renderAssets()}
+            {action.renderAssets && action.renderAssets()}
           </motion.g>
 
           {/* LEGS Group - No vertical bobbing, always grounded at y=100 */}
           {!action.config.hideLegs && (
             <g>
               <motion.path
-                animate={isActuallyWalking ? { d: WALKING_LEGS.back } : { d: STANDING_LEGS.back }}
-                transition={{ duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
+                animate={getLegAnimate('back', limbs?.legs?.back)}
+                transition={limbs?.legs?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
                 fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-slate-400 dark:text-slate-500 opacity-50"
               />
               <motion.path
-                animate={isActuallyWalking ? { d: WALKING_LEGS.front } : { d: STANDING_LEGS.front }}
-                transition={{ duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
+                animate={getLegAnimate('front', limbs?.legs?.front)}
+                transition={limbs?.legs?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
                 fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-slate-700 dark:text-slate-300"
               />
             </g>

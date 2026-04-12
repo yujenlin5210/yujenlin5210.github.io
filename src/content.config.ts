@@ -17,6 +17,7 @@ const projects = defineCollection({
     permalink: z.string().optional(),
     author: z.string().optional(),
     mathjax: z.boolean().optional(),
+    animation: z.string().optional(),
   })
 });
 
@@ -36,6 +37,7 @@ const lab = defineCollection({
     permalink: z.string().optional(),
     author: z.string().optional(),
     mathjax: z.boolean().optional(),
+    animation: z.string().optional(),
   })
 });
 

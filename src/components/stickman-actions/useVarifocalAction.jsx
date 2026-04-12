@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { getRubberHosePath, STANDING_LEGS } from './utils';
 
 export function useVarifocalAction(phase) {
   const vDuration = 6;
@@ -41,8 +40,8 @@ export function useVarifocalAction(phase) {
           }
         },
         arms: {
-          back: { d: vX.map((x, i) => getArmPath(25, 45, x, vY[i])) },
-          front: { d: vX.map((x, i) => getArmPath(35, 45, x, vY[i])) },
+          back: { targetX: vX, targetY: vY },
+          front: { targetX: vX, targetY: vY },
           transition: { duration: vDuration, times: vTime, repeat: Infinity, ease: "easeInOut" }
         }
       };
@@ -91,16 +90,3 @@ export function useVarifocalAction(phase) {
     )
   };
 }
-
-// Internal helper for this module
-const getArmPath = (sX, sY, tX, tY) => {
-  const dx = tX - sX;
-  const dy = tY - sY;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  const armLen = 60;
-  const bendBase = Math.sqrt(Math.max(0, (armLen * armLen) - (dist * dist))) / 1.5;
-  const bend = bendBase + 8;
-  const midX = (sX + tX) / 2;
-  const midY = (sY + tY) / 2;
-  return `M ${sX},${sY} Q ${midX},${midY + bend} ${tX},${tY}`;
-};
