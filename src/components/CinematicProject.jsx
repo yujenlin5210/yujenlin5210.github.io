@@ -97,14 +97,12 @@ export default function CinematicProject({ project, coverUrl, index }) {
         </motion.div>
 
         {/* Text Side */}
-        <motion.div 
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ amount: 0.3 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="w-full md:w-2/5 space-y-6 p-6 md:p-8 rounded-3xl bg-white/10 dark:bg-white/5 backdrop-blur-lg backdrop-saturate-150 border border-white/20 dark:border-white/10 shadow-xl shadow-black/5 dark:shadow-black/50"
-        >
-          <a href={`/projects/${project.id}`} className="block group/text space-y-6 no-underline">
+        <div className="w-full md:w-2/5 relative isolate">
+          {/* Glass background layer - separated to fix Safari backdrop-filter bugs during SPA transitions */}
+          <div className="absolute inset-0 -z-10 rounded-3xl bg-white/10 dark:bg-white/5 backdrop-blur-lg backdrop-saturate-150 border border-white/20 dark:border-white/10 shadow-xl shadow-black/5 dark:shadow-black/50" />
+          
+          <div className="space-y-6 p-6 md:p-8">
+            <a href={`/projects/${project.id}`} className="block group/text space-y-6 no-underline">
             <div className="space-y-2">
               <div className="flex items-center gap-3 text-indigo-500 font-mono text-sm tracking-widest uppercase font-bold">
                 <span>{project.data.date ? new Date(project.data.date).getFullYear() : project.id.slice(0, 4)}</span>
@@ -141,7 +139,8 @@ export default function CinematicProject({ project, coverUrl, index }) {
               View Case Study <span className="text-xl">&rarr;</span>
             </a>
           </div>
-        </motion.div>
+          </div>
+        </div>
       </div>
     </section>
   );

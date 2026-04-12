@@ -15,8 +15,8 @@ export const getRubberHosePath = (sX, sY, tX, tY, armLen, bendOffset = 8) => {
 };
 
 export const STANDING_LEGS = {
-  back: "M 25,75 L 25,100",
-  front: "M 35,75 L 35,100"
+  back: "M 25,75 Q 25,87.5 25,100",
+  front: "M 35,75 Q 35,87.5 35,100"
 };
 
 export const WALKING_LEGS = {

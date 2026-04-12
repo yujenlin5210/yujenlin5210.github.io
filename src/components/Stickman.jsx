@@ -186,11 +186,15 @@ export default function Stickman() {
             {!action.config.hideArms && (
               <>
                 <motion.path
+                  initial={false}
+                  d={Array.isArray(getArmAnimate('back', limbs?.arms?.back).d) ? getArmAnimate('back', limbs?.arms?.back).d[0] : getArmAnimate('back', limbs?.arms?.back).d}
                   animate={getArmAnimate('back', limbs?.arms?.back)}
                   transition={limbs?.arms?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
                   fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-slate-400 dark:text-slate-500 opacity-50"
                 />
                 <motion.path
+                  initial={false}
+                  d={Array.isArray(getArmAnimate('front', limbs?.arms?.front).d) ? getArmAnimate('front', limbs?.arms?.front).d[0] : getArmAnimate('front', limbs?.arms?.front).d}
                   animate={getArmAnimate('front', limbs?.arms?.front)}
                   transition={limbs?.arms?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
                   fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-slate-700 dark:text-slate-300" />
@@ -205,11 +209,15 @@ export default function Stickman() {
           {!action.config.hideLegs && (
             <g>
               <motion.path
+                initial={false}
+                d={Array.isArray(getLegAnimate('back', limbs?.legs?.back).d) ? getLegAnimate('back', limbs?.legs?.back).d[0] : getLegAnimate('back', limbs?.legs?.back).d}
                 animate={getLegAnimate('back', limbs?.legs?.back)}
                 transition={limbs?.legs?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
                 fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-slate-400 dark:text-slate-500 opacity-50"
               />
               <motion.path
+                initial={false}
+                d={Array.isArray(getLegAnimate('front', limbs?.legs?.front).d) ? getLegAnimate('front', limbs?.legs?.front).d[0] : getLegAnimate('front', limbs?.legs?.front).d}
                 animate={getLegAnimate('front', limbs?.legs?.front)}
                 transition={limbs?.legs?.transition || { duration: walkDuration, repeat: isActuallyWalking ? Infinity : 0, ease: "linear" }}
                 fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-slate-700 dark:text-slate-300"
