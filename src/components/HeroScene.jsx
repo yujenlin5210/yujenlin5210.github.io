@@ -31,6 +31,7 @@ function Scene() {
           roughness={0.2}
           distort={0.4}
           speed={2}
+          dithering={true}
         />
       </mesh>
     </Float>
@@ -39,7 +40,7 @@ function Scene() {
 
 export default function HeroScene() {
   return (
-    <Canvas camera={{ position: [0, 0, 10], fov: 50 }} dpr={[1, 2]}>
+    <Canvas camera={{ position: [0, 0, 10], fov: 50 }} dpr={[1, 2]} gl={{ dithering: true }}>
       <ambientLight intensity={0.5} />
       <directionalLight position={[10, 10, 5]} intensity={1.5} color="#ffffff" />
       <directionalLight position={[-10, -10, -5]} intensity={0.5} color="#4338ca" />

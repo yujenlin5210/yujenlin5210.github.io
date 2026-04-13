@@ -1,0 +1,303 @@
+---
+title: "Tweenie: Journey of a Unity Tween Library"
+date: "2023-07-04"
+description: "A 6-day devlog documenting the design decisions, refactors, and 'evil' singletons behind a custom Unity tweening engine."
+folder: "tweenie"
+cover: "loop_demo.gif"
+tags: ["Unity", "C#", "API Design", "Devlog"]
+---
+
+# [Day 1] - Tweenie
+
+# What is Tweenie?
+
+Tweenie is a Unity package that enables tween animations. The main purpose of developing this package was to practice my API development skills. This blog documents the design decisions that I have made and I am open to receiving feedback and suggestions for better code library and API design practices.
+
+# How does Tweenie work?
+
+- `Tweenie` creates a Singleton gameobject in the scene to handle the animation of a value
+- The value type can be anything that can be linearly interpolated between two other values
+- Linear interpolation (lerp) is used to calculate intermediate values between the start and end values
+- `Tweenie` maintains a Set of `Tweeners`, which are animated every frame until the animation is completed
+- Once the animation is completed, the `Tweener` is removed from the Set
+
+# Current API (…which will change during the journey of development)
+
+Currently, `Tweenie` only has one method, but more features will be added in the future. The current method is:
+
+```csharp
+public static ITweener To<T>(Func<T, T> param, T fromValue, T toValue, float duration, Func<T,T,float,T> lerpFunc)
+```
+
+This method creates a new `Tweener` for animating a value of type `T`. The `param` parameter is a function that returns the value to be animated. The `fromValue` and `toValue` parameters specify the start and end values of the animation. The `duration` parameter specifies the length of the animation in seconds. The `lerpFunc` parameter is a function that performs linear interpolation between two values of type `T`.
+
+For basic types like `float`, `Vector3`, and `Color` and more, `Tweenie` provides overloaded versions of the `To` method that take care of the lerp function by default. For example, to animate a float value, you can use the following code:
+
+```csharp
+Tweenie.To(x => myValue = x, oldValue, newValue, duration);
+```
+
+In this example, the `x => myValue = x` lambda function sets `myValue` to the interpolated value on every frame. The start value is `oldValue`, the end value is `newValue`, and the duration of the animation is `duration`.
+
+# Singleton? That sounds evil!
+
+The Singleton pattern was used for `Tweenie` to ensure that only one instance of the `Tweenie` game object exists in the scene. This is necessary to hook into the game loop in Unity. Additionally, `Tweenie` allows users to call static methods like `To` anywhere in their code to create new `Tweener` animations.
+
+However, it is important to note that the Singleton pattern has been criticized for its potential to create global state and make testing more difficult. In the future, alternative design patterns may be explored if they make sense for the package's functionality and maintainability. **I am open to suggestions for better design patterns**.
+
+# OnComplete
+
+`Tweenie` has a function to register a function callback `OnComplete` that is triggered when the animation is finished. Users can call it as follows:
+
+```csharp
+Tweenie.To(x => myValue = x, oldValue, newValue, duration).OnComplete(OnTweenComplete);
+```
+
+In this example, `OnTweenComplete` is the name of the function that will be called when the animation is finished. 
+
+The API design for `Tweenie` has adopted fluent interface or method chaining. This means that multiple methods can be called in a single line of code, improving code readability and reducing the number of lines required to create a `Tweener` animation. 
+
+---
+
+# [Day 2] - Easing
+
+# Bug-Fix: Param does not need return type
+
+```csharp
+ITweener To<T>(Func<T, T> param, T fromValue, T toValue, float duration, Func<T,T,float,T> lerpFunc)
+```
+
+The first argument of the `To` method `Func<T, T> param` was unnecessarily return a value type `T`. I’ve updated the function signature to use an `Action<T>` instead.
+
+This is the new `To` method:
+
+```csharp
+ITweener To<T>(Action<T> param, T fromValue, T toValue, float duration, Func<T,T,float,T> lerpFunc)
+```
+
+# Bug-Fix: Avoid modifying set while iterating
+
+Another bug I fixed was related to iterating through a `HashSet` while modifying it at the same time. To avoid this issue, I've added a new `HashSet` to hold all the new `Tweeners` that are created during the `Update` loop, and then add them to the main set at the beginning of the next frame.
+
+# New: SetEase Method
+
+The new feature `SetEase` is a function allows users to apply an animation curve to your `ITweener`, giving users even more control over the way your animations look and feel. There are two overloaded methods for `SetEase` – one that lets you use built-in animation curves like `Linear` and `EaseInOut`, and another that allows you to pass in a custom curve of your own design.
+
+```csharp
+ITweener SetEase(AnimationCurve curve)
+ITweener SetEase(Ease easeType)
+```
+
+While researching online, I came across an interesting thread suggesting that `AnimationCurve.Evaluate` may outperform `Mathf.Lerp`. While I haven't yet confirmed this myself, it's a fascinating observation that's worth exploring further.
+
+---
+
+# [Day 3] - Loop
+
+![Looping Demo](/assets/images/lab/tweenie/loop_demo.gif)
+
+# New Tweener Control Methods - Stop, Pause, Play and more
+
+- `Play()`: This control method allows you to play or resume the Tweener animation from its paused or stopped state.
+- `Pause()`: This control method allows you to pause the Tweener animation at its current value. The tweener parameter will stop at its current value, and the animation will be on hold until it is resumed with the Play method.
+- `Stop()`: This control method stops the Tweener animation and resets the tweener parameter back to its FromValue.
+- `StopAfterStepComplete()`: This control method stops the Tweener animation after the current step is complete. For instance, if the Tweener is animating a value from 0 to 1, and it has reached 0.5, calling StopAfterStepComplete will stop the animation once the Tweener reaches 1.
+- `Complete()`: This control method stops the Tweener animation and sets the tweener parameter to its ToValue. This way, the tweener parameter will have the final value of the animation.
+
+> **Refactor needed:**
+> The code design might need to be rethought. Currently, only `StopAfterStepComplete`'s calling direction is different than the other Tweener Control Functions. All other tweener controls have their implementation in the `Tweenie` class, and the `Tweener` counterpart calls `Tweenie`'s, because whether a `Tweener` is playing or stopped is handled by `Tweenie`, where we move those tweeners to different HashSets (toAddSet, toPauseSet, toStopSet, toCompleteSet). However, `StopAfterStepComplete` has its implementation in the `Tweener` class, and the `Tweenie` counterpart is calling `Tweener`'s function because `Tweenie` has no understanding of where the `Tweener`'s progress is at. A better design might be necessary to ensure that all control functions have the same calling direction.
+
+# New Looping Capability
+
+Now, `Tweenie` supports looping in both a fixed amount of times and an infinite manner. Additionally, there are two loop modes available: the Default mode and PingPong mode.
+
+### Looping with AnimationCurve
+
+To loop with an `AnimationCurve`, simply call `SetEase` with the desired curve. The `Tweener` will loop according to the curve's values.
+
+```csharp
+tweener.SetEase(easeCurve).SetLoop(Loop.Default);
+```
+
+### Looping with built-in Animation
+
+To loop with built-in Unity animations, call `SetEase` with the desired ease type and `SetLoop` with the desired loop mode and count.
+
+```csharp
+tween.SetEase(Ease.EaseInOut).SetLoop(Loop.PingPong, 3);
+```
+
+### Method Signatures
+
+```csharp
+ITweener SetEase(AnimationCurve curve)
+ITweener SetEase(Ease easeType)
+ITweener SetLoop(Loop loopMode) // this will loop infinitely
+ITweener SetLoop(Loop loopMode, int count)
+ITweener SetLoopCount(int count)
+
+public enum Ease
+{
+    Linear,
+    EaseInOut
+}
+```
+
+### Question About PingPong Mode
+
+1. In PingPong mode, does a step count as complete when the tweener reaches both the ToValue and FromValue every time, or only when it completes a From-To-From cycle?
+2. What counts as one complete loop in PingPong mode? Does a From-To-From sequence count as one loop, or does it count as one loop when the tweener reaches either end point of the From-To or To-From sequence?
+
+> **Refactor needed:**
+> The code in question is part of the step end condition handling in the `Tweener` class. It might be helpful to refactor the code in the `Tweener` class by creating separate methods to handle the behavior of each loop mode. This can make the code more modular and easier to read and understand. Additionally, it might be useful to create a separate class that specifically handles the loop behavior, which can be easily modified or replaced in the future if necessary. These changes can help improve the overall code design and maintainability of the `Tweenie` library.
+
+---
+
+# [Day 4] - Bug Fix
+
+# Bug-Fix: Exception handling when tweener associated object is destroyed
+
+The previous code had a problem where if a tweener was still running but the tweener-associated object was destroyed, it would result in a **`MissingReferenceException`**. To address this issue, we have implemented exception handling using a Try/Catch block when updating the parameters. In the event of an exception, the **`Tweener`** will now destroy itself.
+
+The updated code resolves this problem by implementing the following changes:
+
+```csharp
+bool TrySetParam(T value)
+{
+    try
+    {
+        Param(value);
+    }
+    catch (MissingReferenceException e)
+    {
+        Debug.Log($"The parameter this tweener is setting is missing. " +
+                  "Don't worry. Tweenie handles it. This tweener will be destroy in next frame.\n" +
+                  $"{e.Message}");
+        Destroy();
+        return false;
+    }
+    catch (Exception e)
+    {
+        Debug.LogError(e);
+        Destroy();
+        return false;
+    }
+
+    return true;
+}
+```
+
+# New: Tweenie Status in Inspector
+
+I added a status field in the Tweenie Inspector to show the current number of active tweeners. This allows you to easily monitor the active tweeners directly from the Inspector.
+
+![Inspector Status](/assets/images/lab/tweenie/bug_fix_logic.png)
+
+# New: Added `package.json` file
+
+To try the package in Unity through UPM. Adding it using this URL:
+`https://github.com/yjlintw/Tweenie.git?path=/Assets/Tweenie`
+
+---
+
+# [Day 5] - Code Refactor
+
+# Refactor: Move All Loop Control to Tweenie
+
+In our previous discussion on Day 3, we noted that while most of the Tweener controls (such as stop, play, and pause) were handled in the **`Tweenie`** class, the **`StopAfterStepComplete`** method was being handled in the **`Tweener`** class itself. To ensure consistency in the codebase, we have refactored the control logic by moving it to the **`Tweenie`** class.
+
+The refactor involves the following changes:
+
+1. We have introduced a status flag within the **`Tweener`** class to keep track of its current state.
+2. When a **`Tweener`** step is completed, the **`Tweenie`** class checks if the **`Tweener`** needs to be stopped or paused based on the status flag. This allows for handling these actions through the same route as the regular **`Tweener`** **`Stop()`** or **`Pause()`** events.
+
+By centralizing the loop control logic in the **`Tweenie`** class, we achieve greater consistency and maintainability within the codebase.
+
+# API Documentation
+
+I'm pleased to provide you with the initial version of our API documentation for Tweenie. The documentation is automatically generated using DocFx and Github Workflow, ensuring a streamlined publishing process.
+
+You can access the API documentation here: [**API Documentation**](https://yjlintw.github.io/Tweenie/api).
+
+---
+
+# [Day 6] - Bulk Manipulation
+
+July 4, 2023 
+
+# NEW: Bulk Manipulation with Tags
+
+An exciting new feature in Tweenie that simplifies the management of multiple tweeners in Unity projects. Say goodbye to tedious individual handling and welcome tag-based bulk manipulation.
+
+With this update, you can assign tags to tweeners upon creation, enabling easy control of multiple tweeners sharing the same tag. No more manual references or repetitive tasks!
+
+**API**
+
+```csharp
+public static ITweener To<T>(
+                                Action<T> param, 
+                                T fromValue, T toValue, 
+                                float duration, 
+                                Func<T,T,float,T> lerpFunc, 
+                                object tag = null)
+public static void PlayTweenerTag(object tag)
+public static void PauseTweenerTag(object tag)
+public static void StopTweenerTag(object tag)
+public static void CompleteTweenerTag(object tag)
+```
+
+**Example**
+
+```csharp
+public class MultiTweenerExample : MonoBehaviour
+{
+    private void OnEnable()
+    {
+        Tweenie.PlayTweenerTag(this);
+    }
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        Tweenie.To(
+                x => { transform.localRotation = Quaternion.Euler(0, x, 0); },
+                0,
+                360,
+                1.0f,
+                this)
+            .SetLoop(Loop.PingPong);
+        Tweenie.To(
+                x => transform.position = x,
+                transform.position,
+                transform.position + new Vector3(5, 5, 5),
+                1.0f,
+                this)
+            .SetLoop(Loop.PingPong);
+        Tweenie.To(
+                x => transform.localScale = x,
+                new Vector3(1, 1, 1),
+                new Vector3(2f, 2f, 5f),
+                1.0f,
+                this)
+            .SetLoop(Loop.PingPong);
+    }
+
+    private void OnDisable()
+    {
+        Tweenie.PauseTweenerTag(this);
+    }
+
+    private void OnDestroy()
+    {
+        Tweenie.RemoveTag(this);
+    }
+}
+```
+
+---
+
+# Reflections
+
+Tweenie started as a practice in API development and evolved into a functional tool. It taught me the importance of consistency in control logic and the value of a fluent, developer-friendly interface.
+
+Check out the full source code on [GitHub](https://github.com/yjlintw/TWEENIE).
