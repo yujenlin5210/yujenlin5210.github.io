@@ -1,0 +1,73 @@
+---
+title: "Building a Sample-Based Beat Sequencer in Unity"
+date: "2023-06-08"
+description: "A deep dive into architecting a high-performance audio sequencer using object pooling, DSP timing, and ADSR envelopes."
+folder: "sequencer"
+cover: "demo.mp4"
+tags: ["Unity", "C#", "Audio Engineering", "Game Tools"]
+---
+
+Achieving sample-accurate timing in a game engine's `Update` loop is notoriously difficult due to fluctuating frame rates. This project explores the architecture of a custom **Beat Sequencer** for Unity, designed to handle multi-track audio playback with high precision and minimal memory overhead.
+
+## The Architecture
+
+The system is built on a three-tier architecture that separates the "pulse" from the "playback logic."
+
+### 1. The Pulse: `BeatProvider`
+The core of the sequencer is the `BeatProvider`. Instead of relying purely on `Time.deltaTime`, it calculates intervals based on the BPM (Beats Per Minute) and exposes UnityEvents for different note resolutions (Whole, Half, Quarter, down to Thirty-Second notes).
+
+```csharp
+void OnSettingChange() {
+    float quarterBeatLength = 60.0f / bpm;
+    _beats[2].SetInterval(quarterBeatLength); // Quarter Note
+    _beats[5].SetInterval(quarterBeatLength / 8); // 32nd Note
+}
+```
+
+### 2. The Orchestrator: `TrackManager`
+The `TrackManager` listens to these beat events. It maintains a sequence of `Note` objects and decides which sound to play at each tick. It uses a simple but effective index-based system to stay in sync with the global beat.
+
+### 3. The Engine: `BeatPlayer` & Object Pooling
+Spawning and destroying `AudioSource` components every 16th note would cause massive Garbage Collection (GC) spikes. The `BeatPlayer` solves this by using Unity's `IObjectPool` to reuse `AudioHelper` instances.
+
+```csharp
+private AudioHelper CreatePooledItem() {
+    var audioHelper = Instantiate<AudioHelper>(_audioHelperPrefab, transform, false);
+    audioHelper.pool = AudioSourcePool;
+    return audioHelper;
+}
+```
+
+---
+
+## Technical Highlight: ADSR Envelopes
+
+Beyond simple sample playback, I implemented a software-based **ADSR (Attack, Decay, Sustain, Release)** envelope. This allows for more expressive sounds by controlling the gain profile of a sample in real-time.
+
+Crucially, the ADSR logic uses `AudioSettings.dspTime`. This is the most accurate clock available in Unity, decoupled from the frame rate, ensuring that the envelope curves remain smooth even if the game's FPS drops.
+
+```csharp
+if (isKeyDown && AudioSettings.dspTime > attackStartTime) {
+    double deltaTime = AudioSettings.dspTime - attackStartTime;
+    if (deltaTime < attackTime) {
+        adsrGain = Mathf.Lerp(0, 1, (float)(deltaTime / attackTime));
+    }
+    // ... handle Decay and Sustain
+}
+```
+
+---
+
+## Pitch Shifting via Frequency Mapping
+
+The `AudioHelper` includes a lookup table for musical pitches. By adjusting the `pitch` property of the `AudioSource` based on a semi-tone ratio, the sequencer can play melodies using a single audio sample (e.g., a C4 bell sound re-pitched to play an A4).
+
+```csharp
+if (AudioConstant.PitchTable.TryGetValue(pitch, out float pitchValue)) {
+    audioSource.pitch = pitchValue;
+}
+```
+
+## Summary
+
+This sequencer project serves as a robust foundation for music-based games or interactive audio tools. By combining **Object Pooling** for performance and **DSP Timing** for accuracy, it overcomes the traditional limitations of game engine audio systems.

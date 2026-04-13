@@ -36,11 +36,22 @@ export default function LabRegistry({ labs }) {
             {/* Visual Side - Large Image */}
             <div className="w-full lg:w-[45%] aspect-[16/10] relative rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-900">
               {lab.coverUrl ? (
-                <img 
-                  src={lab.coverUrl} 
-                  className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
-                  alt={lab.data.title} 
-                />
+                lab.coverUrl.endsWith('.mp4') ? (
+                  <video 
+                    src={lab.coverUrl} 
+                    autoPlay 
+                    muted 
+                    loop 
+                    playsInline 
+                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                  />
+                ) : (
+                  <img 
+                    src={lab.coverUrl} 
+                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                    alt={lab.data.title} 
+                  />
+                )
               ) : (
                 <div className="w-full h-full flex items-center justify-center font-mono text-xs text-slate-400">
                   IMAGE_NOT_FOUND
