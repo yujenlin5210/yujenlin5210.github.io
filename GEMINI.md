@@ -39,6 +39,7 @@ We have successfully rebuilt the portfolio website using a modern stack to suppo
   - **Animated Video Covers**: Enhanced `LabRegistry.jsx` and `[id].astro` to support `.mp4` files as GIF-like animated covers.
   - **Tweenie Devlog Migration**: Ported a comprehensive 6-day development journey for the Tweenie Unity library from Notion, including technical reflections, bug fixes, and integrated GIF/PNG assets.
   - **Sequencer Architecture Deep-Dive**: Documented the high-performance Unity audio sequencer, highlighting the use of `dspTime` for ADSR envelopes and object pooling for performance.
+  - **Interactive Lab Audio**: Implemented a glassmorphic unmute toggle for video covers on Lab detail pages, allowing users to experience audio-rich experiments (like the Sequencer) while maintaining silent, GIF-like behavior on the main registry page.
   - **Visual Integrity Fixes**:
     - Resolved color banding issues in Lab detail pages by enforcing solid backgrounds on article containers.
     - Improved 3D scene quality in `HeroScene.jsx` by enabling renderer-level dithering.
