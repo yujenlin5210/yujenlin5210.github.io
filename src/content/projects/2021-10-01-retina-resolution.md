@@ -10,6 +10,7 @@ organization: Meta Reality Labs
 role: Product Design Prototyper
 cover: cover.jpg
 title-cover: title.jpg
+animation: retina-resolution
 tags: [project-main, landing, Research, Unity3D, VR]
 links:
   - text: Mark Zuckerberg's Post
