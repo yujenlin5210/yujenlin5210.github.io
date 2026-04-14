@@ -20,7 +20,7 @@ export default function LabRegistry({ labs }) {
         </AnimatePresence>
       </div>
 
-      <div className="relative z-10 flex flex-col gap-12">
+      <div className="relative z-10 flex flex-col gap-16 lg:gap-32">
         {labs.map((lab, index) => (
           <motion.a
             key={lab.id}
@@ -31,7 +31,7 @@ export default function LabRegistry({ labs }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.7, delay: index * 0.1 }}
-            className="group relative flex flex-col lg:flex-row items-center gap-8 lg:gap-16 no-underline"
+            className="group relative flex flex-col lg:flex-row items-center gap-6 lg:gap-16 no-underline pb-16 lg:pb-0 border-b border-slate-200/60 dark:border-white/10 lg:border-transparent lg:dark:border-transparent last:border-transparent"
           >
             {/* Visual Side - Large Image */}
             <div className="w-full lg:w-[45%] aspect-[16/10] relative rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-900">
