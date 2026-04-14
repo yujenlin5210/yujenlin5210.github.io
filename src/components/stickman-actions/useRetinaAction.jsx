@@ -44,7 +44,7 @@ export function useRetinaAction(phase) {
           },
           arms: {
             back: { targetX: 20, targetY: 60 }, // resting
-            front: { targetX: [70, 75, 68, 70], targetY: [30, 25, 35, 30] }, // pointing controller
+            front: { targetX: 30, targetY: 60 }, // resting
             transition: { duration: 4, repeat: Infinity, ease: "easeInOut" }
           }
         };
@@ -108,32 +108,6 @@ export function useRetinaAction(phase) {
               {/* Digital Glow/Grid behind the chart to emphasize VR */}
               <rect x="-5" y="-5" width="60" height="80" rx="6" fill="none" stroke="currentColor" strokeWidth="1" className="text-indigo-500 opacity-20" strokeDasharray="2 2" />
             </g>
-
-            {/* VR Controller in Front Hand */}
-            <motion.g
-              animate={{
-                x: [70, 75, 68, 70],
-                y: [30, 25, 35, 30],
-                rotate: [-10, 10, -5, -10]
-              }}
-              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-            >
-              <g transform="translate(0, 0)">
-                <path d="M 0,-5 Q 10,-10 12,0 Q 10,10 0,5 Z" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-700 dark:text-slate-300" />
-                <circle cx="8" cy="-1" r="2" fill="currentColor" className="text-indigo-500" />
-                <path d="M 0,0 L -5,15" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-slate-700 dark:text-slate-300" />
-                
-                {/* Laser Pointer line */}
-                <motion.line 
-                  x1="12" y1="-2" x2="60" y2="-2" 
-                  stroke="currentColor" 
-                  strokeWidth="1" 
-                  className="text-indigo-400"
-                  animate={{ opacity: [0.2, 0.8, 0.2] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                />
-              </g>
-            </motion.g>
           </motion.g>
         )}
       </AnimatePresence>
