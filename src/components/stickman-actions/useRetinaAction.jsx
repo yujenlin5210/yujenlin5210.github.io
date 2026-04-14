@@ -98,7 +98,7 @@ export function useRetinaAction(phase) {
               <g transform={direction === -1 ? "translate(50, 0) scale(-1, 1)" : ""}>
                 <rect x="0" y="0" width="50" height="70" rx="4" fill="white" stroke="currentColor" strokeWidth="2" className="dark:fill-slate-900" />
                 {/* Eye Chart Letters */}
-                <text x="25" y="20" fontSize="16" fontFamily="serif" fontWeight="900" textAnchor="middle" fill="currentColor">E</text>
+                <text x="25" y="20" fontSize="16" fontFamily="sans-serif" fontWeight="900" textAnchor="middle" fill="currentColor">E</text>
                 <text x="25" y="32" fontSize="10" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle" fill="currentColor" letterSpacing="2">F P</text>
                 <text x="25" y="42" fontSize="7" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle" fill="currentColor" letterSpacing="1">T O Z</text>
                 <text x="25" y="50" fontSize="5" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle" fill="currentColor" letterSpacing="1">L P E D</text>
