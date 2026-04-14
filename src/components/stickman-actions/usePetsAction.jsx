@@ -94,7 +94,7 @@ export function usePetsAction(phase) {
                   initial={{ opacity: 0, scale: 0 }}
                   animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1, 1, 0.8], y: [0, -10, -10, -20] }}
                   transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 1 }}
-                  transform="translate(30, -35)"
+                  transform="translate(30, -55)"
                 >
                   <path d="M 0,0 Q -5,-10 5,-15 Q 20,-20 30,-10 Q 35,0 20,5 Q 10,10 0,0 Z" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400" />
                   <text x="15" y="-5" fontSize="8" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle" fill="currentColor" transform={direction === -1 ? "scale(-1, 1) translate(-30, 0)" : ""}>WOOF!</text>
