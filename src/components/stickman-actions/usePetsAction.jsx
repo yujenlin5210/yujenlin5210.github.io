@@ -10,7 +10,7 @@ export function usePetsAction(phase) {
     config: {
       isWalking: phase === 'walking',
       isBobbing: phase === 'walking',
-      showHeadset: false,
+      showHeadset: true, // Hides the default eye so we can animate our own
       walkBreakDuration: 5000,
       stopDuration: 500,
       phases: [
@@ -23,8 +23,8 @@ export function usePetsAction(phase) {
         return {
           head: {
             y: 18,
-            rotate: [-20, 20, -20, 20], // Looking left and right
-            transition: { rotate: { duration: 4, repeat: Infinity, ease: "easeInOut" } }
+            rotate: 10, // Tilted down to look at the ground
+            transition: { duration: 0.5, ease: "easeOut" }
           },
           arms: {
             back: { targetX: 20, targetY: 55 }, // resting
@@ -47,7 +47,17 @@ export function usePetsAction(phase) {
 
       return null;
     },
-    renderHeadAssets: () => null,
+    renderHeadAssets: () => {
+      if (isObserving) {
+        return (
+          <circle 
+            cx="7" cy="1" r="1.5" fill="currentColor" className="text-slate-700 dark:text-slate-300"
+          />
+        );
+      }
+      // Default eye for walking/exiting
+      return <circle cx="8" cy="-2" r="1.5" fill="currentColor" className="text-slate-700 dark:text-slate-300" />;
+    },
     renderAssets: (direction) => (
       <AnimatePresence>
         {isObserving && (
@@ -90,15 +100,16 @@ export function usePetsAction(phase) {
                 <line x1="15" y1="10" x2="15" y2="20" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
 
                 {/* Bark Bubble */}
-                <motion.g
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1, 1, 0.8], y: [0, -10, -10, -20] }}
-                  transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 1 }}
-                  transform="translate(30, -55)"
-                >
-                  <path d="M 0,0 Q -5,-10 5,-15 Q 20,-20 30,-10 Q 35,0 20,5 Q 10,10 0,0 Z" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400" />
-                  <text x="15" y="-5" fontSize="8" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle" fill="currentColor" transform={direction === -1 ? "scale(-1, 1) translate(-30, 0)" : ""}>WOOF!</text>
-                </motion.g>
+                <g transform="translate(30, -35)">
+                  <motion.g
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1, 1, 0.8], y: [0, -10, -10, -20] }}
+                    transition={{ duration: 1.5, repeat: Infinity, repeatDelay: 1 }}
+                  >
+                    <path d="M 0,0 Q -5,-10 5,-15 Q 20,-20 30,-10 Q 35,0 20,5 Q 10,10 0,0 Z" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400" />
+                    <text x="15" y="-5" fontSize="8" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle" fill="currentColor" transform={direction === -1 ? "scale(-1, 1) translate(-30, 0)" : ""}>WOOF!</text>
+                  </motion.g>
+                </g>
               </motion.g>
             </g>
 
@@ -109,9 +120,7 @@ export function usePetsAction(phase) {
                 transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
               >
                 {/* Cat Body */}
-                <path d="M -10,0 Q 0,-15 10,0 Z" fill="white" stroke="currentColor" strokeWidth="2" className="dark:fill-slate-900" />
-                <rect x="-10" y="0" width="20" height="15" fill="white" stroke="none" className="dark:fill-slate-900" />
-                <path d="M -10,0 L -10,15 M 10,0 L 10,15" fill="none" stroke="currentColor" strokeWidth="2" />
+                <rect x="-12" y="-5" width="24" height="20" rx="10" fill="white" stroke="currentColor" strokeWidth="2" className="dark:fill-slate-900" />
                 
                 {/* Cat Head */}
                 <circle cx="-5" cy="-10" r="8" fill="white" stroke="currentColor" strokeWidth="2" className="dark:fill-slate-900" />
@@ -129,15 +138,16 @@ export function usePetsAction(phase) {
                 />
 
                 {/* Meow Bubble */}
-                <motion.g
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1, 1, 0.8], y: [0, -10, -10, -20] }}
-                  transition={{ duration: 2, repeat: Infinity, delay: 0.5, repeatDelay: 1.5 }}
-                  transform="translate(-15, -30)"
-                >
-                  <path d="M 0,0 Q 5,-10 -5,-15 Q -20,-20 -30,-10 Q -35,0 -20,5 Q -10,10 0,0 Z" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400" />
-                  <text x="-15" y="-5" fontSize="8" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle" fill="currentColor" transform={direction === -1 ? "scale(-1, 1) translate(30, 0)" : ""}>meow</text>
-                </motion.g>
+                <g transform="translate(-15, -30)">
+                  <motion.g
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: [0, 1, 1, 0], scale: [0.5, 1, 1, 0.8], y: [0, -10, -10, -20] }}
+                    transition={{ duration: 2, repeat: Infinity, delay: 0.5, repeatDelay: 1.5 }}
+                  >
+                    <path d="M 0,0 Q 5,-10 -5,-15 Q -20,-20 -30,-10 Q -35,0 -20,5 Q -10,10 0,0 Z" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-slate-400" />
+                    <text x="-15" y="-5" fontSize="8" fontFamily="sans-serif" fontWeight="bold" textAnchor="middle" fill="currentColor" transform={direction === -1 ? "scale(-1, 1) translate(30, 0)" : ""}>meow</text>
+                  </motion.g>
+                </g>
               </motion.g>
             </g>
           </motion.g>
