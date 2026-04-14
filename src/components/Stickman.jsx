@@ -183,7 +183,7 @@ export default function Stickman() {
               {!action.config.showHeadset && (
                 <circle cx="8" cy="-2" r="1.5" fill="currentColor" className="text-slate-700 dark:text-slate-300" />
               )}
-              {action.renderHeadAssets?.()}
+              {action.renderHeadAssets?.(direction)}
             </motion.g>
 
             {/* Arms */}
@@ -204,7 +204,7 @@ export default function Stickman() {
             )}
 
             {/* Custom Action Assets (Body level) */}
-            {action.renderAssets && action.renderAssets()}
+            {action.renderAssets && action.renderAssets(direction)}
           </motion.g>
 
           {/* LEGS Group - No vertical bobbing, always grounded at y=100 */}
