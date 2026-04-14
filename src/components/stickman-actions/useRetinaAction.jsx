@@ -44,7 +44,7 @@ export function useRetinaAction(phase) {
           },
           arms: {
             back: { targetX: 20, targetY: 60 }, // resting
-            front: { targetX: 30, targetY: 60 }, // resting
+            front: { targetX: [70, 75, 68, 70], targetY: [30, 25, 35, 30] }, // pointing
             transition: { duration: 4, repeat: Infinity, ease: "easeInOut" }
           }
         };
