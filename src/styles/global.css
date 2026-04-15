@@ -28,3 +28,12 @@ body {
 .preserve-3d {
   transform-style: preserve-3d;
 }
+
+/* Global Typography Overrides */
+.prose figcaption {
+  @apply text-center text-sm mt-4 text-slate-500 dark:text-slate-400 font-medium leading-relaxed italic;
+}
+
+.prose figcaption a {
+  @apply text-indigo-500 dark:text-indigo-400 no-underline hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors border-b border-indigo-500/30 hover:border-indigo-500;
+}
