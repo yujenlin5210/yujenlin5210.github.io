@@ -5,7 +5,9 @@ import { getCoverUrl } from '../../utils/getCoverUrl';
 import { filterTags } from '../../utils/filterTags';
 
 export async function getStaticPaths() {
-  const projects = await getCollection('projects');
+  const projects = await getCollection('projects', ({ data }) => {
+    return data.hidden !== true;
+  });
   return projects.map(project => ({
     params: { id: project.id },
     props: { project },
