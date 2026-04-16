@@ -18,6 +18,7 @@ const projects = defineCollection({
     author: z.string().optional(),
     mathjax: z.boolean().optional(),
     animation: z.string().optional(),
+    hidden: z.boolean().optional().default(false),
   })
 });
 

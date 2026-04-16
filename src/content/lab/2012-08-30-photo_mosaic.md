@@ -13,6 +13,6 @@ links:
     url: https://github.com/peacedove/PhotoMosaic
 ---
 
-<figure class="image">
-    <img src="/assets/images/lab/photomosaic/1.jpg" alt="photo mosaic">
+<figure class="image my-8">
+    <img src="/assets/images/lab/photomosaic/1.jpg" alt="photo mosaic" class="rounded-xl shadow-lg w-full">
 </figure>
