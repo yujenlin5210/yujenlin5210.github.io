@@ -29,7 +29,7 @@ The software consists of two components: rendering and sensing. The rendering pa
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-8 not-prose">
     <div>
-        <figure class="image my-8">
+        <figure class="image">
             <img src="/assets/images/projects/social_sensory_surface/software.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
             <figcaption class="mt-4 text-sm text-slate-500 dark:text-slate-400">
                 Sensory[SOFTWARE] - Framework for the sensory architecture prototypes, interconnecting textile structures with the Microsoft Kinect and bespoke software programmed in Unity and OpenFrameworks.
@@ -37,7 +37,7 @@ The software consists of two components: rendering and sensing. The rendering pa
         </figure>
     </div>
     <div>
-        <figure class="image my-8">
+        <figure class="image">
             <img src="/assets/images/projects/social_sensory_surface/structure.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
             <figcaption class="mt-4 text-sm text-slate-500 dark:text-slate-400">
                 Sensory[STRUCTURE} - Textile-hybrid structure formed of CNC knitted textiles interconnected with glass-fiber reinforced polymer (GFRP) rods.
@@ -45,7 +45,7 @@ The software consists of two components: rendering and sensing. The rendering pa
         </figure>
     </div>
     <div>
-        <figure class="image my-8">
+        <figure class="image">
             <img src="/assets/images/projects/social_sensory_surface/playscape.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
             <figcaption class="mt-4 text-sm text-slate-500 dark:text-slate-400">
                 sensoryPLAYSCAPE (v1.0) textile hybrid prototype. 
@@ -53,7 +53,7 @@ The software consists of two components: rendering and sensing. The rendering pa
         </figure>
     </div>
     <div>
-        <figure class="image my-8">
+        <figure class="image">
             <img src="/assets/images/projects/social_sensory_surface/stretchplay.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
             <figcaption class="mt-4 text-sm text-slate-500 dark:text-slate-400">
                 Touching the textile at key locations triggers animations for play across the structure of the sensoryPLAYSCAPE | stretchANIMATE prototype.
@@ -61,7 +61,7 @@ The software consists of two components: rendering and sensing. The rendering pa
         </figure>
     </div>
     <div>
-        <figure class="image my-8">
+        <figure class="image">
             <img src="/assets/images/projects/social_sensory_surface/play.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
             <figcaption class="mt-4 text-sm text-slate-500 dark:text-slate-400">
                 An audience experienced the stretchANIMATE prototype in an exhibition.
@@ -69,7 +69,7 @@ The software consists of two components: rendering and sensing. The rendering pa
         </figure>
     </div>
     <div>
-        <figure class="image my-8">
+        <figure class="image">
             <img src="/assets/images/projects/social_sensory_surface/swarm.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
             <figcaption class="mt-4 text-sm text-slate-500 dark:text-slate-400">
                 stretchSWARM software utilize with the sensoryPLAYSCAPE structure, where a long touch with the surface creates an attractor for a dynamic swarm of fish.

@@ -11,10 +11,6 @@ title-cover:
 tags: [Hololens, Unity3D]
 ---
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-8 not-prose">
-    <div>
-        <div class="video-container">
-        <iframe src="https://www.youtube.com/embed/I5dTE8pAwDs" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
-        </div>
-    </div>
+<div class="w-full aspect-video rounded-2xl overflow-hidden shadow-xl my-8 border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-900">
+    <iframe src="https://www.youtube.com/embed/I5dTE8pAwDs" class="w-full h-full" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>
 </div>

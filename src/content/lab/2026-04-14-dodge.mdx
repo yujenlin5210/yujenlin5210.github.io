@@ -1,0 +1,37 @@
+---
+title: Dodge
+categories: lab
+description: A modern 2026 JavaScript restoration of the classic Flash dodge game, remade by Gemini 3.1.
+folder: dodge
+cover: cover.png
+hideCover: true
+tags: [Javascript, Game, React, Canvas, AI-Restoration]
+---
+
+A modern JavaScript recreation of the original Flash-based "Dodge" game. This 2026 version was restored and remade by **Gemini 3.1**, based on the mechanics and visual logic of the 2009 original.
+
+#### Goal
+Maneuver your ship (the triangle) to avoid incoming dots. Your ship generates a gravity field that attracts nearby objects, creating a "slingshot" effect if you keep moving, but making you a target if you stand still.
+
+#### Controls
+*   **SPACE**: Start or Restart the game.
+*   **WASD** or **ARROW KEYS**: Move the ship.
+
+#### Technical Implementation
+This version was rebuilt using **React** and the **HTML5 Canvas API**. 
+*   **AI Restoration**: Logic and physics were interpreted and implemented by **Gemini 3.1** to match the original ActionScript 3.0 feel.
+*   **Physics Engine**: A custom simplified gravity simulation where force is inversely proportional to distance.
+*   **Performance**: Utilizes `requestAnimationFrame` for smooth 60fps rendering.
+*   **Persistence**: Local high scores are saved using `localStorage`.
+<div class="mt-20 border-t border-slate-200 dark:border-white/10 pt-10 not-prose">
+    <h4 class="text-center text-slate-500 uppercase tracking-[0.2em] text-sm mb-6 font-bold">ORIGINAL REFERENCE</h4>
+    <p class="max-w-2xl mx-auto text-center text-slate-500 dark:text-slate-400 font-light leading-relaxed italic">
+        Dodge holds a special place in my journey as an interactive designer—it was the very first game I ever built while learning ActionScript 3.0 back in 2009. Recreating it today in JavaScript is a tribute to those early days of exploring the intersection of code, physics, and play.
+    </p>
+    <figure class="max-w-4xl mx-auto mt-6">
+        <div class="relative aspect-video rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-white/5 bg-black">
+            <img src="/assets/images/lab/dodge/cover.png" class="absolute inset-0 w-full h-full object-cover opacity-80 m-0 p-0" />
+        </div>
+        <figcaption class="text-center mt-4 text-slate-500 text-sm italic font-medium font-sans">Screenshot of the original Flash-based version (2009).</figcaption>
+    </figure>
+</div>

@@ -1,7 +1,7 @@
 ---
 layout: project-page
 title: Magic Table
-categories: projects
+categories: lab
 slogan: Blurring the line between the digital and the physical worlds
 description: Magic Table is aiming for creating an easy-to-use prototype platform for tabletop interaction. It can sense multiple touch inputs as well as fiducial markers for object tracking. The user can also use speech command to interact with it.
 folder: magic_table
@@ -14,10 +14,10 @@ tags: [project-feature, Multi-touch Table, Computer Vision, OpenFrameworks, Proj
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-8 not-prose">
 <figure class="image">
-<img src="/assets/images/projects/magic_table/projection4.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/projection4.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 <figure class="image">
-<img src="/assets/images/projects/magic_table/finish.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/finish.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 </div>
 
@@ -52,11 +52,11 @@ All of the wood boards are just for making the structure of the table, it can be
 
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-8 not-prose">
 <figure class="image flex flex-col items-center">
-<img src="/assets/images/projects/magic_table/lightprojection.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/lightprojection.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 <figcaption>ST200 (150 lumens) in bright environment</figcaption>
 </figure>
 <figure class="image flex flex-col items-center">
-<img src="/assets/images/projects/magic_table/darkprojection.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/darkprojection.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 <figcaption>ST200 (150 lumens) in dark environment</figcaption>
 </figure>
 </div>
@@ -67,15 +67,15 @@ We use Kinect as an IR camera here. Kinect itself has an IR LED array that proje
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 my-8 not-prose">
 <figure class="image flex flex-col items-center">
-<img src="/assets/images/projects/magic_table/kinect.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/kinect.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 <figcaption>Blocks the Kinect IR array to get a nicely diffused IR light surface.</figcaption>
 </figure>
 <figure class="image flex flex-col items-center">
-<img src="/assets/images/projects/magic_table/ledunblocked.png" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/ledunblocked.png" class="rounded-xl shadow-lg w-full h-full object-cover">
 <figcaption>When the IR array is unblocked, the result has a lot of noise points and a huge blobs in the center.</figcaption>
 </figure>
 <figure class="image flex flex-col items-center">
-<img src="/assets/images/projects/magic_table/ledblocked.png" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/ledblocked.png" class="rounded-xl shadow-lg w-full h-full object-cover">
 <figcaption>When the IR array is blocked. It shows a nicely distributed light surface.</figcaption>
 </figure>
 </div>
@@ -92,26 +92,26 @@ We use Kinect as an IR camera here. Kinect itself has an IR LED array that proje
 ### Models the table using SolidWorks
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 my-8 not-prose">
 <figure class="image">
-<img src="/assets/images/projects/magic_table/solidworks1.png" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/solidworks1.png" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 <figure class="image">
-<img src="/assets/images/projects/magic_table/solidworks2.png" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/solidworks2.png" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 <figure class="image">
-<img src="/assets/images/projects/magic_table/solidworks3.png" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/solidworks3.png" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 </div>
 
 ### CNC Routes the sides
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 my-8 not-prose">
 <figure class="image">
-<img src="/assets/images/projects/magic_table/cnc1.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/cnc1.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 <figure class="image">
-<img src="/assets/images/projects/magic_table/cnc2.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/cnc2.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 <figure class="image">
-<img src="/assets/images/projects/magic_table/cnc3.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/cnc3.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 </div>
 
@@ -122,36 +122,36 @@ We use Kinect as an IR camera here. Kinect itself has an IR LED array that proje
 ### Assembling
 <div class="grid grid-cols-2 md:grid-cols-3 gap-6 my-8 not-prose">
 <figure class="image">
-<img src="/assets/images/projects/magic_table/assemble1.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/assemble1.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 <figure class="image">
-<img src="/assets/images/projects/magic_table/assemble2.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/assemble2.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 <figure class="image">
-<img src="/assets/images/projects/magic_table/assemble3.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/assemble3.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 <figure class="image">
-<img src="/assets/images/projects/magic_table/assemble4.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/assemble4.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 <figure class="image">
-<img src="/assets/images/projects/magic_table/assemble5.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/assemble5.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 <figure class="image">
-<img src="/assets/images/projects/magic_table/assemble6.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/assemble6.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 </div>
 
-### Laser Cuts the cover
+<h3 class="my-8">Laser Cuts the cover</h3>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 my-8 not-prose">
 <figure class="image">
-<img src="/assets/images/projects/magic_table/cover2.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/cover2.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 <figure class="image">
-<img src="/assets/images/projects/magic_table/cover3.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/cover3.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 <div class="md:col-span-2">
 <figure class="image">
-<img src="/assets/images/projects/magic_table/cover4.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
+<img src="/assets/images/lab/magic_table/cover4.jpg" class="rounded-xl shadow-lg w-full h-full object-cover">
 </figure>
 </div>
 </div>
@@ -163,3 +163,4 @@ All of the code can be found on [Github](https://github.com/yjlintw/mtproject). 
 <div class="w-full aspect-video rounded-2xl overflow-hidden shadow-xl my-8 border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-900">
 <iframe src="https://player.vimeo.com/video/164214236" class="w-full h-full" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 </div>
+

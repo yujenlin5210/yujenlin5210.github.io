@@ -6,9 +6,10 @@ import Stickman from '../components/Stickman.jsx';
 interface Props {
 	title: string;
 	description?: string;
+	maxWidth?: string;
 }
 
-const { title, description = "Yu-Jen Lin - Portfolio" } = Astro.props;
+const { title, description = "Yu-Jen Lin - Portfolio", maxWidth = "max-w-5xl" } = Astro.props;
 ---
 
 <!doctype html>
@@ -41,7 +42,7 @@ const { title, description = "Yu-Jen Lin - Portfolio" } = Astro.props;
 			🚧 This website is currently under construction. Some information may be incomplete. Please refer to my <a href="https://www.linkedin.com/in/yujenlin1/" class="underline hover:text-indigo-200 transition-colors">LinkedIn</a> for up-to-date details.
 		</div>
 		{(Astro.url.pathname === '/projects' || Astro.url.pathname === '/projects/') && <Stickman client:load />}
-		<header class="w-full max-w-5xl mx-auto p-6 flex items-center justify-between sticky top-0 z-50 bg-slate-50/80 backdrop-blur-md dark:bg-slate-950/80">
+		<header class={`w-full ${maxWidth} mx-auto p-6 flex items-center justify-between sticky top-0 z-50 bg-slate-50/80 backdrop-blur-md dark:bg-slate-950/80`}>
 			<a href="/" class="text-xl font-bold tracking-tight hover:text-indigo-500 transition-colors">YJ.</a>
 			<nav class="flex gap-6 font-medium">
 				<a href="/projects" class="hover:text-indigo-500 transition-colors">Projects</a>
@@ -50,11 +51,11 @@ const { title, description = "Yu-Jen Lin - Portfolio" } = Astro.props;
 			</nav>
 		</header>
 		
-		<main class="flex-grow w-full max-w-5xl mx-auto p-6 flex flex-col">
+		<main class={`flex-grow w-full ${maxWidth} mx-auto p-6 flex flex-col`}>
 			<slot />
 		</main>
 
-		<footer class="w-full max-w-5xl mx-auto p-6 flex justify-between items-center text-sm text-slate-500 dark:text-slate-400">
+		<footer class={`w-full ${maxWidth} mx-auto p-6 flex justify-between items-center text-sm text-slate-500 dark:text-slate-400`}>
 			<p>&copy; {new Date().getFullYear()} Yu-Jen Lin</p>
 			<div class="flex gap-4">
 				<a href="https://github.com/yjlintw" target="_blank" rel="noopener noreferrer" class="hover:text-indigo-500 transition-colors">GitHub</a>
