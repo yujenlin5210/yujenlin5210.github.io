@@ -61,6 +61,11 @@ const DodgeGame = () => {
         e.preventDefault();
       }
 
+      // If any movement key is pressed, clear the pointer target
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) {
+        touchPos.current = null;
+      }
+
       gameRef.current.keys[e.code] = true;
       if (e.code === 'Space') {
         if (gameRef.current.status === 'START' || gameRef.current.status === 'GAMEOVER') {
@@ -175,6 +180,11 @@ const DodgeGame = () => {
 
   const handlePointerMove = (e) => {
     if (gameRef.current.status !== 'PLAYING') return;
+    
+    // Only track if mouse is pressed, or if it's a touch event
+    const isMouse = e.pointerType === 'mouse';
+    if (isMouse && e.buttons === 0) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
