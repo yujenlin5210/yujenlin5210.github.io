@@ -117,10 +117,8 @@ const TimeArt = () => {
       const nextLevel = [];
 
       const splitTasks = prevLevel.map(p => {
-        let isHorizontal;
-        if (p.w > p.h * 1.5) isHorizontal = false;
-        else if (p.h > p.w * 1.5) isHorizontal = true;
-        else isHorizontal = Math.random() > 0.5;
+        // Purely random split based on probability weight
+        let isHorizontal = Math.random() > 0.5; // 50% chance to split vertically (width)
 
         const ratio = 0.2 + Math.random() * 0.6;
         const baseForce = (15 + Math.random() * 55) * Math.pow(0.85, step);
@@ -262,11 +260,11 @@ const TimeArt = () => {
               y={(dimensions.h - initialSize) / 2}
               width={initialSize}
               height={initialSize}
-              fill="rgba(79, 70, 229, 0.15)"
-              stroke="rgba(79, 70, 229, 0.5)"
+              fill="rgba(129, 140, 248, 0.2)"
+              stroke="rgba(129, 140, 248, 0.6)"
               strokeWidth="2"
               className="cursor-pointer"
-              whileHover={{ scale: 1.01, fill: "rgba(79, 70, 229, 0.25)" }}
+              whileHover={{ scale: 1.01, fill: "rgba(129, 140, 248, 0.35)" }}
               onClick={startInteraction}
             />
           ) : (
@@ -288,7 +286,7 @@ const TimeArt = () => {
                 }}
                 width={p.w}
                 height={p.h}
-                fill="rgba(79, 70, 229, 0.25)"
+                fill="rgba(129, 140, 248, 0.35)"
                 className="mix-blend-multiply dark:mix-blend-screen"
               />
             ))

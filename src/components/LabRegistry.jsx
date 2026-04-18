@@ -43,12 +43,12 @@ export default function LabRegistry({ labs }) {
                     muted 
                     loop 
                     playsInline 
-                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                    className="w-full h-full object-cover transition-transform duration-1000 scale-105 group-hover:scale-110" 
                   />
                 ) : (
                   <img 
                     src={lab.coverUrl} 
-                    className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110" 
+                    className="w-full h-full object-cover transition-transform duration-1000 scale-105 group-hover:scale-110" 
                     alt={lab.data.title} 
                   />
                 )
