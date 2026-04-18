@@ -4,6 +4,7 @@ import Layout from '../../layouts/Layout.astro';
 import { getCoverUrl } from '../../utils/getCoverUrl';
 import { filterTags } from '../../utils/filterTags';
 import DodgeGame from '../../components/DodgeGame.jsx';
+import TimeArt from '../../components/TimeArt.jsx';
 
 export async function getStaticPaths() {
   const labs = await getCollection('lab', ({ data }) => {
@@ -21,16 +22,18 @@ const coverUrl = getCoverUrl('lab', lab.data);
 const cleanTags = filterTags(lab.data.tags);
 
 const isDodge = lab.id.includes('dodge');
+const isTimeArt = lab.id.includes('time-art');
+const isWide = isDodge || isTimeArt;
 ---
 
 <Layout 
   title={`Lab: ${lab.data.title} - Yu-Jen Lin`} 
   description={lab.data.description}
-  maxWidth={isDodge ? "max-w-7xl" : "max-w-5xl"}
+  maxWidth={isWide ? "max-w-7xl" : "max-w-5xl"}
 >
   <div class="py-20 flex-grow w-full px-6">
     
-    {/* 1. Centered Header (Narrow) */}
+    {/* 1. Header Section (Centered & Narrow) */}
     <div class="max-w-4xl mx-auto">
       <header class="mb-12 text-center">
         <div class="inline-block px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 font-mono text-xs tracking-widest uppercase font-bold rounded-full mb-4 border border-indigo-100 dark:border-indigo-800/50">Experimental Lab</div>
@@ -47,17 +50,23 @@ const isDodge = lab.id.includes('dodge');
       </header>
     </div>
 
-    {/* 2. Interactive Breakout (Wide - only for Dodge) */}
+    {/* 2. Interactive Breakout Area (Wide - Only for specific posts) */}
     {isDodge && (
       <div class="max-w-[1200px] mx-auto mb-16">
         <DodgeGame client:load />
       </div>
     )}
+    {isTimeArt && (
+      <div class="max-w-[1200px] mx-auto mb-16">
+        <TimeArt client:load />
+      </div>
+    )}
     
-    {/* 3. Cover Media (Narrow - only for non-Dodge posts) */}
-    {!isDodge && coverUrl && !lab.data.hideCover && (
-      <div class="max-w-4xl mx-auto mb-12">
-        <div class="w-full aspect-video rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-900 relative group">
+    {/* 3. Standard Content Area (Centered & Narrow) */}
+    <div class="max-w-4xl mx-auto">
+      {/* Show cover image only for standard posts (non-breakout) */}
+      {!isWide && coverUrl && !lab.data.hideCover && (
+        <div class="w-full aspect-video rounded-2xl overflow-hidden shadow-2xl mb-12 border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-900 relative group">
           {coverUrl.endsWith('.mp4') ? (
             <>
               <video 
@@ -81,11 +90,8 @@ const isDodge = lab.id.includes('dodge');
             <img src={coverUrl} alt={lab.data.title} class="w-full h-full object-cover" />
           )}
         </div>
-      </div>
-    )}
+      )}
 
-    {/* 4. Article Content (Narrow) */}
-    <div class="max-w-4xl mx-auto">
       <article class="prose dark:prose-invert prose-indigo mx-auto prose-img:rounded-xl prose-img:shadow-lg bg-slate-50 dark:bg-slate-950 mb-24">
         <Content />
       </article>

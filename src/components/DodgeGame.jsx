@@ -6,6 +6,7 @@ const DodgeGame = () => {
   const [score, setScore] = useState(0);
   const [highScores, setHighScores] = useState([]);
   const requestRef = useRef();
+  const isMounted = useRef(true);
   
   // Internal logic dimensions (high resolution)
   const LOGIC_WIDTH = 1200;
@@ -31,6 +32,7 @@ const DodgeGame = () => {
   });
 
   useEffect(() => {
+    isMounted.current = true;
     const savedScores = localStorage.getItem('dodge_highscores');
     if (savedScores) {
       try {
@@ -64,9 +66,10 @@ const DodgeGame = () => {
     drawInitial();
 
     return () => {
+      isMounted.current = false;
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      cancelAnimationFrame(requestRef.current);
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
     };
   }, []);
 
@@ -145,9 +148,9 @@ const DodgeGame = () => {
 
   const gameOver = () => {
     gameRef.current.status = 'GAMEOVER';
-    setGameState('GAMEOVER');
+    if (isMounted.current) setGameState('GAMEOVER');
     const finalScore = Math.floor((Date.now() - gameRef.current.startTime) / 100) / 10;
-    setScore(finalScore);
+    if (isMounted.current) setScore(finalScore);
     setHighScores(prev => {
       const newScores = [...prev, finalScore].sort((a, b) => b - a).slice(0, 5);
       localStorage.setItem('dodge_highscores', JSON.stringify(newScores));
@@ -156,7 +159,7 @@ const DodgeGame = () => {
   };
 
   const gameLoop = () => {
-    if (gameRef.current.status !== 'PLAYING') return;
+    if (!isMounted.current || gameRef.current.status !== 'PLAYING') return;
     
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -268,7 +271,7 @@ const DodgeGame = () => {
     ctx.restore();
 
     gameRef.current.frameCount++;
-    if (gameRef.current.frameCount % 10 === 0) {
+    if (gameRef.current.frameCount % 10 === 0 && isMounted.current) {
       setScore(Math.floor((Date.now() - gameRef.current.startTime) / 100) / 10);
     }
     requestRef.current = requestAnimationFrame(gameLoop);

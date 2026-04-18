@@ -1,0 +1,36 @@
+---
+title: "Is Time Wide or Is it Long (Replica)"
+categories: lab
+description: A modern 2026 JavaScript restoration of an interactive art piece by Hsin-Chien Huang, remade by Gemini 3.1.
+folder: time
+cover: cover.png
+hideCover: true
+tags: [Javascript, Creative-Coding, React, Web-Audio, AI-Restoration]
+---
+
+A modern JavaScript recreation of an original Flash-based interactive art piece. This 2026 version was restored and remade by **Gemini 3.1**, based on the seminal work of [**Hsin-Chien Huang**](https://hsinchienhuang.com/index.php?lang=ch) ([Wikipedia](https://zh.wikipedia.org/zh-tw/%E9%BB%83%E5%BF%83%E5%81%A5)).
+
+#### Concept
+The piece explores the recursive nature of time and space. A single square represents a moment or a whole, which can be split into smaller and smaller fragments. As it reaches its maximum complexity, it inevitably flows back into its original unified state.
+
+#### Technical Implementation
+Rebuilding this algorithmic experience required a combination of recursive data structures and precise physical simulation:
+
+*   **Recursive Tree Architecture**: The logic uses a tree-based splitting algorithm. For each level of depth ($n$), the algorithm traverses the current "moment" and divides it into two fragments. To ensure organic irregularity, the split ratios are randomized between 20% and 80%, ensuring that every fragment maintains enough geometric "material" to support subsequent recursion steps.
+*   **Coordinate Inheritance & Continuous Motion**: A primary challenge was achieving smooth, non-jumping motion. Every fragment inherits its parent’s exact coordinates and dimensions at the moment of fracture. As the square fragments, the children are initialized to perfectly overlap the parent before sliding out to their irregular targets, creating a seamless visual decomposition.
+*   **"Ice Sliding" Physics**: To capture the original's physical weight, I implemented custom **Cubic-Bezier impulse curves** (`[0.05, 0.9, 0.1, 1.0]`). This simulates a frictionless surface—each split provides a sharp, high-velocity "push" followed by a long, slow glide as fragments settle into their new positions.
+*   **Generative Web Audio Synthesis**: The chimes are synthesized in real-time using the **Web Audio API**. Each split triggers a complex tone consisting of a base frequency layered with multiple non-integer harmonics, creating a spacious, "glassy" resonance. The merging phase mirrors this by utilizing an exponential gain swell, effectively playing the chime in reverse.
+*   **Atomic State Handover**: To eliminate visual jitter, the merge sequence uses an atomic handover mechanism. Fragments slide back to their parent's origin with surgical precision; only once they have perfectly aligned is the parent square restored, ensuring a flicker-free transition back to unity.
+
+<div class="mt-20 border-t border-slate-200 dark:border-white/10 pt-10 not-prose">
+    <h4 class="text-center text-slate-500 uppercase tracking-[0.2em] text-sm mb-6 font-bold">ORIGINAL REFERENCE</h4>
+    <p class="max-w-2xl mx-auto text-center text-slate-500 dark:text-slate-400 font-light leading-relaxed italic">
+        This project was originally a replica of Hsin-Chien Huang's work, created as part of a job application in 2009 using ActionScript 3.0. Rebuilding it today preserves the algorithmic beauty of the original interactive experience.
+    </p>
+    <figure class="max-w-4xl mx-auto mt-6">
+        <div class="relative aspect-video rounded-2xl overflow-hidden shadow-xl border border-slate-200 dark:border-white/5 bg-black">
+            <img src="/assets/images/lab/time/cover.png" class="absolute inset-0 w-full h-full object-cover opacity-80 m-0 p-0" />
+        </div>
+        <figcaption class="text-center mt-4 text-slate-500 text-sm italic font-medium font-sans">Screenshot of the original Flash-based version (2009).</figcaption>
+    </figure>
+</div>
