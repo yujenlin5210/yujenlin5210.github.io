@@ -25,16 +25,16 @@ const sortedProjects = projects.sort((a, b) => {
         A collection of interactive experiences spanning virtual reality, augmented reality, and physical installations.
       </p>
     </div>
-
     <div class="flex flex-col">
-      {sortedProjects.map((project, index) => {
+      {projects.map((project, index) => {
         const coverUrl = getCoverUrl('projects', project.data);
         return (
           <CinematicProject 
-            client:visible 
+            key={project.id} 
             project={project} 
-            coverUrl={coverUrl} 
-            index={index} 
+            coverUrl={coverUrl}
+            index={index}
+            client:load
           />
         );
       })}

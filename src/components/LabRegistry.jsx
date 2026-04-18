@@ -6,7 +6,7 @@ export default function LabRegistry({ labs }) {
 
   return (
     <div className="relative mt-12 mb-32">
-      {/* Background Ambience - subtle glow based on hovered item */}
+      {/* Background Ambience */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <AnimatePresence>
           {hoveredIndex !== null && (
@@ -58,7 +58,7 @@ export default function LabRegistry({ labs }) {
                 </div>
               )}
               
-              {/* Technical Overlay on Image */}
+              {/* Technical Overlay */}
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-indigo-600/10 backdrop-blur-[1px] flex items-center justify-center">
                 <div className="px-6 py-3 rounded-full bg-white/10 backdrop-blur-xl border border-white/30 text-white font-mono text-xs font-black tracking-widest shadow-2xl">
                   OPEN_MODULE_0{labs.length - index}
@@ -95,7 +95,7 @@ export default function LabRegistry({ labs }) {
               </div>
             </div>
 
-            {/* Background Text Accent (The experiment ID in huge outline text) */}
+            {/* Background Text Accent */}
             <div className="absolute -z-10 right-0 top-1/2 -translate-y-1/2 text-[15rem] font-black text-slate-100 dark:text-white/[0.02] pointer-events-none select-none hidden lg:block uppercase tracking-tighter transition-all duration-700 group-hover:text-indigo-500/10 group-hover:translate-x-4">
               {lab.id.slice(0, 4)}
             </div>
