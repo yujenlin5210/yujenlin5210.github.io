@@ -5,20 +5,36 @@ const TimeArt = () => {
   const [n, setN] = useState(5);
   const [isAnimating, setIsAnimating] = useState(false);
   const [pieces, setPieces] = useState([]);
+  const [dimensions, setDimensions] = useState({ w: 1200, h: 750 });
+  const [initialSize, setInitialSize] = useState(280);
+  const [isTouch, setIsTouch] = useState(false);
   const audioCtx = useRef(null);
   const isMounted = useRef(true);
   
-  const WIDTH = 1200;
-  const HEIGHT = 750;
-  const INITIAL_SIZE = 280; 
-
   const ANIM_DURATION = 2.2;
   const EASE_CURVE = [0.05, 0.9, 0.1, 1.0]; // Icy Slide
 
   useEffect(() => {
     isMounted.current = true;
+    
+    const updateLayout = () => {
+      const mobile = window.innerWidth < 768;
+      setIsTouch(window.matchMedia('(pointer: coarse)').matches);
+      if (mobile) {
+        setDimensions({ w: 800, h: 1000 });
+        setInitialSize(220);
+      } else {
+        setDimensions({ w: 1200, h: 750 });
+        setInitialSize(280);
+      }
+    };
+
+    updateLayout();
+    window.addEventListener('resize', updateLayout);
+
     return () => {
       isMounted.current = false;
+      window.removeEventListener('resize', updateLayout);
       if (audioCtx.current) {
         audioCtx.current.close();
       }
@@ -42,6 +58,9 @@ const TimeArt = () => {
     
     // Safety check for closed context
     if (ctx.state === 'closed') return;
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
 
     const playTone = (freq, volume, duration) => {
       const osc = ctx.createOscillator();
@@ -77,14 +96,14 @@ const TimeArt = () => {
 
     const initial = {
       id: 'root',
-      x: (WIDTH - INITIAL_SIZE) / 2, 
-      y: (HEIGHT - INITIAL_SIZE) / 2, 
-      w: INITIAL_SIZE, 
-      h: INITIAL_SIZE,
-      startX: (WIDTH - INITIAL_SIZE) / 2, 
-      startY: (HEIGHT - INITIAL_SIZE) / 2,
-      targetX: (WIDTH - INITIAL_SIZE) / 2, 
-      targetY: (HEIGHT - INITIAL_SIZE) / 2
+      x: (dimensions.w - initialSize) / 2, 
+      y: (dimensions.h - initialSize) / 2, 
+      w: initialSize, 
+      h: initialSize,
+      startX: (dimensions.w - initialSize) / 2, 
+      startY: (dimensions.h - initialSize) / 2,
+      targetX: (dimensions.w - initialSize) / 2, 
+      targetY: (dimensions.h - initialSize) / 2
     };
 
     const history = [[initial]];
@@ -189,7 +208,7 @@ const TimeArt = () => {
   };
 
   return (
-    <div className="not-prose relative w-full aspect-[16/10] bg-slate-50 dark:bg-slate-900 rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 font-sans mb-12 flex flex-col items-center justify-center group">
+    <div className="not-prose relative w-full aspect-[4/5] md:aspect-[16/10] bg-slate-50 dark:bg-slate-900 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 font-sans mb-12 flex flex-col items-center justify-center group transition-all duration-500">
       
       <AnimatePresence>
         {!isAnimating && (
@@ -197,7 +216,7 @@ const TimeArt = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="absolute top-12 w-full max-w-sm px-12 z-30"
+            className="absolute top-8 md:top-12 w-full max-w-[280px] md:max-w-sm px-6 md:px-12 z-30"
           >
             <div className="flex justify-between text-indigo-600 dark:text-indigo-400 font-mono text-[10px] uppercase tracking-[0.2em] mb-4 font-black text-center w-full">
               <span className="flex-1 text-left">Complexity</span>
@@ -209,7 +228,7 @@ const TimeArt = () => {
               max="10" 
               value={n} 
               onChange={(e) => setN(parseInt(e.target.value))}
-              className="w-full h-1.5 bg-slate-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+              className="w-full h-2 md:h-1.5 bg-slate-200 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-indigo-500"
             />
           </motion.div>
         )}
@@ -221,11 +240,11 @@ const TimeArt = () => {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className="absolute bottom-12 right-12 z-30 pointer-events-none"
+            className="absolute bottom-8 right-8 md:bottom-12 md:right-12 z-30 pointer-events-none"
           >
             <div className="flex flex-col items-end">
               <span className="text-indigo-600 dark:text-indigo-400 font-mono text-[10px] uppercase tracking-[0.3em] font-black mb-1 opacity-50">Fragments</span>
-              <span className="text-slate-900 dark:text-white font-mono text-3xl font-black tabular-nums tracking-tighter">
+              <span className="text-slate-900 dark:text-white font-mono text-2xl md:text-3xl font-black tabular-nums tracking-tighter">
                 {pieces.length || 1}
               </span>
             </div>
@@ -234,15 +253,15 @@ const TimeArt = () => {
       </AnimatePresence>
 
       <div className="relative w-full h-full flex items-center justify-center transition-all duration-1000">
-        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full h-full">
+        <svg viewBox={`0 0 ${dimensions.w} ${dimensions.h}`} className="w-full h-full p-4 md:p-8">
           {pieces.length === 0 ? (
             <motion.rect
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              x={(WIDTH - INITIAL_SIZE) / 2}
-              y={(HEIGHT - INITIAL_SIZE) / 2}
-              width={INITIAL_SIZE}
-              height={INITIAL_SIZE}
+              x={(dimensions.w - initialSize) / 2}
+              y={(dimensions.h - initialSize) / 2}
+              width={initialSize}
+              height={initialSize}
               fill="rgba(79, 70, 229, 0.15)"
               stroke="rgba(79, 70, 229, 0.5)"
               strokeWidth="2"
@@ -277,8 +296,10 @@ const TimeArt = () => {
         </svg>
 
         {!isAnimating && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-center">
-            <span className="text-indigo-900/10 dark:text-white/10 font-black tracking-[0.8em] text-xs uppercase animate-pulse">Click to Fragment</span>
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-center px-6">
+            <span className="text-indigo-900/10 dark:text-white/10 font-black tracking-[0.4em] md:tracking-[0.8em] text-[10px] md:text-xs uppercase animate-pulse">
+              {isTouch ? 'Tap to Fragment' : 'Click to Fragment'}
+            </span>
           </div>
         )}
       </div>
