@@ -1,0 +1,15 @@
+---
+title: "Web Audio Digital Metronome"
+date: "2026-04-19"
+description: "A precise, web-based digital metronome built with React and the Web Audio API, featuring customizable time signatures and BPM shortcuts."
+folder: "metronome"
+cover: "cover.png"
+tags: ["React", "Web Audio API", "Interactive Tool"]
+hideCover: true
+---
+
+import Metronome from '../../components/Metronome.jsx';
+
+<Metronome client:only="react" />
+
+This metronome uses the Web Audio API with a lookahead scheduling mechanism. Traditional `setInterval` loops in JavaScript can suffer from timing drift due to the single-threaded nature of the event loop. By scheduling future notes ahead of time directly on the audio context, we achieve sample-accurate timing regardless of main thread blockage.
