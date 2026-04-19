@@ -202,9 +202,6 @@ export default function Stickman() {
                   fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-slate-700 dark:text-slate-300" />
               </>
             )}
-
-            {/* Custom Action Assets (Body level) */}
-            {action.renderAssets && action.renderAssets(direction)}
           </motion.g>
 
           {/* LEGS Group - No vertical bobbing, always grounded at y=100 */}
@@ -224,6 +221,9 @@ export default function Stickman() {
               />
             </g>
           )}
+
+          {/* Custom Action Assets (Foreground level) */}
+          {action.renderAssets && action.renderAssets(direction)}
         </motion.svg>
       </motion.div>
     </div>

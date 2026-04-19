@@ -3,6 +3,7 @@ import { useMarioKartAction } from './useMarioKartAction.jsx';
 import { useRetinaAction } from './useRetinaAction.jsx';
 import { usePetsAction } from './usePetsAction.jsx';
 import { useBoba3Action } from './useBoba3Action.jsx';
+import { useTiramisuAction } from './useTiramisuAction.jsx';
 import { useIdleAction } from './useIdleAction.jsx';
 
 export const getActiveAction = (animationId, phase) => {
@@ -20,6 +21,9 @@ export const getActiveAction = (animationId, phase) => {
   }
   if (animationId === 'boba3') {
     return useBoba3Action(phase);
+  }
+  if (animationId === 'tiramisu') {
+    return useTiramisuAction(phase);
   }
   return useIdleAction(phase);
 };
