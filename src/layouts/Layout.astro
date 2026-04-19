@@ -7,9 +7,10 @@ interface Props {
 	title: string;
 	description?: string;
 	maxWidth?: string;
+	image?: string;
 }
 
-const { title, description = "Yu-Jen Lin - Portfolio", maxWidth = "max-w-5xl" } = Astro.props;
+const { title, description = "Yu-Jen Lin - Portfolio", maxWidth = "max-w-5xl", image = '/assets/images/meta.png' } = Astro.props;
 ---
 
 <!doctype html>
@@ -27,14 +28,14 @@ const { title, description = "Yu-Jen Lin - Portfolio", maxWidth = "max-w-5xl" } 
 		<meta property="og:url" content={Astro.url} />
 		<meta property="og:title" content={title} />
 		<meta property="og:description" content={description} />
-		<meta property="og:image" content={new URL('/assets/images/meta.png', Astro.site || Astro.url)} />
+		<meta property="og:image" content={new URL(image, Astro.site || Astro.url)} />
 
 		{/* Twitter */}
 		<meta property="twitter:card" content="summary_large_image" />
 		<meta property="twitter:url" content={Astro.url} />
 		<meta property="twitter:title" content={title} />
 		<meta property="twitter:description" content={description} />
-		<meta property="twitter:image" content={new URL('/assets/images/meta.png', Astro.site || Astro.url)} />
+		<meta property="twitter:image" content={new URL(image, Astro.site || Astro.url)} />
 
 		<ClientRouter /></head>
 	<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white dark:bg-slate-950 dark:text-slate-50">

@@ -19,6 +19,7 @@ export async function getStaticPaths() {
 const { lab } = Astro.props;
 const { Content } = await render(lab);
 const coverUrl = getCoverUrl('lab', lab.data);
+const ogImage = coverUrl && !coverUrl.endsWith('.mp4') ? coverUrl : undefined;
 const cleanTags = filterTags(lab.data.tags);
 
 const isDodge = lab.id.includes('dodge');
@@ -30,6 +31,7 @@ const isWide = isDodge || isTimeArt;
   title={`Lab: ${lab.data.title} - Yu-Jen Lin`} 
   description={lab.data.description}
   maxWidth={isWide ? "max-w-7xl" : "max-w-5xl"}
+  image={ogImage}
 >
   <div class="py-20 flex-grow w-full px-6">
     
