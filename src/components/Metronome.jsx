@@ -229,6 +229,23 @@ export default function Metronome() {
         masterGain.current.gain.value = isMuted ? 0 : volume;
         masterGain.current.connect(ctx.destination);
     }
+
+    // Explicitly resume to handle iOS suspend state
+    if (audioContext.current.state === 'suspended') {
+        audioContext.current.resume();
+    }
+
+    // Play a silent sound on play to unlock AudioContext on iOS Safari
+    if (!isPlaying) {
+      const osc = audioContext.current.createOscillator();
+      const gain = audioContext.current.createGain();
+      gain.gain.value = 0;
+      osc.connect(gain);
+      gain.connect(audioContext.current.destination);
+      osc.start(audioContext.current.currentTime);
+      osc.stop(audioContext.current.currentTime + 0.001);
+    }
+
     setIsPlaying(!isPlaying);
   };
 
