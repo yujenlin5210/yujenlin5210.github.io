@@ -306,43 +306,35 @@ export default function Metronome() {
         
         {/* Header / Volume / BPM Display */}
         <div className="text-center w-full relative pt-2">
-          {/* Volume Control */}
-          <div className="absolute -top-2 md:top-0 right-0 flex items-center gap-2 bg-zinc-800/80 p-2 rounded-xl backdrop-blur-sm z-10">
-            <button onClick={() => setIsMuted(!isMuted)} className="text-zinc-400 hover:text-white transition-colors">
-              {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-            </button>
-            <input 
-              type="range" 
-              min="0" max="5" step="0.01" 
-              value={isMuted ? 0 : volume} 
-              onChange={(e) => {
-                setVolume(parseFloat(e.target.value));
-                if (isMuted) setIsMuted(false);
-              }}
-              className="w-16 md:w-24 h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-            />
+          {/* Volume Control & Mobile Title */}
+          <div className="flex justify-between items-center mb-6 md:mb-0 md:absolute md:-top-2 md:right-0 w-full md:w-auto z-10">
+            <h2 className="text-zinc-400 text-xs tracking-widest uppercase md:hidden text-left font-bold">Metronome</h2>
+            <div className="flex items-center gap-2 bg-zinc-800/80 p-2 rounded-xl backdrop-blur-sm ml-auto">
+              <button onClick={() => setIsMuted(!isMuted)} className="text-zinc-400 hover:text-white transition-colors">
+                {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              </button>
+              <input 
+                type="range" 
+                min="0" max="5" step="0.01" 
+                value={isMuted ? 0 : volume} 
+                onChange={(e) => {
+                  setVolume(parseFloat(e.target.value));
+                  if (isMuted) setIsMuted(false);
+                }}
+                className="w-16 md:w-24 h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+            </div>
           </div>
 
-          <h2 className="text-zinc-400 text-sm tracking-widest uppercase mb-2">Digital Metronome</h2>
+          <h2 className="text-zinc-400 text-sm tracking-widest uppercase mb-2 hidden md:block">Digital Metronome</h2>
           
           <div className="flex flex-col items-center gap-6">
-            <div className="flex items-center justify-center gap-2 md:gap-4 w-full">
-              <button
-                onClick={() => setBpm(b => typeof b === 'number' ? Math.max(20, b - 5) : 20)}
-                className="px-3 py-3 md:px-4 md:py-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 transition-colors shrink-0 text-zinc-400 font-bold"
-                aria-label="Decrease BPM by 5"
-              >
-                -5
-              </button>
-              <button
-                onClick={() => setBpm(b => typeof b === 'number' ? Math.max(20, b - 1) : 20)}
-                className="p-3 md:p-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 transition-colors shrink-0 text-zinc-400"
-                aria-label="Decrease BPM"
-              >
-                <Minus size={24} />
-              </button>
-
-              <div className="flex items-end justify-center gap-2">
+            <div className="flex items-center justify-center gap-2 md:gap-4 w-full flex-wrap md:flex-nowrap">
+              
+              <div className="flex items-end justify-center gap-2 w-full md:w-auto order-1 md:order-2 mb-2 md:mb-0">
+                {/* Invisible spacer to perfectly center the BPM number */}
+                <span className="text-xl font-bold pb-2 md:pb-3 invisible" aria-hidden="true">BPM</span>
+                
                 <input
                   type="number"
                   value={bpm}
@@ -355,20 +347,40 @@ export default function Metronome() {
                 <span className="text-xl text-zinc-500 font-bold pb-2 md:pb-3">BPM</span>
               </div>
 
-              <button
-                onClick={() => setBpm(b => typeof b === 'number' ? Math.min(300, b + 1) : 300)}
-                className="p-3 md:p-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 transition-colors shrink-0 text-zinc-400"
-                aria-label="Increase BPM"
-              >
-                <Plus size={24} />
-              </button>
-              <button
-                onClick={() => setBpm(b => typeof b === 'number' ? Math.min(300, b + 5) : 300)}
-                className="px-3 py-3 md:px-4 md:py-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 transition-colors shrink-0 text-zinc-400 font-bold"
-                aria-label="Increase BPM by 5"
-              >
-                +5
-              </button>
+              <div className="flex justify-center gap-2 order-2 md:order-1 w-[48%] md:w-auto pr-1 md:pr-0">
+                <button
+                  onClick={() => setBpm(b => typeof b === 'number' ? Math.max(20, b - 5) : 20)}
+                  className="flex-1 md:flex-none px-3 py-3 md:px-4 md:py-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 transition-colors shrink-0 text-zinc-400 font-bold"
+                  aria-label="Decrease BPM by 5"
+                >
+                  -5
+                </button>
+                <button
+                  onClick={() => setBpm(b => typeof b === 'number' ? Math.max(20, b - 1) : 20)}
+                  className="flex-1 md:flex-none flex justify-center items-center p-3 md:p-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 transition-colors shrink-0 text-zinc-400"
+                  aria-label="Decrease BPM"
+                >
+                  <Minus size={24} />
+                </button>
+              </div>
+
+              <div className="flex justify-center gap-2 order-3 md:order-3 w-[48%] md:w-auto pl-1 md:pl-0">
+                <button
+                  onClick={() => setBpm(b => typeof b === 'number' ? Math.min(300, b + 1) : 300)}
+                  className="flex-1 md:flex-none flex justify-center items-center p-3 md:p-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 transition-colors shrink-0 text-zinc-400"
+                  aria-label="Increase BPM"
+                >
+                  <Plus size={24} />
+                </button>
+                <button
+                  onClick={() => setBpm(b => typeof b === 'number' ? Math.min(300, b + 5) : 300)}
+                  className="flex-1 md:flex-none px-3 py-3 md:px-4 md:py-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 transition-colors shrink-0 text-zinc-400 font-bold"
+                  aria-label="Increase BPM by 5"
+                >
+                  +5
+                </button>
+              </div>
+              
             </div>
 
             <input
@@ -377,7 +389,7 @@ export default function Metronome() {
               max="300"
               value={typeof bpm === 'number' ? bpm : 20}
               onChange={handleBpmChange}
-              className="w-full max-w-md h-3 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              className="w-full max-w-md h-3 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500 mt-2"
             />
           </div>
         </div>
