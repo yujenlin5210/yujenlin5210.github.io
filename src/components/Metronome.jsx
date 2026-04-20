@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, Plus, Minus, Save, Trash2, Volume2, VolumeX } from 'lucide-react';
-import NoSleep from 'nosleep.js';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 const defaultTsShortcuts = [{b:1,n:4}, {b:2,n:4}, {b:3,n:4}, {b:4,n:4}, {b:6,n:8}];
 
@@ -61,17 +61,8 @@ export default function Metronome() {
   
   const [visualBeat, setVisualBeat] = useState(-1);
 
-  // Wake Lock
-  const noSleep = useRef(null);
-  
-  useEffect(() => {
-    noSleep.current = new NoSleep();
-    return () => {
-      if (noSleep.current) {
-        noSleep.current.disable();
-      }
-    };
-  }, []);
+  // Wake Lock Hook
+  const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
   // Audio Context & Scheduling Refs
   const audioContext = useRef(null);
@@ -249,9 +240,9 @@ export default function Metronome() {
     isPlayingRef.current = nextPlayingState;
 
     if (nextPlayingState) {
-      if (noSleep.current) {
-        noSleep.current.enable();
-      }
+      // Request wake lock DIRECTLY on user interaction
+      requestWakeLock();
+      
       // Audio trigger for iOS media playback mode
       if (!silentAudioRef.current) {
         silentAudioRef.current = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
@@ -260,9 +251,7 @@ export default function Metronome() {
       silentAudioRef.current.play().catch(() => {});
     } else {
       if (silentAudioRef.current) silentAudioRef.current.pause();
-      if (noSleep.current) {
-        noSleep.current.disable();
-      }
+      releaseWakeLock();
     }
 
     // 2. Audio Context initialization/resume
@@ -289,9 +278,7 @@ export default function Metronome() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && isPlaying) {
         setIsPlaying(false);
-        if (noSleep.current) {
-          noSleep.current.disable();
-        }
+        releaseWakeLock();
       }
     };
 
@@ -301,7 +288,7 @@ export default function Metronome() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isPlaying]);
+  }, [isPlaying, releaseWakeLock]);
 
   const handleBpmChange = (e) => {
     const val = parseInt(e.target.value);
