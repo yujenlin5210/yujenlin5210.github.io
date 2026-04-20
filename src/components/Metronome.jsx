@@ -62,7 +62,7 @@ export default function Metronome() {
   const [visualBeat, setVisualBeat] = useState(-1);
 
   // Wake Lock Hook
-  useWakeLock(isPlaying);
+  const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
   // Audio Context & Scheduling Refs
   const audioContext = useRef(null);
@@ -246,8 +246,10 @@ export default function Metronome() {
         silentAudioRef.current.loop = true;
       }
       silentAudioRef.current.play().catch(() => {});
+      requestWakeLock();
     } else {
       if (silentAudioRef.current) silentAudioRef.current.pause();
+      releaseWakeLock();
     }
 
     // 2. Audio Context initialization/resume
@@ -274,6 +276,7 @@ export default function Metronome() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && isPlaying) {
         setIsPlaying(false);
+        releaseWakeLock();
       }
     };
 
@@ -283,7 +286,7 @@ export default function Metronome() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isPlaying]);
+  }, [isPlaying, releaseWakeLock]);
 
   const handleBpmChange = (e) => {
     const val = parseInt(e.target.value);
