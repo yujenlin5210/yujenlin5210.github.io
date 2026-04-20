@@ -28,6 +28,23 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function getAccentType(beatIndex, beatsPerBar, noteValue) {
+  if (beatIndex === 0) {
+    return 'primary';
+  }
+
+  const isCompoundMeter =
+    noteValue >= 8 &&
+    beatsPerBar > 3 &&
+    beatsPerBar % 3 === 0;
+
+  if (isCompoundMeter && beatIndex % 3 === 0) {
+    return 'secondary';
+  }
+
+  return 'normal';
+}
+
 function readLocalStorage(key) {
   if (typeof window === 'undefined') {
     return null;
@@ -163,6 +180,8 @@ export default function Metronome() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [beatsPerBar, setBeatsPerBar] = useState(4);
   const [noteValue, setNoteValue] = useState(4);
+  const [beatsPerBarInput, setBeatsPerBarInput] = useState('4');
+  const [noteValueInput, setNoteValueInput] = useState('4');
   const [volume, setVolume] = useState(loadInitialVolume);
   const [isMuted, setIsMuted] = useState(loadInitialMuted);
   const [shortcuts, setShortcuts] = useState(loadInitialBpmShortcuts);
@@ -203,7 +222,15 @@ export default function Metronome() {
   }, [beatsPerBar]);
 
   useEffect(() => {
+    setBeatsPerBarInput(String(beatsPerBar));
+  }, [beatsPerBar]);
+
+  useEffect(() => {
     noteValueRef.current = noteValue;
+  }, [noteValue]);
+
+  useEffect(() => {
+    setNoteValueInput(String(noteValue));
   }, [noteValue]);
 
   useEffect(() => {
@@ -408,8 +435,7 @@ export default function Metronome() {
 
   const nextNote = useCallback(() => {
     const activeBpm = typeof bpmRef.current === 'number' ? bpmRef.current : 100;
-    const noteValueMultiplier = 4 / noteValueRef.current;
-    const secondsPerBeat = (60 / activeBpm) * noteValueMultiplier;
+    const secondsPerBeat = 60 / activeBpm;
 
     nextNoteTimeRef.current += secondsPerBeat;
     currentBeatInBarRef.current = (currentBeatInBarRef.current + 1) % beatsPerBarRef.current;
@@ -456,10 +482,23 @@ export default function Metronome() {
     osc.connect(noteGain);
     noteGain.connect(masterGain);
 
-    const isAccent = beatsPerBarRef.current > 1 && beatNumber === 0;
-    osc.frequency.value = isAccent ? 880 : 440;
+    const accentType = getAccentType(
+      beatNumber,
+      beatsPerBarRef.current,
+      noteValueRef.current
+    );
 
-    noteGain.gain.setValueAtTime(1, time);
+    if (accentType === 'primary') {
+      osc.frequency.value = 880;
+      noteGain.gain.setValueAtTime(1, time);
+    } else if (accentType === 'secondary') {
+      osc.frequency.value = 660;
+      noteGain.gain.setValueAtTime(0.8, time);
+    } else {
+      osc.frequency.value = 440;
+      noteGain.gain.setValueAtTime(0.6, time);
+    }
+
     noteGain.gain.exponentialRampToValueAtTime(0.001, time + NOTE_DURATION);
 
     osc.start(time);
@@ -739,10 +778,23 @@ export default function Metronome() {
   };
 
   const handleBeatsPerBarChange = (event) => {
-    const nextValue = Number.parseInt(event.target.value, 10);
-
-    if (Number.isNaN(nextValue) || nextValue < 1 || nextValue > MAX_BEATS_PER_BAR) {
+    const rawValue = event.target.value;
+    if (!/^\d*$/.test(rawValue)) {
       return;
+    }
+
+    setBeatsPerBarInput(rawValue);
+  };
+
+  const handleBeatsPerBarBlur = () => {
+    let nextValue = Number.parseInt(beatsPerBarInput, 10);
+
+    if (Number.isNaN(nextValue) || nextValue < 1) {
+      nextValue = 1;
+    }
+
+    if (nextValue > MAX_BEATS_PER_BAR) {
+      nextValue = MAX_BEATS_PER_BAR;
     }
 
     setBeatsPerBar(nextValue);
@@ -754,10 +806,30 @@ export default function Metronome() {
   };
 
   const handleNoteValueChange = (event) => {
-    const nextValue = Number.parseInt(event.target.value, 10);
+    const rawValue = event.target.value;
+    if (!/^\d*$/.test(rawValue)) {
+      return;
+    }
+
+    setNoteValueInput(rawValue);
+  };
+
+  const handleNoteValueBlur = () => {
+    let nextValue = Number.parseInt(noteValueInput, 10);
+
+    if (Number.isNaN(nextValue)) {
+      nextValue = noteValue;
+    }
 
     if (!VALID_NOTE_VALUES.has(nextValue)) {
-      return;
+      const fallbackNoteValue = [...VALID_NOTE_VALUES].reduce((closest, candidate) => {
+        if (Math.abs(candidate - nextValue) < Math.abs(closest - nextValue)) {
+          return candidate;
+        }
+        return closest;
+      }, noteValue);
+
+      nextValue = fallbackNoteValue;
     }
 
     setNoteValue(nextValue);
@@ -900,16 +972,18 @@ export default function Metronome() {
         <div className="flex justify-center gap-2 md:gap-4 my-4 w-full h-12 flex-wrap">
           {Array.from({ length: beatsPerBar }).map((_, index) => {
             const isActive = visualBeat === index;
-            const isAccent = beatsPerBar > 1 && index === 0;
+            const accentType = getAccentType(index, beatsPerBar, noteValue);
 
             return (
               <div
                 key={index}
                 className={`flex-1 min-w-[0.5rem] rounded-full transition-all duration-75 ${
                   isActive
-                    ? isAccent
+                    ? accentType === 'primary'
                       ? 'bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.8)]'
-                      : 'bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.6)]'
+                      : accentType === 'secondary'
+                        ? 'bg-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.7)]'
+                        : 'bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.6)]'
                     : 'bg-zinc-800'
                 }`}
               />
@@ -973,8 +1047,9 @@ export default function Metronome() {
               <div className="flex items-center gap-2 text-2xl font-bold bg-zinc-800 rounded-xl p-2">
                 <input
                   type="number"
-                  value={beatsPerBar}
+                  value={beatsPerBarInput}
                   onChange={handleBeatsPerBarChange}
+                  onBlur={handleBeatsPerBarBlur}
                   min="1"
                   max={MAX_BEATS_PER_BAR}
                   className="w-12 md:w-16 bg-transparent text-center outline-none focus:text-blue-400 [&::-webkit-inner-spin-button]:appearance-none transition-colors"
@@ -983,8 +1058,9 @@ export default function Metronome() {
                 <span className="text-zinc-600">/</span>
                 <input
                   type="number"
-                  value={noteValue}
+                  value={noteValueInput}
                   onChange={handleNoteValueChange}
+                  onBlur={handleNoteValueBlur}
                   min="1"
                   max="32"
                   className="w-12 md:w-16 bg-transparent text-center outline-none focus:text-emerald-400 [&::-webkit-inner-spin-button]:appearance-none transition-colors"
