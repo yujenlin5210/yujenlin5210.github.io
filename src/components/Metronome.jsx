@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Pause, Plus, Minus, Save, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { Play, Pause, Plus, Minus, Save, Trash2, Volume2, VolumeX, Settings2 } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
 
 const defaultTsShortcuts = [{b:1,n:4}, {b:2,n:4}, {b:3,n:4}, {b:4,n:4}, {b:6,n:8}];
@@ -9,6 +9,8 @@ export default function Metronome() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [beatsPerBar, setBeatsPerBar] = useState(4);
   const [noteValue, setNoteValue] = useState(4);
+  const [showSettings, setShowSettings] = useState(false);
+  
   const [volume, setVolume] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('metronome-volume');
@@ -38,11 +40,11 @@ export default function Metronome() {
         try {
           return JSON.parse(saved);
         } catch (e) {
-          return [60, 80, 90, 100, 120];
+          return [60, 80, 100, 120];
         }
       }
     }
-    return [60, 80, 90, 100, 120];
+    return [60, 80, 100, 120];
   });
 
   const [tsShortcuts, setTsShortcuts] = useState(() => {
@@ -76,8 +78,8 @@ export default function Metronome() {
   const lastNoteDrawn = useRef(-1);
   const isPlayingRef = useRef(false);
 
-  const lookahead = 25.0; // ms
-  const scheduleAheadTime = 0.1; // s
+  const lookahead = 25.0; 
+  const scheduleAheadTime = 0.1; 
 
   // Keep refs in sync with state for the scheduler loop
   const bpmRef = useRef(bpm);
@@ -96,16 +98,13 @@ export default function Metronome() {
   useEffect(() => {
     const initAudio = () => {
       if (!audioContext.current) {
-        // Set AudioSession type to 'playback' to bypass silent switch and use media volume
         if (navigator.audioSession) {
           navigator.audioSession.type = 'playback';
         }
-
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         audioContext.current = ctx;
         masterGain.current = ctx.createGain();
         masterGain.current.connect(ctx.destination);
-        // Set initial volume
         masterGain.current.gain.value = isMutedRef.current ? 0 : volumeRef.current;
       }
     };
@@ -137,22 +136,15 @@ export default function Metronome() {
 
   const scheduleNote = (beatNumber, time) => {
     noteQueue.current.push({ note: beatNumber, time: time });
-
     if (!audioContext.current || !masterGain.current) return;
 
     const osc = audioContext.current.createOscillator();
     const noteGain = audioContext.current.createGain();
-
     osc.connect(noteGain);
     noteGain.connect(masterGain.current);
 
     const isAccent = beatsPerBarRef.current > 1 && beatNumber === 0;
-    
-    if (isAccent) {
-      osc.frequency.value = 880.0;
-    } else {
-      osc.frequency.value = 440.0;
-    }
+    osc.frequency.value = isAccent ? 880.0 : 440.0;
 
     noteGain.gain.setValueAtTime(1, time);
     noteGain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
@@ -162,14 +154,7 @@ export default function Metronome() {
   };
 
   const nextNote = () => {
-    // If user is currently typing and bpm is not a number, fallback to 100 for scheduling
     const activeBpm = typeof bpmRef.current === 'number' ? bpmRef.current : 100;
-    
-    // The BPM defines the duration of a quarter note (1/4).
-    // If the time signature is 6/8, the note value is 8 (an eighth note).
-    // An eighth note is half the duration of a quarter note.
-    // multiplier = 4 / noteValue (e.g., 4 / 8 = 0.5)
-    // So the seconds per beat will be adjusted correctly.
     const noteValueMultiplier = 4 / noteValueRef.current; 
     const secondsPerBeat = (60.0 / activeBpm) * noteValueMultiplier;
 
@@ -179,7 +164,6 @@ export default function Metronome() {
 
   const scheduler = useCallback(() => {
     if (!isPlayingRef.current || !audioContext.current) return;
-
     while (nextNoteTime.current < audioContext.current.currentTime + scheduleAheadTime) {
       scheduleNote(currentBeatInBar.current, nextNoteTime.current);
       nextNote();
@@ -189,20 +173,16 @@ export default function Metronome() {
 
   const draw = useCallback(() => {
     if (!isPlayingRef.current || !audioContext.current) return;
-
     let currentNote = lastNoteDrawn.current;
     const currentTime = audioContext.current.currentTime;
-
     while (noteQueue.current.length && noteQueue.current[0].time < currentTime) {
       currentNote = noteQueue.current[0].note;
       noteQueue.current.splice(0, 1);
     }
-
     if (lastNoteDrawn.current !== currentNote) {
       setVisualBeat(currentNote);
       lastNoteDrawn.current = currentNote;
     }
-
     animationRef.current = requestAnimationFrame(draw);
   }, []);
 
@@ -211,15 +191,11 @@ export default function Metronome() {
       if (audioContext.current && audioContext.current.state === 'suspended') {
         audioContext.current.resume();
       }
-      
       isPlayingRef.current = true;
       currentBeatInBar.current = 0;
-      
       nextNoteTime.current = audioContext.current ? audioContext.current.currentTime + 0.05 : 0.05;
-      
       noteQueue.current = [];
       lastNoteDrawn.current = -1;
-      
       scheduler();
       animationRef.current = requestAnimationFrame(draw);
     } else {
@@ -228,7 +204,6 @@ export default function Metronome() {
       cancelAnimationFrame(animationRef.current);
       setVisualBeat(-1);
     }
-
     return () => {
       clearTimeout(timerID.current);
       cancelAnimationFrame(animationRef.current);
@@ -238,12 +213,8 @@ export default function Metronome() {
   const handlePlayPause = () => {
     const nextPlayingState = !isPlaying;
     isPlayingRef.current = nextPlayingState;
-
     if (nextPlayingState) {
-      // Request wake lock DIRECTLY on user interaction
       requestWakeLock();
-      
-      // Audio trigger for iOS media playback mode
       if (!silentAudioRef.current) {
         silentAudioRef.current = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
         silentAudioRef.current.loop = true;
@@ -253,46 +224,28 @@ export default function Metronome() {
       if (silentAudioRef.current) silentAudioRef.current.pause();
       releaseWakeLock();
     }
-
-    // 2. Audio Context initialization/resume
     if (!audioContext.current) {
-        if (navigator.audioSession) {
-          navigator.audioSession.type = 'playback';
-        }
+        if (navigator.audioSession) navigator.audioSession.type = 'playback';
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         audioContext.current = ctx;
         masterGain.current = ctx.createGain();
         masterGain.current.gain.value = isMuted ? 0 : volume;
         masterGain.current.connect(ctx.destination);
     }
-
-    if (audioContext.current.state === 'suspended') {
-        audioContext.current.resume();
-    }
-
+    if (audioContext.current.state === 'suspended') audioContext.current.resume();
     setIsPlaying(nextPlayingState);
   };
 
-  // Visibility Management
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && isPlaying) {
-        setIsPlaying(false);
-        releaseWakeLock();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    isPlayingRef.current = isPlaying;
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [isPlaying, releaseWakeLock]);
+  const adjustBpm = (delta) => {
+    setBpm(prev => {
+        const val = (typeof prev === 'number' ? prev : 100) + delta;
+        return Math.min(300, Math.max(20, val));
+    });
+  };
 
   const handleBpmChange = (e) => {
     const val = parseInt(e.target.value);
-    setBpm(isNaN(val) ? '' : val); // allow empty temporarily while typing
+    setBpm(isNaN(val) ? '' : val);
   };
 
   const handleBpmBlur = () => {
@@ -302,303 +255,152 @@ export default function Metronome() {
     setBpm(val);
   };
 
-  const handleBeatsPerBarChange = (e) => {
-    const val = parseInt(e.target.value);
-    if (!isNaN(val) && val > 0 && val <= 32) {
-      setBeatsPerBar(val);
-      if (isPlaying) {
-        currentBeatInBar.current = 0;
-        lastNoteDrawn.current = -1;
-      }
-    }
-  };
-
-  const handleNoteValueChange = (e) => {
-    const val = parseInt(e.target.value);
-    // Ensure the note value is a power of 2 (1, 2, 4, 8, 16, 32)
-    if (!isNaN(val) && [1, 2, 4, 8, 16, 32].includes(val)) {
-      setNoteValue(val);
-    }
-  };
-
   const saveShortcut = () => {
     if (typeof bpm === 'number' && !shortcuts.includes(bpm)) {
       const newShortcuts = [...shortcuts, bpm].sort((a, b) => a - b);
       setShortcuts(newShortcuts);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('metronome-shortcuts', JSON.stringify(newShortcuts));
-      }
+      localStorage.setItem('metronome-shortcuts', JSON.stringify(newShortcuts));
     }
   };
 
   const removeShortcut = (bpmToRemove) => {
     const newShortcuts = shortcuts.filter(s => s !== bpmToRemove);
     setShortcuts(newShortcuts);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('metronome-shortcuts', JSON.stringify(newShortcuts));
-    }
-  };
-
-  const saveTsShortcut = () => {
-    const isExists = tsShortcuts.some(ts => ts.b === beatsPerBar && ts.n === noteValue);
-    if (!isExists) {
-      const newShortcuts = [...tsShortcuts, {b: beatsPerBar, n: noteValue}];
-      setTsShortcuts(newShortcuts);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('metronome-ts-shortcuts', JSON.stringify(newShortcuts));
-      }
-    }
-  };
-
-  const removeTsShortcut = (tsToRemove) => {
-    const newShortcuts = tsShortcuts.filter(ts => !(ts.b === tsToRemove.b && ts.n === tsToRemove.n));
-    setTsShortcuts(newShortcuts);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('metronome-ts-shortcuts', JSON.stringify(newShortcuts));
-    }
+    localStorage.setItem('metronome-shortcuts', JSON.stringify(newShortcuts));
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto p-6 md:p-8 bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-800 text-white font-mono relative">
-      <div className="flex flex-col items-center gap-8">
-        
-        {/* Header / Volume / BPM Display */}
-        <div className="text-center w-full relative pt-2">
-          {/* Volume Control & Mobile Title */}
-          <div className="flex justify-between items-center mb-6 md:mb-0 md:absolute md:-top-2 md:right-0 w-full md:w-auto z-10">
-            <h2 className="text-zinc-400 text-xs tracking-widest uppercase md:hidden text-left font-bold">Metronome</h2>
-            <div className="flex items-center gap-2 bg-zinc-800/80 p-2 rounded-xl backdrop-blur-sm ml-auto">
-              <button onClick={() => setIsMuted(!isMuted)} className="text-zinc-400 hover:text-white transition-colors">
-                {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-              </button>
-              <input 
-                type="range" 
-                min="0" max="5" step="0.01" 
-                value={isMuted ? 0 : volume} 
-                onChange={(e) => {
-                  setVolume(parseFloat(e.target.value));
-                  if (isMuted) setIsMuted(false);
-                }}
-                className="w-16 md:w-24 h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
+    <div className="w-full max-w-md mx-auto aspect-[9/16] md:aspect-auto md:h-auto bg-zinc-950 md:bg-zinc-900 md:rounded-3xl shadow-2xl overflow-hidden flex flex-col text-white font-sans relative border border-zinc-800">
+      
+      {/* 1. Header Area (Compact) */}
+      <div className="flex justify-between items-center px-6 pt-8 pb-4 z-20">
+        <div className="flex flex-col">
+            <h2 className="text-zinc-500 text-[10px] font-black uppercase tracking-[0.2em]">Tempo</h2>
+            <div className="flex items-center gap-1">
+                <span className="text-zinc-400 text-xs font-mono font-bold">{beatsPerBar}/{noteValue}</span>
             </div>
-          </div>
-
-          <h2 className="text-zinc-400 text-sm tracking-widest uppercase mb-2 hidden md:block">Digital Metronome</h2>
-          
-          <div className="flex flex-col items-center gap-6">
-            <div className="flex items-center justify-center gap-2 md:gap-4 w-full flex-wrap md:flex-nowrap">
-              
-              <div className="flex items-end justify-center gap-2 w-full md:w-auto order-1 md:order-2 mb-2 md:mb-0">
-                {/* Invisible spacer to perfectly center the BPM number */}
-                <span className="text-xl font-bold pb-2 md:pb-3 invisible" aria-hidden="true">BPM</span>
-                
-                <input
-                  type="number"
-                  value={bpm}
-                  onChange={handleBpmChange}
-                  onBlur={handleBpmBlur}
-                  className="w-32 md:w-48 text-center text-6xl md:text-8xl font-black tracking-tighter bg-transparent outline-none text-transparent bg-clip-text bg-gradient-to-br from-white to-zinc-400 [&::-webkit-inner-spin-button]:appearance-none focus:scale-105 transition-transform"
-                  min="20"
-                  max="300"
-                />
-                <span className="text-xl text-zinc-500 font-bold pb-2 md:pb-3">BPM</span>
-              </div>
-
-              <div className="flex justify-center gap-2 order-2 md:order-1 w-[48%] md:w-auto pr-1 md:pr-0">
-                <button
-                  onClick={() => setBpm(b => typeof b === 'number' ? Math.max(20, b - 5) : 20)}
-                  className="flex-1 md:flex-none px-3 py-3 md:px-4 md:py-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 transition-colors shrink-0 text-zinc-400 font-bold"
-                  aria-label="Decrease BPM by 5"
-                >
-                  -5
-                </button>
-                <button
-                  onClick={() => setBpm(b => typeof b === 'number' ? Math.max(20, b - 1) : 20)}
-                  className="flex-1 md:flex-none flex justify-center items-center p-3 md:p-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 transition-colors shrink-0 text-zinc-400"
-                  aria-label="Decrease BPM"
-                >
-                  <Minus size={24} />
-                </button>
-              </div>
-
-              <div className="flex justify-center gap-2 order-3 md:order-3 w-[48%] md:w-auto pl-1 md:pl-0">
-                <button
-                  onClick={() => setBpm(b => typeof b === 'number' ? Math.min(300, b + 1) : 300)}
-                  className="flex-1 md:flex-none flex justify-center items-center p-3 md:p-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 transition-colors shrink-0 text-zinc-400"
-                  aria-label="Increase BPM"
-                >
-                  <Plus size={24} />
-                </button>
-                <button
-                  onClick={() => setBpm(b => typeof b === 'number' ? Math.min(300, b + 5) : 300)}
-                  className="flex-1 md:flex-none px-3 py-3 md:px-4 md:py-4 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:bg-zinc-600 transition-colors shrink-0 text-zinc-400 font-bold"
-                  aria-label="Increase BPM by 5"
-                >
-                  +5
-                </button>
-              </div>
-              
-            </div>
-
-            <input
-              type="range"
-              min="20"
-              max="300"
-              value={typeof bpm === 'number' ? bpm : 20}
-              onChange={handleBpmChange}
-              className="w-full max-w-md h-3 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500 mt-2"
-            />
-          </div>
         </div>
-
-        {/* Visualizer */}
-        <div className="flex justify-center gap-2 md:gap-4 my-4 w-full h-12 flex-wrap">
-          {Array.from({ length: beatsPerBar }).map((_, i) => {
-            const isActive = visualBeat === i;
-            const isAccent = beatsPerBar > 1 && i === 0;
-            return (
-              <div
-                key={i}
-                className={`flex-1 min-w-[0.5rem] rounded-full transition-all duration-75 ${
-                  isActive
-                    ? isAccent
-                      ? 'bg-blue-500 shadow-[0_0_20px_rgba(59,130,246,0.8)]' // Accent beat
-                      : 'bg-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.6)]' // Normal beat
-                    : 'bg-zinc-800'
-                }`}
-              />
-            );
-          })}
-        </div>
-
-        {/* Main Controls */}
-        <div className="w-full space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-            
-            {/* Custom Time Signature Input */}
-            <div className="flex flex-col gap-2 w-full md:w-auto items-center md:items-start">
-              <div className="flex flex-col md:flex-row items-center gap-2 md:gap-3">
-                <span className="text-xs text-zinc-500 uppercase tracking-wider font-bold">Time Signature</span>
-                <div className="flex gap-1 flex-wrap">
-                  {tsShortcuts.map(ts => {
-                    const isDefault = defaultTsShortcuts.some(d => d.b === ts.b && d.n === ts.n);
-                    return (
-                      <div key={`${ts.b}/${ts.n}`} className="flex bg-zinc-800 rounded overflow-hidden group">
-                        <button
-                          onClick={() => {
-                            setBeatsPerBar(ts.b);
-                            setNoteValue(ts.n);
-                            if (isPlaying) {
-                              currentBeatInBar.current = 0;
-                              lastNoteDrawn.current = -1;
-                            }
-                          }}
-                          className={`px-2 py-0.5 text-[10px] font-bold transition-colors ${
-                            beatsPerBar === ts.b && noteValue === ts.n
-                              ? 'bg-blue-500 text-white shadow-[0_0_10px_rgba(59,130,246,0.6)]'
-                              : 'text-zinc-400 hover:bg-zinc-700'
-                          }`}
-                        >
-                          {ts.b}/{ts.n}
-                        </button>
-                        {!isDefault && (
-                          <button
-                            onClick={() => removeTsShortcut(ts)}
-                            className="flex items-center justify-center px-1 bg-zinc-800 hover:bg-rose-500 transition-colors text-zinc-600 hover:text-white"
-                            title="Remove shortcut"
-                          >
-                            <Trash2 size={10} />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                  <button
-                    onClick={saveTsShortcut}
-                    disabled={tsShortcuts.some(ts => ts.b === beatsPerBar && ts.n === noteValue)}
-                    className="flex items-center justify-center px-1.5 py-0.5 rounded bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Add Current Time Signature"
-                  >
-                    <Plus size={12} />
-                  </button>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-2xl font-bold bg-zinc-800 rounded-xl p-2">
-                <input 
-                  type="number" 
-                  value={beatsPerBar} 
-                  onChange={handleBeatsPerBarChange}
-                  min="1" max="32"
-                  className="w-12 md:w-16 bg-transparent text-center outline-none focus:text-blue-400 [&::-webkit-inner-spin-button]:appearance-none transition-colors"
-                />
-                <span className="text-zinc-600">/</span>
-                <input 
-                  type="number" 
-                  value={noteValue} 
-                  onChange={handleNoteValueChange}
-                  min="1" max="32"
-                  className="w-12 md:w-16 bg-transparent text-center outline-none focus:text-emerald-400 [&::-webkit-inner-spin-button]:appearance-none transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Play/Pause */}
-            <button
-              onClick={handlePlayPause}
-              className={`flex items-center justify-center w-20 h-20 shrink-0 rounded-full transition-all shadow-lg hover:scale-105 active:scale-95 ${
-                isPlaying 
-                  ? 'bg-rose-500 hover:bg-rose-400 shadow-rose-500/20' 
-                  : 'bg-white text-black hover:bg-zinc-200'
-              }`}
+        <div className="flex items-center gap-4">
+            <button 
+                onClick={() => setIsMuted(!isMuted)} 
+                className={`p-2 rounded-full transition-all ${isMuted ? 'bg-rose-500/20 text-rose-500' : 'bg-zinc-800 text-zinc-400'}`}
             >
-              {isPlaying ? (
-                <Pause size={32} className="text-white fill-current" />
-              ) : (
-                <Play size={32} className="ml-2 fill-current" />
-              )}
+                {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
             </button>
-
-          </div>
+            <button 
+                onClick={() => setShowSettings(!showSettings)} 
+                className={`p-2 rounded-full transition-all ${showSettings ? 'bg-blue-500/20 text-blue-500' : 'bg-zinc-800 text-zinc-400'}`}
+            >
+                <Settings2 size={18} />
+            </button>
         </div>
-
-        {/* Shortcuts */}
-        <div className="w-full pt-6 border-t border-zinc-800">
-          <div className="flex justify-between items-end mb-3">
-             <span className="text-xs text-zinc-500 uppercase tracking-wider font-bold">Custom Shortcuts</span>
-             <button
-               onClick={saveShortcut}
-               disabled={typeof bpm !== 'number' || shortcuts.includes(bpm)}
-               className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 bg-blue-600/20 text-blue-400 hover:bg-blue-600/40 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-             >
-               <Save size={14} /> Add Current BPM
-             </button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {shortcuts.map(shortcutBpm => (
-              <div key={shortcutBpm} className="flex bg-zinc-800 rounded-lg overflow-hidden group">
-                <button
-                  onClick={() => setBpm(shortcutBpm)}
-                  className="min-w-[3rem] py-2 px-3 text-sm transition-colors text-zinc-300 font-bold hover:bg-zinc-700"
-                >
-                  {shortcutBpm}
-                </button>
-                <button
-                  onClick={() => removeShortcut(shortcutBpm)}
-                  className="flex items-center justify-center px-2 bg-zinc-800 hover:bg-rose-500 transition-colors text-zinc-600 hover:text-white"
-                  title="Remove shortcut"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-            {shortcuts.length === 0 && (
-              <span className="text-sm text-zinc-500 italic py-2">No shortcuts saved. Click "Add Current BPM" to create one.</span>
-            )}
-          </div>
-        </div>
-
       </div>
+
+      {/* 2. Visualizer (Top priority feedback) */}
+      <div className="px-6 py-2 flex justify-center gap-1.5 h-6">
+        {Array.from({ length: beatsPerBar }).map((_, i) => (
+          <div
+            key={i}
+            className={`flex-1 h-1.5 rounded-full transition-all duration-75 ${
+              visualBeat === i
+                ? (beatsPerBar > 1 && i === 0 ? 'bg-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.8)]' : 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.8)]')
+                : 'bg-zinc-800'
+            }`}
+          />
+        ))}
+      </div>
+
+      {/* 3. Main BPM Display Area */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 py-4">
+        <div className="relative group cursor-pointer" onClick={() => { /* Focus input */ }}>
+            <input
+                type="number"
+                value={bpm}
+                onChange={handleBpmChange}
+                onBlur={handleBpmBlur}
+                className="w-full text-center text-[120px] md:text-[140px] leading-none font-black tracking-tighter bg-transparent outline-none text-white selection:bg-blue-500/30 [&::-webkit-inner-spin-button]:appearance-none transition-transform active:scale-95"
+                min="20" max="300"
+            />
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 text-zinc-600 text-sm font-black tracking-widest uppercase">BPM</div>
+        </div>
+
+        {/* 4. Controls Area */}
+        <div className="w-full mt-12 grid grid-cols-4 gap-3">
+          {['-5', '-1', '+1', '+5'].map((val) => (
+            <button
+              key={val}
+              onClick={() => adjustBpm(parseInt(val))}
+              className="aspect-square flex items-center justify-center bg-zinc-800/50 hover:bg-zinc-800 active:bg-blue-600 active:text-white rounded-2xl text-lg font-bold text-zinc-300 transition-all border border-white/5 active:scale-90"
+            >
+              {val}
+            </button>
+          ))}
+        </div>
+
+        <div className="w-full mt-8 px-2">
+            <input
+                type="range"
+                min="20" max="300"
+                value={typeof bpm === 'number' ? bpm : 20}
+                onChange={handleBpmChange}
+                className="w-full h-8 bg-transparent appearance-none cursor-pointer accent-blue-500"
+            />
+        </div>
+      </div>
+
+      {/* 5. Shortcuts & Volume (Slide up logic or just tidy) */}
+      <div className={`px-6 pb-8 transition-all duration-300 ${showSettings ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+          <div className="bg-zinc-800/40 rounded-3xl p-5 border border-white/5 backdrop-blur-md">
+            <div className="flex justify-between items-center mb-4">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Presets</span>
+                <button onClick={saveShortcut} className="text-[10px] font-black text-blue-400 hover:text-blue-300">Add Current</button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+                {shortcuts.map(s => (
+                    <div key={s} className="flex bg-zinc-900 rounded-xl overflow-hidden border border-white/5 group">
+                        <button onClick={() => setBpm(s)} className="px-4 py-2 text-sm font-bold text-zinc-300 hover:bg-zinc-800">{s}</button>
+                        <button onClick={() => removeShortcut(s)} className="px-2 bg-zinc-900 hover:bg-rose-500 text-zinc-700 hover:text-white transition-colors">
+                            <Trash2 size={12} />
+                        </button>
+                    </div>
+                ))}
+            </div>
+
+            <div className="mt-6 flex flex-col gap-2">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Volume</span>
+                <div className="flex items-center gap-3">
+                    <Volume2 size={14} className="text-zinc-600" />
+                    <input 
+                        type="range" 
+                        min="0" max="1" step="0.01" 
+                        value={isMuted ? 0 : volume} 
+                        onChange={(e) => {
+                            setVolume(parseFloat(e.target.value));
+                            if (isMuted) setIsMuted(false);
+                        }}
+                        className="flex-1 h-1.5 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                    />
+                </div>
+            </div>
+          </div>
+      </div>
+
+      {/* 6. Footer Primary Action */}
+      <div className="px-6 pb-12 pt-4 flex flex-col items-center gap-4">
+        <button
+          onClick={handlePlayPause}
+          className={`w-24 h-24 flex items-center justify-center rounded-full transition-all shadow-2xl active:scale-90 ${
+            isPlaying 
+              ? 'bg-rose-500 text-white shadow-rose-500/40 rotate-180' 
+              : 'bg-white text-zinc-950 shadow-white/10'
+          }`}
+        >
+          {isPlaying ? <Pause size={42} fill="currentColor" /> : <Play size={42} className="ml-1.5" fill="currentColor" />}
+        </button>
+      </div>
+
+      {/* Background Decor */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-blue-500/5 rounded-full blur-[100px] pointer-events-none"></div>
     </div>
   );
 }
