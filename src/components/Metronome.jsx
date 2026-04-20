@@ -234,9 +234,13 @@ export default function Metronome() {
   }, [isPlaying, scheduler, draw]);
 
   const handlePlayPause = () => {
+    const nextPlayingState = !isPlaying;
+    
     // 1. Synchronous triggers for user-gesture restricted APIs
-    // We must call .play() IMMEDIATELY in the click handler for maximum reliability on iOS/Android
-    if (!isPlaying) {
+    // Update ref immediately so listeners have the correct state
+    isPlayingRef.current = nextPlayingState;
+
+    if (nextPlayingState) {
       // Audio trigger
       if (!silentAudioRef.current) {
         silentAudioRef.current = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
@@ -248,9 +252,34 @@ export default function Metronome() {
       if (wakeLockVideoRef.current) {
         wakeLockVideoRef.current.play().catch(() => {});
       }
+
+      // Native Wake Lock API
+      if ('wakeLock' in navigator) {
+        const requestNativeLock = async () => {
+          try {
+            if (wakeLockRef.current) await wakeLockRef.current.release();
+            const lock = await navigator.wakeLock.request('screen');
+            wakeLockRef.current = lock;
+            
+            lock.addEventListener('release', () => {
+              // If released by system (not by us), re-acquire if we are still supposed to be playing
+              if (isPlayingRef.current && document.visibilityState === 'visible') {
+                requestNativeLock();
+              }
+            });
+          } catch (err) {
+            console.warn("Native Wake Lock failed:", err);
+          }
+        };
+        requestNativeLock();
+      }
     } else {
+      // Stop everything
       if (silentAudioRef.current) silentAudioRef.current.pause();
       if (wakeLockVideoRef.current) wakeLockVideoRef.current.pause();
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
+      }
     }
 
     // 2. Audio Context initialization/resume
@@ -269,42 +298,10 @@ export default function Metronome() {
         audioContext.current.resume();
     }
 
-    // 3. Native Wake Lock (can be async)
-    toggleWakeLock(!isPlaying);
-
-    setIsPlaying(!isPlaying);
+    setIsPlaying(nextPlayingState);
   };
 
-  // Helper to handle Wake Lock (Native and Video Fallback)
-  const toggleWakeLock = async (enable) => {
-    if (enable) {
-      // Try Native Wake Lock API
-      if ('wakeLock' in navigator) {
-        const requestNativeLock = async () => {
-          try {
-            if (wakeLockRef.current) await wakeLockRef.current.release();
-            wakeLockRef.current = await navigator.wakeLock.request('screen');
-            
-            wakeLockRef.current.addEventListener('release', () => {
-              // If it's released by system (e.g. battery), re-acquire if still playing
-              if (isPlayingRef.current && document.visibilityState === 'visible') {
-                requestNativeLock();
-              }
-            });
-          } catch (err) {
-            console.warn("Native Wake Lock failed:", err);
-          }
-        };
-        await requestNativeLock();
-      }
-    } else {
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
-      }
-    }
-  };
-
-  // Visibility and Wake Lock Management
+  // Visibility Management
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && isPlaying) {
@@ -314,12 +311,6 @@ export default function Metronome() {
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     isPlayingRef.current = isPlaying;
-
-    if (!isPlaying) {
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
-      }
-    }
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
