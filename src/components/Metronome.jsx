@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, Plus, Minus, Save, Trash2, Volume2, VolumeX } from 'lucide-react';
+import { useWakeLock } from '../hooks/useWakeLock';
 
 const defaultTsShortcuts = [{b:1,n:4}, {b:2,n:4}, {b:3,n:4}, {b:4,n:4}, {b:6,n:8}];
 
@@ -60,12 +61,13 @@ export default function Metronome() {
   
   const [visualBeat, setVisualBeat] = useState(-1);
 
+  // Wake Lock Hook
+  useWakeLock(isPlaying);
+
   // Audio Context & Scheduling Refs
   const audioContext = useRef(null);
   const masterGain = useRef(null);
   const silentAudioRef = useRef(null);
-  const wakeLockRef = useRef(null);
-  const wakeLockVideoRef = useRef(null);
   const nextNoteTime = useRef(0);
   const currentBeatInBar = useRef(0);
   const timerID = useRef(null);
@@ -235,51 +237,17 @@ export default function Metronome() {
 
   const handlePlayPause = () => {
     const nextPlayingState = !isPlaying;
-    
-    // 1. Synchronous triggers for user-gesture restricted APIs
-    // Update ref immediately so listeners have the correct state
     isPlayingRef.current = nextPlayingState;
 
     if (nextPlayingState) {
-      // Audio trigger
+      // Audio trigger for iOS media playback mode
       if (!silentAudioRef.current) {
         silentAudioRef.current = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
         silentAudioRef.current.loop = true;
       }
       silentAudioRef.current.play().catch(() => {});
-
-      // Video trigger (fallback wake lock)
-      if (wakeLockVideoRef.current) {
-        wakeLockVideoRef.current.play().catch(() => {});
-      }
-
-      // Native Wake Lock API
-      if ('wakeLock' in navigator) {
-        const requestNativeLock = async () => {
-          try {
-            if (wakeLockRef.current) await wakeLockRef.current.release();
-            const lock = await navigator.wakeLock.request('screen');
-            wakeLockRef.current = lock;
-            
-            lock.addEventListener('release', () => {
-              // If released by system (not by us), re-acquire if we are still supposed to be playing
-              if (isPlayingRef.current && document.visibilityState === 'visible') {
-                requestNativeLock();
-              }
-            });
-          } catch (err) {
-            console.warn("Native Wake Lock failed:", err);
-          }
-        };
-        requestNativeLock();
-      }
     } else {
-      // Stop everything
       if (silentAudioRef.current) silentAudioRef.current.pause();
-      if (wakeLockVideoRef.current) wakeLockVideoRef.current.pause();
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
-      }
     }
 
     // 2. Audio Context initialization/resume
@@ -314,10 +282,6 @@ export default function Metronome() {
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().catch(() => {});
-        wakeLockRef.current = null;
-      }
     };
   }, [isPlaying]);
 
@@ -391,18 +355,6 @@ export default function Metronome() {
 
   return (
     <div className="w-full max-w-2xl mx-auto p-6 md:p-8 bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-800 text-white font-mono relative">
-      {/* 
-         Hidden Video Wake Lock - Must be in DOM and .play() called in user gesture.
-         We use a tiny opacity to ensure it stays in the browser's active rendering pipeline.
-      */}
-      <video 
-        ref={wakeLockVideoRef}
-        loop 
-        muted 
-        playsInline 
-        className="fixed inset-0 w-full h-full opacity-[0.001] pointer-events-none z-[-1]"
-        src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAA6G1kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-      />
       <div className="flex flex-col items-center gap-8">
         
         {/* Header / Volume / BPM Display */}
