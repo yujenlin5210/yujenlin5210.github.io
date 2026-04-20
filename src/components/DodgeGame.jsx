@@ -9,6 +9,7 @@ const DodgeGame = () => {
   const [isTouch, setIsTouch] = useState(false);
   const requestRef = useRef();
   const wakeLockRef = useRef(null);
+  const wakeLockVideoRef = useRef(null);
   const isMounted = useRef(true);
   const touchPos = useRef(null);
   
@@ -161,6 +162,7 @@ const DodgeGame = () => {
     
     setGameState('PLAYING');
     setScore(0);
+    toggleWakeLock(true);
     
     if (requestRef.current) cancelAnimationFrame(requestRef.current);
     requestRef.current = requestAnimationFrame(gameLoop);
@@ -177,6 +179,47 @@ const DodgeGame = () => {
       return newScores;
     });
     touchPos.current = null;
+    toggleWakeLock(false);
+  };
+
+  // Helper to handle Wake Lock (Native or Video Fallback)
+  const toggleWakeLock = async (enable) => {
+    if (enable) {
+      if ('wakeLock' in navigator) {
+        try {
+          if (wakeLockRef.current) await wakeLockRef.current.release();
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+        } catch (err) {
+          console.warn("Native Wake Lock failed, trying video fallback...");
+        }
+      }
+      
+      if (!wakeLockRef.current) {
+        if (!wakeLockVideoRef.current) {
+          const video = document.createElement('video');
+          video.setAttribute('loop', '');
+          video.setAttribute('playsinline', '');
+          video.setAttribute('muted', '');
+          video.style.position = 'absolute';
+          video.style.top = '-9999px';
+          video.style.left = '-9999px';
+          video.style.width = '1px';
+          video.style.height = '1px';
+          video.style.opacity = '0.01';
+          video.src = 'data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+          document.body.appendChild(video);
+          wakeLockVideoRef.current = video;
+        }
+        wakeLockVideoRef.current.play().catch(() => {});
+      }
+    } else {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
+      }
+      if (wakeLockVideoRef.current) {
+        wakeLockVideoRef.current.pause();
+      }
+    }
   };
 
   const handlePointerMove = (e) => {
@@ -347,43 +390,36 @@ const DodgeGame = () => {
 
   // Visibility and Wake Lock Management during game
   useEffect(() => {
-    const requestWakeLock = async () => {
-      if ('wakeLock' in navigator && gameState === 'PLAYING') {
-        try {
-          if (wakeLockRef.current) await wakeLockRef.current.release();
-          wakeLockRef.current = await navigator.wakeLock.request('screen');
-        } catch (err) {
-          console.warn("Wake Lock failed:", err);
-        }
-      }
-    };
-
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
-        if (gameState === 'PLAYING') {
-          gameOver();
-        }
-      } else if (document.visibilityState === 'visible' && gameState === 'PLAYING') {
-        requestWakeLock();
+      if (document.visibilityState === 'hidden' && gameState === 'PLAYING') {
+        gameOver();
       }
     };
 
-    if (gameState === 'PLAYING') {
-      requestWakeLock();
-    } else {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Cleanup if gameState changes
+    if (gameState !== 'PLAYING') {
       if (wakeLockRef.current) {
-        wakeLockRef.current.release().then(() => {
-          wakeLockRef.current = null;
-        });
+        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
+      }
+      if (wakeLockVideoRef.current) {
+        wakeLockVideoRef.current.pause();
       }
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (wakeLockRef.current) {
         wakeLockRef.current.release().catch(() => {});
         wakeLockRef.current = null;
+      }
+      if (wakeLockVideoRef.current) {
+        wakeLockVideoRef.current.pause();
+        if (wakeLockVideoRef.current.parentNode) {
+          document.body.removeChild(wakeLockVideoRef.current);
+        }
+        wakeLockVideoRef.current = null;
       }
     };
   }, [gameState]);

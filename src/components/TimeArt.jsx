@@ -12,6 +12,7 @@ const TimeArt = () => {
   const audioCtx = useRef(null);
   const silentAudioRef = useRef(null);
   const wakeLockRef = useRef(null);
+  const wakeLockVideoRef = useRef(null);
   const isMounted = useRef(true);
   
   const ANIM_DURATION = 2.2;
@@ -106,12 +107,53 @@ const TimeArt = () => {
     if (isAnimating) return;
     setIsAnimating(true);
 
+    // Helper to handle Wake Lock (Native or Video Fallback)
+    const toggleWakeLock = async (enable) => {
+      if (enable) {
+        if ('wakeLock' in navigator) {
+          try {
+            if (wakeLockRef.current) await wakeLockRef.current.release();
+            wakeLockRef.current = await navigator.wakeLock.request('screen');
+          } catch (err) {
+            console.warn("Native Wake Lock failed, trying video fallback...");
+          }
+        }
+        
+        if (!wakeLockRef.current) {
+          if (!wakeLockVideoRef.current) {
+            const video = document.createElement('video');
+            video.setAttribute('loop', '');
+            video.setAttribute('playsinline', '');
+            video.setAttribute('muted', '');
+            video.style.position = 'absolute';
+            video.style.top = '-9999px';
+            video.style.left = '-9999px';
+            video.style.width = '1px';
+            video.style.height = '1px';
+            video.style.opacity = '0.01';
+            video.src = 'data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+            document.body.appendChild(video);
+            wakeLockVideoRef.current = video;
+          }
+          wakeLockVideoRef.current.play().catch(() => {});
+        }
+      } else {
+        if (wakeLockRef.current) {
+          wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
+        }
+        if (wakeLockVideoRef.current) {
+          wakeLockVideoRef.current.pause();
+        }
+      }
+    };
+
     // Initialize silent audio to force media playback mode on mobile
     if (!silentAudioRef.current) {
       silentAudioRef.current = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
       silentAudioRef.current.loop = true;
     }
     silentAudioRef.current.play().catch(() => {});
+    toggleWakeLock(true);
 
     const initial = {
       id: 'root',
@@ -224,49 +266,45 @@ const TimeArt = () => {
       if (silentAudioRef.current) {
         silentAudioRef.current.pause();
       }
+      toggleWakeLock(false);
     }
   };
 
   // Visibility and Wake Lock Management during animation
   useEffect(() => {
-    const requestWakeLock = async () => {
-      if ('wakeLock' in navigator && isAnimating) {
-        try {
-          if (wakeLockRef.current) await wakeLockRef.current.release();
-          wakeLockRef.current = await navigator.wakeLock.request('screen');
-        } catch (err) {
-          console.warn("Wake Lock failed:", err);
-        }
-      }
-    };
-
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
+      if (document.visibilityState === 'hidden' && isAnimating) {
         // Cancel everything if user leaves page
         setIsAnimating(false);
         setPieces([]);
         if (silentAudioRef.current) silentAudioRef.current.pause();
-      } else if (document.visibilityState === 'visible' && isAnimating) {
-        requestWakeLock();
       }
     };
 
-    if (isAnimating) {
-      requestWakeLock();
-    } else {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Cleanup if isAnimating changes to false
+    if (!isAnimating) {
       if (wakeLockRef.current) {
-        wakeLockRef.current.release().then(() => {
-          wakeLockRef.current = null;
-        });
+        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
+      }
+      if (wakeLockVideoRef.current) {
+        wakeLockVideoRef.current.pause();
       }
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (wakeLockRef.current) {
         wakeLockRef.current.release().catch(() => {});
         wakeLockRef.current = null;
+      }
+      if (wakeLockVideoRef.current) {
+        wakeLockVideoRef.current.pause();
+        if (wakeLockVideoRef.current.parentNode) {
+          document.body.removeChild(wakeLockVideoRef.current);
+        }
+        wakeLockVideoRef.current = null;
       }
     };
   }, [isAnimating]);

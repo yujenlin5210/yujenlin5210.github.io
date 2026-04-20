@@ -65,6 +65,7 @@ export default function Metronome() {
   const masterGain = useRef(null);
   const silentAudioRef = useRef(null);
   const wakeLockRef = useRef(null);
+  const wakeLockVideoRef = useRef(null);
   const nextNoteTime = useRef(0);
   const currentBeatInBar = useRef(0);
   const timerID = useRef(null);
@@ -251,6 +252,49 @@ export default function Metronome() {
         audioContext.current.resume();
     }
 
+    // Helper to handle Wake Lock (Native or Video Fallback)
+    const toggleWakeLock = async (enable) => {
+      if (enable) {
+        // 1. Try Native Wake Lock
+        if ('wakeLock' in navigator) {
+          try {
+            if (wakeLockRef.current) await wakeLockRef.current.release();
+            wakeLockRef.current = await navigator.wakeLock.request('screen');
+          } catch (err) {
+            console.warn("Native Wake Lock failed, trying video fallback...");
+          }
+        }
+        
+        // 2. Video Fallback (Highly effective on iOS/Android)
+        if (!wakeLockRef.current) {
+          if (!wakeLockVideoRef.current) {
+            const video = document.createElement('video');
+            video.setAttribute('loop', '');
+            video.setAttribute('playsinline', '');
+            video.setAttribute('muted', '');
+            video.style.position = 'absolute';
+            video.style.top = '-9999px';
+            video.style.left = '-9999px';
+            video.style.width = '1px';
+            video.style.height = '1px';
+            video.style.opacity = '0.01';
+            // Tiny 1s blank MP4
+            video.src = 'data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+            document.body.appendChild(video);
+            wakeLockVideoRef.current = video;
+          }
+          wakeLockVideoRef.current.play().catch(() => {});
+        }
+      } else {
+        if (wakeLockRef.current) {
+          wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
+        }
+        if (wakeLockVideoRef.current) {
+          wakeLockVideoRef.current.pause();
+        }
+      }
+    };
+
     // Play a looping silent HTML5 audio element to force iOS/Android into media playback mode
     if (!isPlaying) {
       if (!silentAudioRef.current) {
@@ -258,10 +302,12 @@ export default function Metronome() {
         silentAudioRef.current.loop = true;
       }
       silentAudioRef.current.play().catch(() => {});
+      toggleWakeLock(true);
     } else {
       if (silentAudioRef.current) {
         silentAudioRef.current.pause();
       }
+      toggleWakeLock(false);
     }
 
     setIsPlaying(!isPlaying);
@@ -269,42 +315,37 @@ export default function Metronome() {
 
   // Visibility and Wake Lock Management
   useEffect(() => {
-    const requestWakeLock = async () => {
-      if ('wakeLock' in navigator && isPlaying) {
-        try {
-          if (wakeLockRef.current) await wakeLockRef.current.release();
-          wakeLockRef.current = await navigator.wakeLock.request('screen');
-        } catch (err) {
-          console.warn("Wake Lock failed:", err);
-        }
-      }
-    };
-
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') {
+      if (document.visibilityState === 'hidden' && isPlaying) {
         // User requested: stop metronome when not in foreground
         setIsPlaying(false);
-      } else if (document.visibilityState === 'visible' && isPlaying) {
-        requestWakeLock();
       }
     };
 
-    if (isPlaying) {
-      requestWakeLock();
-    } else {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Cleanup if isPlaying changes to false
+    if (!isPlaying) {
       if (wakeLockRef.current) {
-        wakeLockRef.current.release().then(() => {
-          wakeLockRef.current = null;
-        });
+        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
+      }
+      if (wakeLockVideoRef.current) {
+        wakeLockVideoRef.current.pause();
       }
     }
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (wakeLockRef.current) {
         wakeLockRef.current.release().catch(() => {});
         wakeLockRef.current = null;
+      }
+      if (wakeLockVideoRef.current) {
+        wakeLockVideoRef.current.pause();
+        if (wakeLockVideoRef.current.parentNode) {
+          document.body.removeChild(wakeLockVideoRef.current);
+        }
+        wakeLockVideoRef.current = null;
       }
     };
   }, [isPlaying]);
