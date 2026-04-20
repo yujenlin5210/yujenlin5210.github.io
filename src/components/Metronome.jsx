@@ -257,15 +257,26 @@ export default function Metronome() {
       if (enable) {
         // 1. Try Native Wake Lock
         if ('wakeLock' in navigator) {
-          try {
-            if (wakeLockRef.current) await wakeLockRef.current.release();
-            wakeLockRef.current = await navigator.wakeLock.request('screen');
-          } catch (err) {
-            console.warn("Native Wake Lock failed:", err);
-          }
+          const requestNativeLock = async () => {
+            try {
+              if (wakeLockRef.current) await wakeLockRef.current.release();
+              wakeLockRef.current = await navigator.wakeLock.request('screen');
+              
+              // If it's released by the system (not by us), try to re-acquire if we are still playing
+              wakeLockRef.current.addEventListener('release', () => {
+                if (isPlayingRef.current && document.visibilityState === 'visible') {
+                  requestNativeLock();
+                }
+              });
+            } catch (err) {
+              console.warn("Native Wake Lock failed:", err);
+            }
+          };
+          await requestNativeLock();
         }
         
-        // 2. Video "Wake Lock" (Always run as extra insurance)
+        // 2. Video "Wake Lock" (Extra insurance)
+        // Some browsers require the video to be 'visible' in the viewport and playing to prevent sleep.
         if (wakeLockVideoRef.current) {
           wakeLockVideoRef.current.play().catch(err => {
             console.warn("Video Wake Lock failed:", err);
@@ -303,14 +314,16 @@ export default function Metronome() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && isPlaying) {
-        // User requested: stop metronome when not in foreground
+        // Stop metronome when not in foreground
         setIsPlaying(false);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     
-    // Cleanup if isPlaying changes to false
+    // Explicitly sync refs for use in event listeners
+    isPlayingRef.current = isPlaying;
+
     if (!isPlaying) {
       if (wakeLockRef.current) {
         wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
@@ -401,15 +414,15 @@ export default function Metronome() {
     <div className="w-full max-w-2xl mx-auto p-6 md:p-8 bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-800 text-white font-mono relative">
       {/* 
          Hidden Video Wake Lock - Must be in DOM and .play() called in user gesture.
-         We use a slightly longer blank MP4 for better compatibility.
+         Covering the screen (but invisible) ensures browsers treat it as 'main' content.
       */}
       <video 
         ref={wakeLockVideoRef}
         loop 
         muted 
         playsInline 
-        className="absolute w-1 h-1 opacity-[0.01] pointer-events-none"
-        src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        className="fixed inset-0 w-full h-full opacity-0 pointer-events-none z-[-1]"
+        src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAALW1kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
       />
       <div className="flex flex-col items-center gap-8">
         
