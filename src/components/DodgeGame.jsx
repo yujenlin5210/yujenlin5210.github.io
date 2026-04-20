@@ -9,7 +9,7 @@ const DodgeGame = () => {
   const [isTouch, setIsTouch] = useState(false);
   const requestRef = useRef();
   const wakeLockRef = useRef(null);
-  const wakeLockVideoRef = useRef(null);
+  const [isWakeLockActive, setIsWakeLockActive] = useState(false);
   const isMounted = useRef(true);
   const touchPos = useRef(null);
   
@@ -185,39 +185,20 @@ const DodgeGame = () => {
   // Helper to handle Wake Lock (Native or Video Fallback)
   const toggleWakeLock = async (enable) => {
     if (enable) {
+      setIsWakeLockActive(true);
       if ('wakeLock' in navigator) {
         try {
           if (wakeLockRef.current) await wakeLockRef.current.release();
           wakeLockRef.current = await navigator.wakeLock.request('screen');
+          return;
         } catch (err) {
-          console.warn("Native Wake Lock failed, trying video fallback...");
+          console.warn("Native Wake Lock failed, falling back to video...");
         }
-      }
-      
-      if (!wakeLockRef.current) {
-        if (!wakeLockVideoRef.current) {
-          const video = document.createElement('video');
-          video.setAttribute('loop', '');
-          video.setAttribute('playsinline', '');
-          video.setAttribute('muted', '');
-          video.style.position = 'absolute';
-          video.style.top = '-9999px';
-          video.style.left = '-9999px';
-          video.style.width = '1px';
-          video.style.height = '1px';
-          video.style.opacity = '0.01';
-          video.src = 'data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
-          document.body.appendChild(video);
-          wakeLockVideoRef.current = video;
-        }
-        wakeLockVideoRef.current.play().catch(() => {});
       }
     } else {
+      setIsWakeLockActive(false);
       if (wakeLockRef.current) {
         wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
-      }
-      if (wakeLockVideoRef.current) {
-        wakeLockVideoRef.current.pause();
       }
     }
   };
@@ -403,9 +384,7 @@ const DodgeGame = () => {
       if (wakeLockRef.current) {
         wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
       }
-      if (wakeLockVideoRef.current) {
-        wakeLockVideoRef.current.pause();
-      }
+      setIsWakeLockActive(false);
     }
 
     return () => {
@@ -414,18 +393,22 @@ const DodgeGame = () => {
         wakeLockRef.current.release().catch(() => {});
         wakeLockRef.current = null;
       }
-      if (wakeLockVideoRef.current) {
-        wakeLockVideoRef.current.pause();
-        if (wakeLockVideoRef.current.parentNode) {
-          document.body.removeChild(wakeLockVideoRef.current);
-        }
-        wakeLockVideoRef.current = null;
-      }
     };
   }, [gameState]);
 
   return (
     <div className="not-prose relative w-full aspect-[4/5] md:aspect-[16/10] bg-slate-900 rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-2xl border border-white/5 font-sans mb-12 select-none touch-none">
+      {/* Hidden Video Wake Lock Fallback - Fixed position and opacity-0.01 to avoid throttling */}
+      {isWakeLockActive && (
+        <video 
+          autoPlay 
+          loop 
+          muted 
+          playsInline 
+          className="absolute w-1 h-1 opacity-[0.01] pointer-events-none"
+          src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+        />
+      )}
       <canvas 
         ref={canvasRef} 
         width={dimensions.w} 
