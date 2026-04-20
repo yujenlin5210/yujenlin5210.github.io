@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, Plus, Minus, Save, Trash2, Volume2, VolumeX } from 'lucide-react';
-import { useWakeLock } from '../hooks/useWakeLock';
+import NoSleep from 'nosleep.js';
 
 const defaultTsShortcuts = [{b:1,n:4}, {b:2,n:4}, {b:3,n:4}, {b:4,n:4}, {b:6,n:8}];
 
@@ -61,8 +61,17 @@ export default function Metronome() {
   
   const [visualBeat, setVisualBeat] = useState(-1);
 
-  // Wake Lock Hook
-  const { requestWakeLock, releaseWakeLock } = useWakeLock();
+  // Wake Lock
+  const noSleep = useRef(null);
+  
+  useEffect(() => {
+    noSleep.current = new NoSleep();
+    return () => {
+      if (noSleep.current) {
+        noSleep.current.disable();
+      }
+    };
+  }, []);
 
   // Audio Context & Scheduling Refs
   const audioContext = useRef(null);
@@ -240,16 +249,20 @@ export default function Metronome() {
     isPlayingRef.current = nextPlayingState;
 
     if (nextPlayingState) {
+      if (noSleep.current) {
+        noSleep.current.enable();
+      }
       // Audio trigger for iOS media playback mode
       if (!silentAudioRef.current) {
         silentAudioRef.current = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
         silentAudioRef.current.loop = true;
       }
       silentAudioRef.current.play().catch(() => {});
-      requestWakeLock();
     } else {
       if (silentAudioRef.current) silentAudioRef.current.pause();
-      releaseWakeLock();
+      if (noSleep.current) {
+        noSleep.current.disable();
+      }
     }
 
     // 2. Audio Context initialization/resume
@@ -276,7 +289,9 @@ export default function Metronome() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden' && isPlaying) {
         setIsPlaying(false);
-        releaseWakeLock();
+        if (noSleep.current) {
+          noSleep.current.disable();
+        }
       }
     };
 
@@ -286,7 +301,7 @@ export default function Metronome() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isPlaying, releaseWakeLock]);
+  }, [isPlaying]);
 
   const handleBpmChange = (e) => {
     const val = parseInt(e.target.value);
