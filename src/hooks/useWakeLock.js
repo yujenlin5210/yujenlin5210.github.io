@@ -3,66 +3,135 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 export function useWakeLock() {
   const [isLocked, setIsLocked] = useState(false);
   const wakeLockRef = useRef(null);
-  const shouldBeLocked = useRef(false);
+  const releaseHandlerRef = useRef(null);
+  const shouldBeLockedRef = useRef(false);
+  const isMountedRef = useRef(false);
+  const isRequestPendingRef = useRef(false);
+  const requestIdRef = useRef(0);
+
+  const detachReleaseListener = useCallback((lock = wakeLockRef.current) => {
+    if (lock && releaseHandlerRef.current) {
+      lock.removeEventListener('release', releaseHandlerRef.current);
+    }
+    releaseHandlerRef.current = null;
+  }, []);
 
   const requestWakeLock = useCallback(async () => {
-    shouldBeLocked.current = true;
-    
-    if (!('wakeLock' in navigator)) {
-      console.warn('Wake Lock API not supported. Are you running on HTTPS?');
+    shouldBeLockedRef.current = true;
+
+    if (typeof navigator === 'undefined' || typeof document === 'undefined') {
       return;
     }
 
-    try {
-      if (wakeLockRef.current) return;
-      const lock = await navigator.wakeLock.request('screen');
-      wakeLockRef.current = lock;
-      setIsLocked(true);
-      console.log('Screen Wake Lock is active');
-
-      lock.addEventListener('release', () => {
-        setIsLocked(false);
-        wakeLockRef.current = null;
-        console.log('Screen Wake Lock was released');
-      });
-    } catch (err) {
-      console.error(`Wake Lock error: ${err.name}, ${err.message}`);
-      setIsLocked(false);
+    if (document.visibilityState !== 'visible') {
+      return;
     }
-  }, []);
+
+    if (!('wakeLock' in navigator)) {
+      return;
+    }
+
+    if (wakeLockRef.current || isRequestPendingRef.current) {
+      return;
+    }
+
+    isRequestPendingRef.current = true;
+    const requestId = ++requestIdRef.current;
+
+    try {
+      const lock = await navigator.wakeLock.request('screen');
+
+      if (
+        !isMountedRef.current ||
+        !shouldBeLockedRef.current ||
+        requestId !== requestIdRef.current
+      ) {
+        try {
+          await lock.release();
+        } catch {
+          // Ignore failures while tearing down a stale request.
+        }
+        return;
+      }
+
+      detachReleaseListener();
+
+      const handleRelease = () => {
+        if (wakeLockRef.current === lock) {
+          wakeLockRef.current = null;
+        }
+        detachReleaseListener(lock);
+        if (isMountedRef.current) {
+          setIsLocked(false);
+        }
+      };
+
+      releaseHandlerRef.current = handleRelease;
+      wakeLockRef.current = lock;
+      lock.addEventListener('release', handleRelease);
+
+      if (isMountedRef.current) {
+        setIsLocked(true);
+      }
+    } catch (err) {
+      if (requestId === requestIdRef.current && isMountedRef.current) {
+        setIsLocked(false);
+      }
+      if (err?.name !== 'AbortError') {
+        console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+      }
+    } finally {
+      isRequestPendingRef.current = false;
+    }
+  }, [detachReleaseListener]);
 
   const releaseWakeLock = useCallback(async () => {
-    shouldBeLocked.current = false;
-    if (wakeLockRef.current) {
-      try {
-        await wakeLockRef.current.release();
-      } catch (err) {
-        // ignore
-      }
-      wakeLockRef.current = null;
+    shouldBeLockedRef.current = false;
+    requestIdRef.current += 1;
+
+    const lock = wakeLockRef.current;
+    detachReleaseListener(lock);
+    wakeLockRef.current = null;
+
+    if (isMountedRef.current) {
       setIsLocked(false);
     }
-  }, []);
+
+    if (lock) {
+      try {
+        await lock.release();
+      } catch {
+        // Ignore failures while releasing a stale sentinel.
+      }
+    }
+  }, [detachReleaseListener]);
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     const handleVisibilityChange = () => {
-      // Re-acquire the wake lock if the page becomes visible again
-      if (document.visibilityState === 'visible' && shouldBeLocked.current) {
-        requestWakeLock();
+      if (document.visibilityState === 'visible' && shouldBeLockedRef.current) {
+        void requestWakeLock();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
+      isMountedRef.current = false;
+      shouldBeLockedRef.current = false;
+      requestIdRef.current += 1;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      // Clean up the wake lock when the component unmounts
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().catch(() => {});
-        wakeLockRef.current = null;
+
+      const lock = wakeLockRef.current;
+      detachReleaseListener(lock);
+      wakeLockRef.current = null;
+
+      if (lock) {
+        lock.release().catch(() => {});
       }
     };
-  }, [requestWakeLock]);
+  }, [detachReleaseListener, requestWakeLock]);
 
   return { isLocked, requestWakeLock, releaseWakeLock };
 }
