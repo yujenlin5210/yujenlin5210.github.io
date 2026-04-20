@@ -8,6 +8,7 @@ const DodgeGame = () => {
   const [dimensions, setDimensions] = useState({ w: 1200, h: 750 });
   const [isTouch, setIsTouch] = useState(false);
   const requestRef = useRef();
+  const wakeLockRef = useRef(null);
   const isMounted = useRef(true);
   const touchPos = useRef(null);
   
@@ -343,6 +344,49 @@ const DodgeGame = () => {
     }
     requestRef.current = requestAnimationFrame(gameLoop);
   };
+
+  // Visibility and Wake Lock Management during game
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      if ('wakeLock' in navigator && gameState === 'PLAYING') {
+        try {
+          if (wakeLockRef.current) await wakeLockRef.current.release();
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+        } catch (err) {
+          console.warn("Wake Lock failed:", err);
+        }
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        if (gameState === 'PLAYING') {
+          gameOver();
+        }
+      } else if (document.visibilityState === 'visible' && gameState === 'PLAYING') {
+        requestWakeLock();
+      }
+    };
+
+    if (gameState === 'PLAYING') {
+      requestWakeLock();
+    } else {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().then(() => {
+          wakeLockRef.current = null;
+        });
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    };
+  }, [gameState]);
 
   return (
     <div className="not-prose relative w-full aspect-[4/5] md:aspect-[16/10] bg-slate-900 rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-2xl border border-white/5 font-sans mb-12 select-none touch-none">

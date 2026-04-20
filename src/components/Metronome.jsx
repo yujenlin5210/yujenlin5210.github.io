@@ -63,6 +63,8 @@ export default function Metronome() {
   // Audio Context & Scheduling Refs
   const audioContext = useRef(null);
   const masterGain = useRef(null);
+  const silentAudioRef = useRef(null);
+  const wakeLockRef = useRef(null);
   const nextNoteTime = useRef(0);
   const currentBeatInBar = useRef(0);
   const timerID = useRef(null);
@@ -91,6 +93,11 @@ export default function Metronome() {
   useEffect(() => {
     const initAudio = () => {
       if (!audioContext.current) {
+        // Set AudioSession type to 'playback' to bypass silent switch and use media volume
+        if (navigator.audioSession) {
+          navigator.audioSession.type = 'playback';
+        }
+
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         audioContext.current = ctx;
         masterGain.current = ctx.createGain();
@@ -110,6 +117,10 @@ export default function Metronome() {
       window.removeEventListener('keydown', initAudio);
       if (audioContext.current?.state !== 'closed') {
          audioContext.current?.close();
+      }
+      if (silentAudioRef.current) {
+        silentAudioRef.current.pause();
+        silentAudioRef.current = null;
       }
     };
   }, []);
@@ -223,6 +234,11 @@ export default function Metronome() {
 
   const handlePlayPause = () => {
     if (!audioContext.current) {
+        // Set AudioSession type to 'playback'
+        if (navigator.audioSession) {
+          navigator.audioSession.type = 'playback';
+        }
+
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
         audioContext.current = ctx;
         masterGain.current = ctx.createGain();
@@ -235,19 +251,63 @@ export default function Metronome() {
         audioContext.current.resume();
     }
 
-    // Play a silent sound on play to unlock AudioContext on iOS Safari
+    // Play a looping silent HTML5 audio element to force iOS/Android into media playback mode
     if (!isPlaying) {
-      const osc = audioContext.current.createOscillator();
-      const gain = audioContext.current.createGain();
-      gain.gain.value = 0;
-      osc.connect(gain);
-      gain.connect(audioContext.current.destination);
-      osc.start(audioContext.current.currentTime);
-      osc.stop(audioContext.current.currentTime + 0.001);
+      if (!silentAudioRef.current) {
+        silentAudioRef.current = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+        silentAudioRef.current.loop = true;
+      }
+      silentAudioRef.current.play().catch(() => {});
+    } else {
+      if (silentAudioRef.current) {
+        silentAudioRef.current.pause();
+      }
     }
 
     setIsPlaying(!isPlaying);
   };
+
+  // Visibility and Wake Lock Management
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      if ('wakeLock' in navigator && isPlaying) {
+        try {
+          if (wakeLockRef.current) await wakeLockRef.current.release();
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+        } catch (err) {
+          console.warn("Wake Lock failed:", err);
+        }
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // User requested: stop metronome when not in foreground
+        setIsPlaying(false);
+      } else if (document.visibilityState === 'visible' && isPlaying) {
+        requestWakeLock();
+      }
+    };
+
+    if (isPlaying) {
+      requestWakeLock();
+    } else {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().then(() => {
+          wakeLockRef.current = null;
+        });
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    };
+  }, [isPlaying]);
 
   const handleBpmChange = (e) => {
     const val = parseInt(e.target.value);

@@ -8,7 +8,10 @@ const TimeArt = () => {
   const [dimensions, setDimensions] = useState({ w: 1200, h: 750 });
   const [initialSize, setInitialSize] = useState(280);
   const [isTouch, setIsTouch] = useState(false);
+  const initialSizeRef = useRef(280);
   const audioCtx = useRef(null);
+  const silentAudioRef = useRef(null);
+  const wakeLockRef = useRef(null);
   const isMounted = useRef(true);
   
   const ANIM_DURATION = 2.2;
@@ -23,9 +26,11 @@ const TimeArt = () => {
       if (mobile) {
         setDimensions({ w: 800, h: 1000 });
         setInitialSize(220);
+        initialSizeRef.current = 220;
       } else {
         setDimensions({ w: 1200, h: 750 });
         setInitialSize(280);
+        initialSizeRef.current = 280;
       }
     };
 
@@ -37,6 +42,10 @@ const TimeArt = () => {
       window.removeEventListener('resize', updateLayout);
       if (audioCtx.current) {
         audioCtx.current.close();
+      }
+      if (silentAudioRef.current) {
+        silentAudioRef.current.pause();
+        silentAudioRef.current = null;
       }
     };
   }, []);
@@ -52,6 +61,9 @@ const TimeArt = () => {
     if (!isMounted.current) return;
     
     if (!audioCtx.current) {
+      if (navigator.audioSession) {
+        navigator.audioSession.type = 'playback';
+      }
       audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
     }
     const ctx = audioCtx.current;
@@ -93,6 +105,13 @@ const TimeArt = () => {
   const startInteraction = async () => {
     if (isAnimating) return;
     setIsAnimating(true);
+
+    // Initialize silent audio to force media playback mode on mobile
+    if (!silentAudioRef.current) {
+      silentAudioRef.current = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
+      silentAudioRef.current.loop = true;
+    }
+    silentAudioRef.current.play().catch(() => {});
 
     const initial = {
       id: 'root',
@@ -202,8 +221,55 @@ const TimeArt = () => {
     if (isMounted.current) {
       setPieces([]);
       setIsAnimating(false);
+      if (silentAudioRef.current) {
+        silentAudioRef.current.pause();
+      }
     }
   };
+
+  // Visibility and Wake Lock Management during animation
+  useEffect(() => {
+    const requestWakeLock = async () => {
+      if ('wakeLock' in navigator && isAnimating) {
+        try {
+          if (wakeLockRef.current) await wakeLockRef.current.release();
+          wakeLockRef.current = await navigator.wakeLock.request('screen');
+        } catch (err) {
+          console.warn("Wake Lock failed:", err);
+        }
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        // Cancel everything if user leaves page
+        setIsAnimating(false);
+        setPieces([]);
+        if (silentAudioRef.current) silentAudioRef.current.pause();
+      } else if (document.visibilityState === 'visible' && isAnimating) {
+        requestWakeLock();
+      }
+    };
+
+    if (isAnimating) {
+      requestWakeLock();
+    } else {
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().then(() => {
+          wakeLockRef.current = null;
+        });
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    };
+  }, [isAnimating]);
 
   return (
     <div className="not-prose relative w-full aspect-[4/5] md:aspect-[16/10] bg-slate-50 dark:bg-slate-900 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 font-sans mb-12 flex flex-col items-center justify-center group transition-all duration-500">
