@@ -12,7 +12,7 @@ const TimeArt = () => {
   const audioCtx = useRef(null);
   const silentAudioRef = useRef(null);
   const wakeLockRef = useRef(null);
-  const [isWakeLockActive, setIsWakeLockActive] = useState(false);
+  const wakeLockVideoRef = useRef(null);
   const isMounted = useRef(true);
   
   const ANIM_DURATION = 2.2;
@@ -288,7 +288,9 @@ const TimeArt = () => {
       if (wakeLockRef.current) {
         wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
       }
-      setIsWakeLockActive(false);
+      if (wakeLockVideoRef.current) {
+        wakeLockVideoRef.current.pause();
+      }
     }
 
     return () => {
@@ -302,18 +304,15 @@ const TimeArt = () => {
 
   return (
     <div className="not-prose relative w-full aspect-[4/5] md:aspect-[16/10] bg-slate-50 dark:bg-slate-900 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 font-sans mb-12 flex flex-col items-center justify-center group transition-all duration-500">
-      {/* Hidden Video Wake Lock Fallback - Fixed position and opacity-0.01 to avoid throttling */}
-      {isWakeLockActive && (
-        <video 
-          autoPlay 
-          loop 
-          muted 
-          playsInline 
-          className="absolute w-1 h-1 opacity-[0.01] pointer-events-none"
-          src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-        />
-      )}
-      
+      {/* Hidden Video Wake Lock - Must be in DOM and .play() called in user gesture */}
+      <video 
+        ref={wakeLockVideoRef}
+        loop 
+        muted 
+        playsInline 
+        className="absolute w-1 h-1 opacity-[0.01] pointer-events-none"
+        src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      />
       <AnimatePresence>
         {!isAnimating && (
           <motion.div 

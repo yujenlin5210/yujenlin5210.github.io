@@ -65,7 +65,7 @@ export default function Metronome() {
   const masterGain = useRef(null);
   const silentAudioRef = useRef(null);
   const wakeLockRef = useRef(null);
-  const [isWakeLockActive, setIsWakeLockActive] = useState(false);
+  const wakeLockVideoRef = useRef(null);
   const nextNoteTime = useRef(0);
   const currentBeatInBar = useRef(0);
   const timerID = useRef(null);
@@ -252,25 +252,31 @@ export default function Metronome() {
         audioContext.current.resume();
     }
 
-    // Helper to handle Wake Lock (Native or Video Fallback)
+    // Helper to handle Wake Lock (Native and Video Fallback)
     const toggleWakeLock = async (enable) => {
       if (enable) {
-        setIsWakeLockActive(true);
         // 1. Try Native Wake Lock
         if ('wakeLock' in navigator) {
           try {
             if (wakeLockRef.current) await wakeLockRef.current.release();
             wakeLockRef.current = await navigator.wakeLock.request('screen');
-            // Success! No need for video fallback if native works
-            return;
           } catch (err) {
-            console.warn("Native Wake Lock failed, falling back to video...");
+            console.warn("Native Wake Lock failed:", err);
           }
         }
+        
+        // 2. Video "Wake Lock" (Always run as extra insurance)
+        if (wakeLockVideoRef.current) {
+          wakeLockVideoRef.current.play().catch(err => {
+            console.warn("Video Wake Lock failed:", err);
+          });
+        }
       } else {
-        setIsWakeLockActive(false);
         if (wakeLockRef.current) {
           wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
+        }
+        if (wakeLockVideoRef.current) {
+          wakeLockVideoRef.current.pause();
         }
       }
     };
@@ -309,7 +315,9 @@ export default function Metronome() {
       if (wakeLockRef.current) {
         wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
       }
-      setIsWakeLockActive(false);
+      if (wakeLockVideoRef.current) {
+        wakeLockVideoRef.current.pause();
+      }
     }
 
     return () => {
@@ -391,17 +399,18 @@ export default function Metronome() {
 
   return (
     <div className="w-full max-w-2xl mx-auto p-6 md:p-8 bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-800 text-white font-mono relative">
-      {/* Hidden Video Wake Lock Fallback - Fixed position and opacity-0.01 to avoid throttling */}
-      {isWakeLockActive && (
-        <video 
-          autoPlay 
-          loop 
-          muted 
-          playsInline 
-          className="absolute w-1 h-1 opacity-[0.01] pointer-events-none"
-          src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-        />
-      )}
+      {/* 
+         Hidden Video Wake Lock - Must be in DOM and .play() called in user gesture.
+         We use a slightly longer blank MP4 for better compatibility.
+      */}
+      <video 
+        ref={wakeLockVideoRef}
+        loop 
+        muted 
+        playsInline 
+        className="absolute w-1 h-1 opacity-[0.01] pointer-events-none"
+        src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+      />
       <div className="flex flex-col items-center gap-8">
         
         {/* Header / Volume / BPM Display */}

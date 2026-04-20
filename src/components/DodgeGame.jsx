@@ -9,7 +9,7 @@ const DodgeGame = () => {
   const [isTouch, setIsTouch] = useState(false);
   const requestRef = useRef();
   const wakeLockRef = useRef(null);
-  const [isWakeLockActive, setIsWakeLockActive] = useState(false);
+  const wakeLockVideoRef = useRef(null);
   const isMounted = useRef(true);
   const touchPos = useRef(null);
   
@@ -182,23 +182,29 @@ const DodgeGame = () => {
     toggleWakeLock(false);
   };
 
-  // Helper to handle Wake Lock (Native or Video Fallback)
+  // Helper to handle Wake Lock (Native and Video Fallback)
   const toggleWakeLock = async (enable) => {
     if (enable) {
-      setIsWakeLockActive(true);
       if ('wakeLock' in navigator) {
         try {
           if (wakeLockRef.current) await wakeLockRef.current.release();
           wakeLockRef.current = await navigator.wakeLock.request('screen');
-          return;
         } catch (err) {
-          console.warn("Native Wake Lock failed, falling back to video...");
+          console.warn("Native Wake Lock failed:", err);
         }
       }
+      
+      if (wakeLockVideoRef.current) {
+        wakeLockVideoRef.current.play().catch(err => {
+          console.warn("Video Wake Lock failed:", err);
+        });
+      }
     } else {
-      setIsWakeLockActive(false);
       if (wakeLockRef.current) {
         wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
+      }
+      if (wakeLockVideoRef.current) {
+        wakeLockVideoRef.current.pause();
       }
     }
   };
@@ -384,7 +390,9 @@ const DodgeGame = () => {
       if (wakeLockRef.current) {
         wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
       }
-      setIsWakeLockActive(false);
+      if (wakeLockVideoRef.current) {
+        wakeLockVideoRef.current.pause();
+      }
     }
 
     return () => {
@@ -395,21 +403,19 @@ const DodgeGame = () => {
       }
     };
   }, [gameState]);
-
-  return (
-    <div className="not-prose relative w-full aspect-[4/5] md:aspect-[16/10] bg-slate-900 rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-2xl border border-white/5 font-sans mb-12 select-none touch-none">
-      {/* Hidden Video Wake Lock Fallback - Fixed position and opacity-0.01 to avoid throttling */}
-      {isWakeLockActive && (
-        <video 
-          autoPlay 
-          loop 
-          muted 
-          playsInline 
-          className="absolute w-1 h-1 opacity-[0.01] pointer-events-none"
-          src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-        />
-      )}
-      <canvas 
+return (
+  <div className="not-prose relative w-full aspect-[4/5] md:aspect-[16/10] bg-slate-900 rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-2xl border border-white/5 font-sans mb-12 select-none touch-none">
+    {/* Hidden Video Wake Lock - Must be in DOM and .play() called in user gesture */}
+    <video 
+      ref={wakeLockVideoRef}
+      loop 
+      muted 
+      playsInline 
+      className="absolute w-1 h-1 opacity-[0.01] pointer-events-none"
+      src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    />
+    <canvas 
+...
         ref={canvasRef} 
         width={dimensions.w} 
         height={dimensions.h} 
