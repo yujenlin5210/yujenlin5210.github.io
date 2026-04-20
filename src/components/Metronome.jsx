@@ -159,6 +159,12 @@ export default function Metronome() {
 
     osc.start(time);
     osc.stop(time + 0.1);
+
+    // Explicit cleanup to help garbage collection
+    osc.onended = () => {
+      osc.disconnect();
+      noteGain.disconnect();
+    };
   };
 
   const nextNote = () => {
@@ -180,10 +186,27 @@ export default function Metronome() {
   const scheduler = useCallback(() => {
     if (!isPlayingRef.current || !audioContext.current) return;
 
-    while (nextNoteTime.current < audioContext.current.currentTime + scheduleAheadTime) {
+    // Prune the queue if it gets too large (e.g. background tab)
+    if (noteQueue.current.length > 100) {
+      noteQueue.current.splice(0, noteQueue.current.length - 10);
+    }
+
+    const currentTime = audioContext.current.currentTime;
+
+    // CATCH-UP PROTECTION:
+    // If the nextNoteTime is significantly behind the current audio clock 
+    // (e.g. coming back from a backgrounded tab or device sleep),
+    // reset it to 'now' to prevent the while-loop from trying to 
+    // schedule hundreds of notes at once (which causes the leak/freeze).
+    if (nextNoteTime.current < currentTime) {
+        nextNoteTime.current = currentTime;
+    }
+
+    while (nextNoteTime.current < currentTime + scheduleAheadTime) {
       scheduleNote(currentBeatInBar.current, nextNoteTime.current);
       nextNote();
     }
+    
     timerID.current = setTimeout(scheduler, lookahead);
   }, []);
 
@@ -283,7 +306,6 @@ export default function Metronome() {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    isPlayingRef.current = isPlaying;
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);

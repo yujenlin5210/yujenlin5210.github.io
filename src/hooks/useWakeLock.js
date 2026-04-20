@@ -56,6 +56,11 @@ export function useWakeLock() {
 
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      // Clean up the wake lock when the component unmounts
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
     };
   }, [requestWakeLock]);
 
