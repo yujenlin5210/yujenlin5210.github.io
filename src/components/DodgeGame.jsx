@@ -8,8 +8,6 @@ const DodgeGame = () => {
   const [dimensions, setDimensions] = useState({ w: 1200, h: 750 });
   const [isTouch, setIsTouch] = useState(false);
   const requestRef = useRef();
-  const wakeLockRef = useRef(null);
-  const wakeLockVideoRef = useRef(null);
   const isMounted = useRef(true);
   const touchPos = useRef(null);
   
@@ -162,7 +160,6 @@ const DodgeGame = () => {
     
     setGameState('PLAYING');
     setScore(0);
-    toggleWakeLock(true);
     
     if (requestRef.current) cancelAnimationFrame(requestRef.current);
     requestRef.current = requestAnimationFrame(gameLoop);
@@ -179,34 +176,6 @@ const DodgeGame = () => {
       return newScores;
     });
     touchPos.current = null;
-    toggleWakeLock(false);
-  };
-
-  // Helper to handle Wake Lock (Native and Video Fallback)
-  const toggleWakeLock = async (enable) => {
-    if (enable) {
-      if ('wakeLock' in navigator) {
-        try {
-          if (wakeLockRef.current) await wakeLockRef.current.release();
-          wakeLockRef.current = await navigator.wakeLock.request('screen');
-        } catch (err) {
-          console.warn("Native Wake Lock failed:", err);
-        }
-      }
-      
-      if (wakeLockVideoRef.current) {
-        wakeLockVideoRef.current.play().catch(err => {
-          console.warn("Video Wake Lock failed:", err);
-        });
-      }
-    } else {
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
-      }
-      if (wakeLockVideoRef.current) {
-        wakeLockVideoRef.current.pause();
-      }
-    }
   };
 
   const handlePointerMove = (e) => {
@@ -375,47 +344,23 @@ const DodgeGame = () => {
     requestRef.current = requestAnimationFrame(gameLoop);
   };
 
-  // Visibility and Wake Lock Management during game
+  // Visibility Management
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && gameState === 'PLAYING') {
+      if (document.visibilityState === 'hidden' && gameRef.current.status === 'PLAYING') {
         gameOver();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Cleanup if gameState changes
-    if (gameState !== 'PLAYING') {
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().then(() => { wakeLockRef.current = null; }).catch(() => {});
-      }
-      if (wakeLockVideoRef.current) {
-        wakeLockVideoRef.current.pause();
-      }
-    }
-
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      if (wakeLockRef.current) {
-        wakeLockRef.current.release().catch(() => {});
-        wakeLockRef.current = null;
-      }
     };
-  }, [gameState]);
-return (
-  <div className="not-prose relative w-full aspect-[4/5] md:aspect-[16/10] bg-slate-900 rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-2xl border border-white/5 font-sans mb-12 select-none touch-none">
-    {/* Hidden Video Wake Lock - Must be in DOM and .play() called in user gesture */}
-    <video 
-      ref={wakeLockVideoRef}
-      loop 
-      muted 
-      playsInline 
-      className="absolute w-1 h-1 opacity-[0.01] pointer-events-none"
-      src="data:video/mp4;base64,AAAAHGZ0eXBpc29tAAAAAGlzb21pc28yYXZjMQAAAAhmcmVlAAAAG21kYXQAAAHpYXZjQwBQAAsAEAAf/+ADhAA3/8D///AADhAA3/8D///AADhAA3/8D///AADhAA3/8D///8AAAALZ3VpZAAAAAAAAAAVAAAAGHBhc3MAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-    />
-    <canvas 
-...
+  }, []);
+
+  return (
+    <div className="not-prose relative w-full aspect-[4/5] md:aspect-[16/10] bg-slate-900 rounded-[1.5rem] md:rounded-[2rem] overflow-hidden shadow-2xl border border-white/5 font-sans mb-12 select-none touch-none">
+      <canvas 
         ref={canvasRef} 
         width={dimensions.w} 
         height={dimensions.h} 
