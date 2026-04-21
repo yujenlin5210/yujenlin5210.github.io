@@ -3,16 +3,13 @@ import Layout from '../../layouts/Layout.astro';
 import { getCollection } from 'astro:content';
 import { getCoverUrl } from '../../utils/getCoverUrl';
 import LabRegistry from '../../components/LabRegistry.jsx';
+import { compareEntriesByDateDesc } from '../../utils/content';
 
 // Sort labs so the newest are first
 const labsData = await getCollection('lab', ({ data }) => {
   return data.hidden !== true;
 });
-const sortedLabs = labsData.sort((a, b) => {
-	const dateA = new Date(a.data.date || a.id.slice(0,10));
-	const dateB = new Date(b.data.date || b.id.slice(0,10));
-	return dateB.getTime() - dateA.getTime();
-}).map(lab => ({
+const sortedLabs = [...labsData].sort(compareEntriesByDateDesc).map(lab => ({
   ...lab,
   coverUrl: getCoverUrl('lab', lab.data)
 }));

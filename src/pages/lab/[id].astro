@@ -100,34 +100,72 @@ const isWide = isDodge || isTimeArt;
     </div>
 
   </div>
-</Layout>
+  <script is:inline>
+    (() => {
+      const setupKey = '__labCoverVideoMuteToggleSetup__';
 
-<script is:inline>
-  function setupVideoMuteToggle() {
-    const video = document.getElementById('cover-video');
-    const muteToggle = document.getElementById('mute-toggle');
-    const muteIcon = document.getElementById('mute-icon');
-    const muteText = document.getElementById('mute-text');
+      if (window[setupKey]) {
+        window[setupKey]();
+        return;
+      }
 
-    if (video && muteToggle) {
-      video.play().catch(e => console.error("Autoplay nudge failed:", e));
+      let cleanupToggle = () => {};
 
-      muteToggle.addEventListener('click', () => {
-        video.muted = !video.muted;
+      const updateToggleState = (video, muteToggle, muteIcon, muteText) => {
         if (video.muted) {
           muteIcon.textContent = '🔇';
           muteText.textContent = 'Click to Unmute';
           muteToggle.classList.remove('bg-indigo-600/80');
           muteToggle.classList.add('bg-black/60');
-        } else {
-          muteIcon.textContent = '🔊';
-          muteText.textContent = 'Sound ON';
-          muteToggle.classList.remove('bg-black/60');
-          muteToggle.classList.add('bg-indigo-600/80');
+          return;
         }
-      });
-    }
-  }
 
-  document.addEventListener('astro:page-load', setupVideoMuteToggle);
-</script>
+        muteIcon.textContent = '🔊';
+        muteText.textContent = 'Sound ON';
+        muteToggle.classList.remove('bg-black/60');
+        muteToggle.classList.add('bg-indigo-600/80');
+      };
+
+      const teardownVideoMuteToggle = () => {
+        cleanupToggle();
+        cleanupToggle = () => {};
+      };
+
+      const setupVideoMuteToggle = () => {
+        teardownVideoMuteToggle();
+
+        const video = document.getElementById('cover-video');
+        const muteToggle = document.getElementById('mute-toggle');
+        const muteIcon = document.getElementById('mute-icon');
+        const muteText = document.getElementById('mute-text');
+
+        if (
+          !(video instanceof HTMLVideoElement) ||
+          !(muteToggle instanceof HTMLElement) ||
+          !(muteIcon instanceof HTMLElement) ||
+          !(muteText instanceof HTMLElement)
+        ) {
+          return;
+        }
+
+        const handleToggleClick = () => {
+          video.muted = !video.muted;
+          updateToggleState(video, muteToggle, muteIcon, muteText);
+        };
+
+        updateToggleState(video, muteToggle, muteIcon, muteText);
+        video.play().catch(() => {});
+        muteToggle.addEventListener('click', handleToggleClick);
+
+        cleanupToggle = () => {
+          muteToggle.removeEventListener('click', handleToggleClick);
+        };
+      };
+
+      window[setupKey] = setupVideoMuteToggle;
+      document.addEventListener('astro:page-load', setupVideoMuteToggle);
+      document.addEventListener('astro:before-swap', teardownVideoMuteToggle);
+      setupVideoMuteToggle();
+    })();
+  </script>
+</Layout>

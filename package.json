@@ -8,8 +8,12 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "check": "npm run astro:check && npm run lint && npm run build && npm run validate:html",
+    "astro:check": "astro check",
+    "lint": "eslint .",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "validate:html": "node scripts/validate-built-html.mjs"
   },
   "dependencies": {
     "@astrojs/mdx": "^5.0.3",
@@ -31,5 +35,17 @@
     "react-dom": "^19.2.5",
     "tailwindcss": "^4.2.2",
     "three": "^0.183.2"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.8",
+    "@eslint/js": "^9.39.4",
+    "@typescript-eslint/parser": "^8.59.0",
+    "astro-eslint-parser": "^1.4.0",
+    "eslint": "^9.39.4",
+    "eslint-plugin-astro": "^1.7.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.5.0",
+    "typescript": "^5.9.3"
   }
 }

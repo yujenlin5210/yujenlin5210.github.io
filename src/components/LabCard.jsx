@@ -24,7 +24,7 @@ export default function LabCard({ lab, coverUrl, index }) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-slate-400 font-mono text-xs italic">
-            // missing_asset
+            missing_asset
           </div>
         )}
       </div>

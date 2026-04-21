@@ -3,15 +3,12 @@ import Layout from '../layouts/Layout.astro';
 import HeroScene from '../components/HeroScene.jsx';
 import { getCollection } from 'astro:content';
 import { getCoverUrl } from '../utils/getCoverUrl';
+import { compareEntriesByDateDesc, getEntryYear } from '../utils/content';
 
 const projects = await getCollection('projects', ({ data }) => {
   return data.hidden !== true;
 });
-const sortedProjects = projects.sort((a, b) => {
-	const dateA = new Date(a.data.date || a.id.slice(0,10));
-	const dateB = new Date(b.data.date || b.id.slice(0,10));
-	return dateB.getTime() - dateA.getTime();
-});
+const sortedProjects = [...projects].sort(compareEntriesByDateDesc);
 // Sort by date if we have them, else just take a few
 const featuredProjects = sortedProjects.slice(0, 3);
 ---
@@ -49,11 +46,11 @@ const featuredProjects = sortedProjects.slice(0, 3);
 					) : (
 						<div class="w-full h-full flex items-center justify-center text-slate-400">No Image</div>
 					)}
-					<div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-						<div class="flex items-center gap-2 text-indigo-400 font-mono text-[10px] tracking-widest uppercase font-bold mb-1">
-							<span>{project.data.date ? new Date(project.data.date).getFullYear() : project.id.slice(0, 4)}</span>
-							{project.data.organization && (
-								<>
+						<div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+							<div class="flex items-center gap-2 text-indigo-400 font-mono text-[10px] tracking-widest uppercase font-bold mb-1">
+								<span>{getEntryYear(project)}</span>
+								{project.data.organization && (
+									<>
 									<span class="w-1 h-1 bg-indigo-400 rounded-full"></span>
 									<span class="truncate">{project.data.organization}</span>
 								</>

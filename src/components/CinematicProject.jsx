@@ -1,7 +1,8 @@
 import React, { useRef } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { filterTags } from '../utils/filterTags';
-import { activeProjectId, activeAnimationId } from '../store/projectStore';
+import { activeAnimationId } from '../store/projectStore';
+import { getEntryYear } from '../utils/content';
 
 export default function CinematicProject({ project, coverUrl, index }) {
   const isEven = index % 2 === 0;
@@ -38,7 +39,6 @@ export default function CinematicProject({ project, coverUrl, index }) {
     <section className="relative min-h-[80vh] flex items-center py-24 overflow-hidden">
       <motion.div 
         onViewportEnter={() => {
-          activeProjectId.set(project.id);
           activeAnimationId.set(project.data.animation || null);
         }}
         viewport={{ amount: 0.5 }}
@@ -105,7 +105,7 @@ export default function CinematicProject({ project, coverUrl, index }) {
             <a href={`/projects/${project.id}`} className="block group/text space-y-6 no-underline">
             <div className="space-y-2">
               <div className="flex items-center gap-3 text-indigo-500 font-mono text-sm tracking-widest uppercase font-bold">
-                <span>{project.data.date ? new Date(project.data.date).getFullYear() : project.id.slice(0, 4)}</span>
+                <span>{getEntryYear(project)}</span>
                 {project.data.organization && (
                   <>
                     <span className="w-1 h-1 bg-indigo-500 rounded-full"></span>

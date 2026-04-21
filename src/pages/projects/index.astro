@@ -3,16 +3,12 @@ import Layout from '../../layouts/Layout.astro';
 import { getCollection } from 'astro:content';
 import { getCoverUrl } from '../../utils/getCoverUrl';
 import CinematicProject from '../../components/CinematicProject.jsx';
-import MorphingBackground from '../../components/MorphingBackground.jsx';
+import { compareEntriesByDateDesc } from '../../utils/content';
 
 const projects = await getCollection('projects', ({ data }) => {
   return data.hidden !== true;
 });
-const sortedProjects = projects.sort((a, b) => {
-	const dateA = new Date(a.data.date || a.id.slice(0,10));
-	const dateB = new Date(b.data.date || b.id.slice(0,10));
-	return dateB.getTime() - dateA.getTime();
-});
+const sortedProjects = [...projects].sort(compareEntriesByDateDesc);
 ---
 
 <Layout title="Selected Works - Yu-Jen Lin" description="A deep dive into my interactive experiences and AR/VR prototypes.">
@@ -26,15 +22,14 @@ const sortedProjects = projects.sort((a, b) => {
       </p>
     </div>
     <div class="flex flex-col">
-      {projects.map((project, index) => {
+      {sortedProjects.map((project, index) => {
         const coverUrl = getCoverUrl('projects', project.data);
         return (
           <CinematicProject 
-            key={project.id} 
             project={project} 
             coverUrl={coverUrl}
             index={index}
-            client:load
+            client:visible
           />
         );
       })}

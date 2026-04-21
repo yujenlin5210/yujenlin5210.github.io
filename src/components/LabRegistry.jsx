@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { filterTags } from '../utils/filterTags';
 
 export default function LabRegistry({ labs }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
@@ -21,18 +22,21 @@ export default function LabRegistry({ labs }) {
       </div>
 
       <div className="relative z-10 flex flex-col gap-12">
-        {labs.map((lab, index) => (
-          <motion.a
-            key={lab.id}
-            href={`/lab/${lab.id}`}
-            onMouseEnter={() => setHoveredIndex(index)}
-            onMouseLeave={() => setHoveredIndex(null)}
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-100px" }}
-            transition={{ duration: 0.7, delay: index * 0.1 }}
-            className="group relative flex flex-col lg:flex-row items-center gap-6 lg:gap-16 no-underline pb-12 lg:pb-0 border-b border-slate-200/60 dark:border-white/10 lg:border-transparent lg:dark:border-transparent last:border-transparent"
-          >
+        {labs.map((lab, index) => {
+          const cleanTags = filterTags(lab.data.tags);
+
+          return (
+            <motion.a
+              key={lab.id}
+              href={`/lab/${lab.id}`}
+              onMouseEnter={() => setHoveredIndex(index)}
+              onMouseLeave={() => setHoveredIndex(null)}
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.7, delay: index * 0.1 }}
+              className="group relative flex flex-col lg:flex-row items-center gap-6 lg:gap-16 no-underline pb-12 lg:pb-0 border-b border-slate-200/60 dark:border-white/10 lg:border-transparent lg:dark:border-transparent last:border-transparent"
+            >
             {/* Visual Side - Large Image */}
             <div className="w-full lg:w-[45%] aspect-[16/10] relative rounded-3xl overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 bg-slate-100 dark:bg-slate-900">
               {lab.coverUrl ? (
@@ -87,7 +91,7 @@ export default function LabRegistry({ labs }) {
               </p>
 
               <div className="flex flex-wrap gap-2">
-                {lab.data.tags?.map(tag => (
+                {cleanTags.map(tag => (
                   <span key={tag} className="px-3 py-1 bg-slate-100 dark:bg-white/5 rounded-full text-[10px] font-mono font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 border border-transparent group-hover:border-indigo-500/30 transition-colors">
                     {tag}
                   </span>
@@ -99,8 +103,9 @@ export default function LabRegistry({ labs }) {
             <div className="absolute -z-10 right-0 top-1/2 -translate-y-1/2 text-[15rem] font-black text-slate-100 dark:text-white/[0.02] pointer-events-none select-none hidden lg:block uppercase tracking-tighter transition-all duration-700 group-hover:text-indigo-500/10 group-hover:translate-x-4">
               {lab.id.slice(0, 4)}
             </div>
-          </motion.a>
-        ))}
+            </motion.a>
+          );
+        })}
       </div>
     </div>
   );
