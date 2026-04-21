@@ -1,4 +1,5 @@
-import { defineCollection, z } from 'astro:content';
+import { defineCollection } from 'astro:content';
+import { z } from 'astro/zod';
 import { glob } from 'astro/loaders';
 import { normalizeOptionalDateInput } from './utils/content';
 
@@ -10,7 +11,7 @@ const dateField = z
       return normalizeOptionalDateInput(value, 'frontmatter date');
     } catch (error) {
       ctx.addIssue({
-        code: z.ZodIssueCode.custom,
+        code: 'custom',
         message: error instanceof Error ? error.message : 'Invalid frontmatter date.',
       });
       return z.NEVER;

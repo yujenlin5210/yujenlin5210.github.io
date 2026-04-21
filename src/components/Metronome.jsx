@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Pause, Plus, Minus, Save, Trash2, Volume2, VolumeX } from 'lucide-react';
 import { useWakeLock } from '../hooks/useWakeLock';
+import { getAudioContextConstructor, isIOSPlaybackDevice } from '../utils/browserAudio';
 
 const DEFAULT_BPM_SHORTCUTS = Object.freeze([60, 80, 90, 100, 120]);
 const DEFAULT_TS_SHORTCUTS = Object.freeze([
@@ -161,18 +162,6 @@ function isMobilePlaybackDevice() {
   const coarsePointer = window.matchMedia?.('(hover: none) and (pointer: coarse)').matches ?? false;
   const userAgent = navigator.userAgent || '';
   return coarsePointer || /Android|iPhone|iPad|iPod|Mobile/i.test(userAgent);
-}
-
-function isIOSPlaybackDevice() {
-  if (typeof navigator === 'undefined') {
-    return false;
-  }
-
-  const userAgent = navigator.userAgent || '';
-  return (
-    /iPad|iPhone|iPod/.test(userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  );
 }
 
 export default function Metronome() {
@@ -343,7 +332,13 @@ export default function Metronome() {
     let context = audioContextRef.current;
 
     if (!context || context.state === 'closed') {
-      context = new (window.AudioContext || window.webkitAudioContext)();
+      const AudioContextCtor = getAudioContextConstructor();
+
+      if (!AudioContextCtor) {
+        return null;
+      }
+
+      context = new AudioContextCtor();
       audioContextRef.current = context;
 
       const masterGain = context.createGain();

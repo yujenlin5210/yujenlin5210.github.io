@@ -1,16 +1,18 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { filterTags } from '../utils/filterTags';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 
 export default function LabRegistry({ labs }) {
   const [hoveredIndex, setHoveredIndex] = useState(null);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   return (
     <div className="relative mt-12 mb-32">
       {/* Background Ambience */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <AnimatePresence>
-          {hoveredIndex !== null && (
+          {!prefersReducedMotion && hoveredIndex !== null && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 0.05 }}
@@ -29,12 +31,12 @@ export default function LabRegistry({ labs }) {
             <motion.a
               key={lab.id}
               href={`/lab/${lab.id}`}
-              onMouseEnter={() => setHoveredIndex(index)}
-              onMouseLeave={() => setHoveredIndex(null)}
-              initial={{ opacity: 0, y: 40 }}
+              onMouseEnter={prefersReducedMotion ? undefined : () => setHoveredIndex(index)}
+              onMouseLeave={prefersReducedMotion ? undefined : () => setHoveredIndex(null)}
+              initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 40 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-100px" }}
-              transition={{ duration: 0.7, delay: index * 0.1 }}
+              transition={{ duration: prefersReducedMotion ? 0.2 : 0.7, delay: prefersReducedMotion ? 0 : index * 0.1 }}
               className="group relative flex flex-col lg:flex-row items-center gap-6 lg:gap-16 no-underline pb-12 lg:pb-0 border-b border-slate-200/60 dark:border-white/10 lg:border-transparent lg:dark:border-transparent last:border-transparent"
             >
             {/* Visual Side - Large Image */}
@@ -47,12 +49,12 @@ export default function LabRegistry({ labs }) {
                     muted 
                     loop 
                     playsInline 
-                    className="w-full h-full object-cover transition-transform duration-1000 scale-105 group-hover:scale-110" 
+                    className={`w-full h-full object-cover transition-transform duration-1000 scale-105 ${prefersReducedMotion ? '' : 'group-hover:scale-110'}`} 
                   />
                 ) : (
                   <img 
                     src={lab.coverUrl} 
-                    className="w-full h-full object-cover transition-transform duration-1000 scale-105 group-hover:scale-110" 
+                    className={`w-full h-full object-cover transition-transform duration-1000 scale-105 ${prefersReducedMotion ? '' : 'group-hover:scale-110'}`} 
                     alt={lab.data.title} 
                   />
                 )
@@ -100,7 +102,7 @@ export default function LabRegistry({ labs }) {
             </div>
 
             {/* Background Text Accent */}
-            <div className="absolute -z-10 right-0 top-1/2 -translate-y-1/2 text-[15rem] font-black text-slate-100 dark:text-white/[0.02] pointer-events-none select-none hidden lg:block uppercase tracking-tighter transition-all duration-700 group-hover:text-indigo-500/10 group-hover:translate-x-4">
+            <div className={`absolute -z-10 right-0 top-1/2 -translate-y-1/2 text-[15rem] font-black text-slate-100 dark:text-white/[0.02] pointer-events-none select-none hidden lg:block uppercase tracking-tighter transition-all duration-700 ${prefersReducedMotion ? '' : 'group-hover:text-indigo-500/10 group-hover:translate-x-4'}`}>
               {lab.id.slice(0, 4)}
             </div>
             </motion.a>

@@ -1,7 +1,4 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-
-export function useIdleAction(phase) {
+export function useIdleAction() {
   return {
     id: 'idle',
     config: {

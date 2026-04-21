@@ -1,9 +1,10 @@
-import React, { useRef, useState } from 'react';
+import { useRef } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 
 export default function TiltCard({ project, coverUrl }) {
   const cardRef = useRef(null);
-  const [isHovered, setIsHovered] = useState(false);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   // Mouse position relative to the card
   const x = useMotionValue(0);
@@ -22,7 +23,7 @@ export default function TiltCard({ project, coverUrl }) {
   const glowY = useTransform(mouseYSpring, [-0.5, 0.5], ["0%", "100%"]);
 
   const handleMouseMove = (e) => {
-    if (!cardRef.current) return;
+    if (!cardRef.current || prefersReducedMotion) return;
     const rect = cardRef.current.getBoundingClientRect();
     
     // Get mouse position relative to the center of the card (-0.5 to 0.5)
@@ -34,7 +35,6 @@ export default function TiltCard({ project, coverUrl }) {
   };
 
   const handleMouseLeave = () => {
-    setIsHovered(false);
     x.set(0);
     y.set(0);
   };
@@ -42,14 +42,13 @@ export default function TiltCard({ project, coverUrl }) {
   return (
     <div 
       className="perspective-1000 w-full h-full"
-      onMouseMove={handleMouseMove}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={handleMouseLeave}
+      onMouseMove={prefersReducedMotion ? undefined : handleMouseMove}
+      onMouseLeave={prefersReducedMotion ? undefined : handleMouseLeave}
     >
       <motion.a
         ref={cardRef}
         href={`/projects/${project.id}`}
-        style={{
+        style={prefersReducedMotion ? undefined : {
           rotateX,
           rotateY,
           transformStyle: "preserve-3d",
@@ -61,21 +60,23 @@ export default function TiltCard({ project, coverUrl }) {
           <img 
             src={coverUrl} 
             alt={project.data.title} 
-            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+            className={`absolute inset-0 w-full h-full object-cover transition-transform duration-700 ${prefersReducedMotion ? '' : 'group-hover:scale-110'}`}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-slate-500 font-medium">No Image</div>
         )}
 
         {/* The Glow Effect */}
-        <motion.div
-          style={{
-            background: `radial-gradient(circle at var(--glow-x) var(--glow-y), rgba(255,255,255,0.15) 0%, transparent 60%)`,
-            "--glow-x": glowX,
-            "--glow-y": glowY,
-          }}
-          className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        />
+        {!prefersReducedMotion && (
+          <motion.div
+            style={{
+              background: 'radial-gradient(circle at var(--glow-x) var(--glow-y), rgba(255,255,255,0.15) 0%, transparent 60%)',
+              "--glow-x": glowX,
+              "--glow-y": glowY,
+            }}
+            className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          />
+        )}
 
         {/* Content Overlay */}
         <div 

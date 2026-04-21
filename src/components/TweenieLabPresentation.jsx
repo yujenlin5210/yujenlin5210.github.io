@@ -1,5 +1,4 @@
-import React, { useRef } from 'react';
-import { motion, useInView } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const sections = [
   {
@@ -187,12 +186,8 @@ tween.SetEase(Ease.EaseInOut).SetLoop(Loop.PingPong, 3);`}</code></pre>
 ];
 
 function Section({ section, index }) {
-  const ref = useRef(null);
-  const isInView = useInView(ref, { amount: 0.5 });
-
   return (
     <motion.div 
-      ref={ref}
       className={`${index === 0 ? 'min-h-[40vh] pt-10 pb-20' : 'min-h-[70vh] py-20'} flex flex-col justify-center max-w-4xl mx-auto`}
       initial={{ opacity: 0, y: 50 }}
       whileInView={{ opacity: 1, y: 0 }}

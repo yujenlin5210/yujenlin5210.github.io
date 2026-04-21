@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export function useTiramisuAction(phase) {
@@ -55,7 +54,7 @@ export function useTiramisuAction(phase) {
         )}
       </AnimatePresence>
     ),
-    renderAssets: (direction) => (
+    renderAssets: () => (
       <AnimatePresence>
         {isInspecting && (
           <motion.g

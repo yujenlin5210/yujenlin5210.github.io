@@ -34,7 +34,7 @@ const sortedLabs = [...labsData].sort(compareEntriesByDateDesc).map(lab => ({
 			</p>
 		</header>
 		
-		<LabRegistry client:load labs={sortedLabs} />
+		<LabRegistry client:visible labs={sortedLabs} />
 
 		<div class="mt-24 pt-12 border-t border-slate-200 dark:border-slate-800 text-center">
 			<p class="text-slate-400 font-mono text-xs uppercase tracking-widest animate-pulse">

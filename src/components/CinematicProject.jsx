@@ -1,13 +1,15 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion';
 import { filterTags } from '../utils/filterTags';
 import { activeAnimationId } from '../store/projectStore';
 import { getEntryYear } from '../utils/content';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 
 export default function CinematicProject({ project, coverUrl, index }) {
   const isEven = index % 2 === 0;
   const imageRef = useRef(null);
   const cleanTags = filterTags(project.data.tags);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   // Mouse position for the 3D tilt effect
   const x = useMotionValue(0);
@@ -22,7 +24,7 @@ export default function CinematicProject({ project, coverUrl, index }) {
   const rotateY = useTransform(mouseXSpring, [-0.5, 0.5], ["-15deg", "15deg"]);
 
   const handleMouseMove = (e) => {
-    if (!imageRef.current) return;
+    if (!imageRef.current || prefersReducedMotion) return;
     const rect = imageRef.current.getBoundingClientRect();
     const mouseX = (e.clientX - rect.left) / rect.width - 0.5;
     const mouseY = (e.clientY - rect.top) / rect.height - 0.5;
@@ -47,10 +49,10 @@ export default function CinematicProject({ project, coverUrl, index }) {
       {/* Background Parallax Image */}
       <div className="absolute inset-0 z-0">
         <motion.div 
-          initial={{ scale: 1.1 }}
-          whileInView={{ scale: 1 }}
+          initial={prefersReducedMotion ? { opacity: 1 } : { scale: 1.1 }}
+          whileInView={prefersReducedMotion ? { opacity: 1 } : { scale: 1 }}
           viewport={{ amount: 0.3 }}
-          transition={{ duration: 1.5, ease: "easeOut" }}
+          transition={{ duration: prefersReducedMotion ? 0 : 1.5, ease: "easeOut" }}
           className="w-full h-full"
         >
           {coverUrl ? (
@@ -69,25 +71,25 @@ export default function CinematicProject({ project, coverUrl, index }) {
       <div className={`container mx-auto px-6 relative z-10 flex flex-col ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'} items-center gap-12`}>
         {/* Visual Side with 3D Tilt */}
         <motion.div 
-          initial={{ opacity: 0, x: isEven ? -50 : 50 }}
+          initial={{ opacity: 0, x: prefersReducedMotion ? 0 : (isEven ? -50 : 50) }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ amount: 0.3 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
+          transition={{ duration: prefersReducedMotion ? 0.2 : 0.6, delay: prefersReducedMotion ? 0 : 0.1 }}
           className="w-full md:w-3/5 perspective-1000"
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
+          onMouseMove={prefersReducedMotion ? undefined : handleMouseMove}
+          onMouseLeave={prefersReducedMotion ? undefined : handleMouseLeave}
         >
           <motion.a 
             ref={imageRef}
             href={`/projects/${project.id}`} 
-            style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
+            style={prefersReducedMotion ? undefined : { rotateX, rotateY, transformStyle: "preserve-3d" }}
             className="block group relative aspect-[16/9] rounded-3xl overflow-hidden shadow-2xl border border-white/10"
           >
             {coverUrl ? (
               <img 
                 src={coverUrl} 
                 alt={project.data.title} 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                className={`w-full h-full object-cover transition-transform duration-700 ${prefersReducedMotion ? '' : 'group-hover:scale-105'}`}
               />
             ) : (
               <div className="w-full h-full bg-slate-800 flex items-center justify-center text-slate-500">No Image</div>

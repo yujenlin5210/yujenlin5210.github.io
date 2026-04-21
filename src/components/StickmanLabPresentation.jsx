@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, useInView } from 'framer-motion';
 import StickmanPreview from './StickmanPreview.jsx';
 
@@ -100,16 +100,15 @@ const sections = [
   }
 ];
 
-function Section({ section, index, activeAnimation, setActiveAnimation, setActiveSectionIndex }) {
+function Section({ section, index, activeAnimation, setActiveAnimation }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { amount: 0.5 }); // Trigger when 50% visible
 
   useEffect(() => {
     if (isInView) {
       setActiveAnimation(section.animationId);
-      setActiveSectionIndex(index);
     }
-  }, [isInView, section.animationId, index, setActiveAnimation, setActiveSectionIndex]);
+  }, [isInView, section.animationId, index, setActiveAnimation]);
 
   return (
     <motion.div 
@@ -130,7 +129,6 @@ function Section({ section, index, activeAnimation, setActiveAnimation, setActiv
 
 export default function StickmanLabPresentation() {
   const [activeAnimation, setActiveAnimation] = useState('idle');
-  const [activeSectionIndex, setActiveSectionIndex] = useState(0);
 
   return (
     <div className="relative w-full">
@@ -143,7 +141,6 @@ export default function StickmanLabPresentation() {
             index={index}
             activeAnimation={activeAnimation}
             setActiveAnimation={setActiveAnimation}
-            setActiveSectionIndex={setActiveSectionIndex}
           />
         ))}
       </div>

@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import { useStore } from '@nanostores/react';
 import { activeAnimationId } from '../store/projectStore';
 import { getActiveAction } from './stickman-actions/registry';
 import { getRubberHosePath, WALKING_LEGS, WALKING_ARMS, STANDING_LEGS } from './stickman-actions/utils';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 
 export default function Stickman() {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [posX, setX] = useState(200);
   const [direction, setDirection] = useState(1);
   const $storeAnimId = useStore(activeAnimationId);
@@ -141,6 +143,10 @@ export default function Stickman() {
   const getInitialPath = (animateObj) => {
     return Array.isArray(animateObj.d) ? animateObj.d[0] : animateObj.d;
   };
+
+  if (prefersReducedMotion) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-0 left-0 w-full h-32 pointer-events-none z-[5] overflow-visible">

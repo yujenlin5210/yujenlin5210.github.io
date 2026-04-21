@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { MeshDistortMaterial } from '@react-three/drei';
 
@@ -7,7 +7,11 @@ export default function LabExampleCube(props) {
   const [hovered, setHover] = useState(false);
   const [active, setActive] = useState(false);
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
+    if (!meshRef.current) {
+      return;
+    }
+
     meshRef.current.rotation.x += delta * 0.5;
     meshRef.current.rotation.y += delta * 0.2;
     // Animate scale on click

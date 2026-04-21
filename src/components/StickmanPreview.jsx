@@ -1,9 +1,37 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { getActiveAction } from './stickman-actions/registry';
 import { getRubberHosePath, WALKING_LEGS, WALKING_ARMS, STANDING_LEGS } from './stickman-actions/utils';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
+
+function StaticStickmanPreview({ variant }) {
+  return (
+    <div
+      className={variant === 'inline'
+        ? 'relative w-full h-48 bg-slate-100 dark:bg-slate-900 rounded-xl overflow-hidden my-8 border border-slate-200 dark:border-slate-800'
+        : 'relative w-full h-48 overflow-hidden'}
+    >
+      <div className="absolute bottom-10 w-full h-[1px] bg-slate-300 dark:bg-slate-700 opacity-50" />
+      <svg
+        width="200"
+        height="100"
+        viewBox="0 0 200 100"
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 overflow-visible text-slate-700 dark:text-slate-300"
+      >
+        <rect x="88" y="30" width="24" height="45" rx="12" fill="white" stroke="currentColor" strokeWidth="2.5" className="dark:fill-slate-950" />
+        <circle cx="100" cy="18" r="16" fill="white" stroke="currentColor" strokeWidth="2.5" className="dark:fill-slate-950" />
+        <circle cx="108" cy="16" r="1.5" fill="currentColor" />
+        <path d="M 95,45 Q 90,60 95,75" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="opacity-50" />
+        <path d="M 105,45 Q 110,60 105,75" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M 95,75 Q 92,88 90,100" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-50" />
+        <path d="M 105,75 Q 108,88 110,100" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+}
 
 export default function StickmanPreview({ animationId = 'idle', variant = 'inline' }) {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const containerRef = useRef(null);
   const [posX, setX] = useState(100);
   const [direction, setDirection] = useState(1);
@@ -140,6 +168,10 @@ export default function StickmanPreview({ animationId = 'idle', variant = 'inlin
   const getInitialPath = (animateObj) => {
     return Array.isArray(animateObj.d) ? animateObj.d[0] : animateObj.d;
   };
+
+  if (prefersReducedMotion) {
+    return <StaticStickmanPreview variant={variant} />;
+  }
 
   return (
     <div 

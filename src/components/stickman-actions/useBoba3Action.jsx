@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 
 export function useBoba3Action(phase) {
@@ -60,7 +59,7 @@ export function useBoba3Action(phase) {
     renderHeadAssets: () => (
       <>
         {showHeadset && (
-          <motion.g 
+          <motion.g
             key="headset"
             initial={{ y: -20, opacity: 0, scale: 0.8 }}
             animate={{ y: -4, opacity: phase === 'doffing' ? 0 : 1, scale: 1 }}

@@ -5,7 +5,9 @@
     "**/*"
   ],
   "exclude": [
-    "dist"
+    "dist",
+    "_legacy",
+    "public/assets/js"
   ],
   "compilerOptions": {
     "jsx": "react-jsx",

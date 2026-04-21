@@ -1,21 +1,10 @@
-import React, { memo, startTransition, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, startTransition, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getAudioContextConstructor, isIOSPlaybackDevice } from '../utils/browserAudio';
 
 const SILENT_AUDIO_SRC =
   'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
 const ANIM_EASING = 'cubic-bezier(0.05, 0.9, 0.1, 1)';
-
-function isIOSPlaybackDevice() {
-  if (typeof navigator === 'undefined') {
-    return false;
-  }
-
-  const userAgent = navigator.userAgent || '';
-  return (
-    /iPad|iPhone|iPod/.test(userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  );
-}
 
 const AnimatedPiece = memo(function AnimatedPiece({ piece, duration }) {
   const elementRef = useRef(null);
@@ -306,7 +295,13 @@ const TimeArt = () => {
       if (useSilentAudioWorkaroundRef.current && navigator.audioSession) {
         navigator.audioSession.type = 'playback';
       }
-      audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
+      const AudioContextCtor = getAudioContextConstructor();
+
+      if (!AudioContextCtor) {
+        return;
+      }
+
+      audioCtx.current = new AudioContextCtor();
     }
     const ctx = audioCtx.current;
     

@@ -2,7 +2,8 @@
 
 This repository contains the current Astro-based portfolio site for Yu-Jen Lin.
 
-For AI agents and automation tools, the canonical project guide is now [AGENTS.md](AGENTS.md).
+For AI agents and automation tools, the canonical project guide is [AGENTS.md](AGENTS.md).
+For a human-readable technical overview of the current app structure, see [docs/architecture.md](docs/architecture.md).
 
 ## Quick Start
 

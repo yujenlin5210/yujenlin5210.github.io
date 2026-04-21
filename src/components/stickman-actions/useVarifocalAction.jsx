@@ -1,4 +1,3 @@
-import React from 'react';
 import { motion } from 'framer-motion';
 
 export function useVarifocalAction(phase) {
@@ -49,7 +48,7 @@ export function useVarifocalAction(phase) {
     renderHeadAssets: () => (
       <>
         {showHeadset && (
-          <motion.g 
+          <motion.g
             key="headset"
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: -8, opacity: phase === 'doffing' ? 0 : 1 }}

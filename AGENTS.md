@@ -23,7 +23,8 @@ Current stack:
 - Core routes are live under `src/pages`: `/`, `/about`, `/projects`, `/projects/[id]`, `/lab`, and `/lab/[id]`.
 - Content lives in `src/content/projects` and `src/content/lab`.
 - Validation baseline is healthy: `npm run check` passes.
-- `astro check` still emits non-blocking TypeScript hints in older files, but there are no errors or warnings.
+- `astro check` is clean: 0 errors, 0 warnings, 0 hints.
+- Reduced-motion fallbacks and hydration deferral are now in place on the main motion-heavy surfaces.
 
 ## Repo Map
 
@@ -32,8 +33,10 @@ Current stack:
 - `src/content/projects`: project case studies and frontmatter-driven metadata.
 - `src/content/lab`: lab posts, experiments, and technical writeups.
 - `src/layouts`: top-level layout wrappers.
+- `docs/architecture.md`: human-facing architecture overview for the current site.
 - `src/utils/content.ts`: shared validated date helpers. Use this instead of ad hoc `new Date(id.slice(...))` logic.
 - `src/utils/filterTags.ts`: removes internal taxonomy tags before public rendering.
+- `src/utils/browserAudio.js`: shared helpers for browser audio capability checks.
 - `scripts/validate-built-html.mjs`: post-build validator for malformed generated HTML.
 - `public/assets`: migrated production asset library.
 - `_legacy`: archived Jekyll-era site. Do not treat this as the source of the current production app.
@@ -63,6 +66,7 @@ Run from the repo root:
 - For list sorting, year display, or date comparisons, use helpers from `src/utils/content.ts`.
 - If adding inline scripts to Astro pages, make them idempotent across `ClientRouter` navigations and ensure they render inside the document, not after `</html>`.
 - Prefer lighter hydration where possible. `client:visible` is preferred over `client:load` when eager hydration is not required.
+- Honor reduced-motion preferences on motion-heavy surfaces. Reuse `src/hooks/usePrefersReducedMotion.js` instead of reimplementing media-query listeners.
 
 ## Architecture Notes
 
@@ -119,11 +123,11 @@ The major phased cleanup pass has been completed.
 - Made sorting explicit instead of relying on in-place mutation.
 - Switched the projects listing islands from `client:load` to `client:visible`.
 
-## Remaining Follow-Ups
+## Follow-Up Status
 
-These are still worth doing, but they are not blocking:
+The previously noted follow-ups have been completed:
 
-- Reduce large chunk warnings from Vite by code-splitting heavier islands.
-- Add `prefers-reduced-motion` fallbacks to motion-heavy surfaces.
-- Consider a human-focused `docs/architecture.md` if the repo keeps growing.
-- Clean up non-blocking TypeScript hints and unused imports in older components over time.
+- The heaviest client surfaces are now deferred or lazy-loaded, and Vite chunking is split between React, Framer Motion, React Three Fiber, and Three.js vendor code.
+- Reduced-motion fallbacks are in place for the main animated UI surfaces.
+- A human-focused architecture overview now lives in `docs/architecture.md`.
+- Legacy/public JS no longer pollutes application diagnostics, and `astro check` is clean.
