@@ -7,7 +7,7 @@ cover: cover.png
 tags: [Javascript, Creative-Coding, React, Web-Audio, AI-Restoration]
 ---
 
-A modern JavaScript recreation of an original Flash-based interactive art piece. This 2026 version was restored and remade by **Gemini 3.1**, based on the seminal work of [**Hsin-Chien Huang**](https://hsinchienhuang.com/index.php?lang=ch) ([Wikipedia](https://zh.wikipedia.org/zh-tw/%E9%BB%83%E5%BF%83%E5%81%A5)).
+A modern JavaScript recreation of an original Flash-based interactive art piece. This 2026 version was restored and remade by **Gemini 3.1**, based on the seminal work of [Hsin-Chien Huang](https://hsinchienhuang.com/index.php?lang=ch) ([Wikipedia](https://zh.wikipedia.org/zh-tw/%E9%BB%83%E5%BF%83%E5%81%A5)).
 
 #### Concept
 The piece explores the recursive nature of time and space. A single square represents a moment or a whole, which can be split into smaller and smaller fragments. As it reaches its maximum complexity, it inevitably flows back into its original unified state.
@@ -15,11 +15,167 @@ The piece explores the recursive nature of time and space. A single square repre
 #### Technical Implementation
 Rebuilding this algorithmic experience required a combination of recursive data structures and precise physical simulation:
 
-*   **Recursive Tree Architecture**: The logic uses a tree-based splitting algorithm. For each level of depth ($n$), the algorithm traverses the current "moment" and divides it into two fragments. To ensure organic irregularity, the split ratios are randomized between 20% and 80%, ensuring that every fragment maintains enough geometric "material" to support subsequent recursion steps.
-*   **Coordinate Inheritance & Continuous Motion**: A primary challenge was achieving smooth, non-jumping motion. Every fragment inherits its parent’s exact coordinates and dimensions at the moment of fracture. As the square fragments, the children are initialized to perfectly overlap the parent before sliding out to their irregular targets, creating a seamless visual decomposition.
-*   **"Ice Sliding" Physics**: To capture the original's physical weight, I implemented custom **Cubic-Bezier impulse curves** (`[0.05, 0.9, 0.1, 1.0]`). This simulates a frictionless surface—each split provides a sharp, high-velocity "push" followed by a long, slow glide as fragments settle into their new positions.
-*   **Generative Web Audio Synthesis**: The chimes are synthesized in real-time using the **Web Audio API**. Each split triggers a complex tone consisting of a base frequency layered with multiple non-integer harmonics, creating a spacious, "glassy" resonance. The merging phase mirrors this by utilizing an exponential gain swell, effectively playing the chime in reverse.
-*   **Atomic State Handover**: To eliminate visual jitter, the merge sequence uses an atomic handover mechanism. Fragments slide back to their parent's origin with surgical precision; only once they have perfectly aligned is the parent square restored, ensuring a flicker-free transition back to unity.
+<h5 class="mt-10 mb-3 text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white border-l-4 border-indigo-500 pl-4">
+  Recursive Tree Architecture
+</h5>
+The logic uses a tree-based splitting algorithm. For each level of depth `n`, the algorithm traverses the current "moment" and divides it into two fragments. To keep the result organic, each split ratio is randomized between 20% and 80%, which ensures that every child still has enough geometric material to split again.
+
+```ts
+const splitPiece = (piece, step) => {
+  const ratio = 0.2 + Math.random() * 0.6;
+  const force = (15 + Math.random() * 55) * Math.pow(0.85, step);
+
+  if (Math.random() > 0.5) {
+    const h1 = piece.h * ratio;
+    return [
+      { id: `${piece.id}-1`, w: piece.w, h: h1, x: piece.x, y: piece.y - force },
+      { id: `${piece.id}-2`, w: piece.w, h: piece.h - h1, x: piece.x, y: piece.y + h1 + force },
+    ];
+  }
+
+  const w1 = piece.w * ratio;
+  return [
+    { id: `${piece.id}-1`, w: w1, h: piece.h, x: piece.x - force, y: piece.y },
+    { id: `${piece.id}-2`, w: piece.w - w1, h: piece.h, x: piece.x + w1 + force, y: piece.y },
+  ];
+};
+```
+
+<h5 class="mt-12 mb-3 text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white border-l-4 border-indigo-500 pl-4">
+  Coordinate Inheritance And Continuous Motion
+</h5>
+A primary challenge was achieving smooth, non-jumping motion. Every fragment inherits its parent’s exact coordinates at the moment of fracture. The child starts perfectly overlapped with the parent, then slides toward a new target, which makes the decomposition feel continuous instead of snapping.
+
+```ts
+const child = {
+  id: `${parent.id}-1`,
+  x: parent.targetX,
+  y: parent.targetY,
+  w: childWidth,
+  h: parent.h,
+  startX: parent.targetX,
+  startY: parent.targetY,
+  targetX: parent.targetX - force,
+  targetY: parent.targetY,
+};
+```
+
+<h5 class="mt-12 mb-3 text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white border-l-4 border-indigo-500 pl-4">
+  Ice Sliding Physics
+</h5>
+To capture the original's physical weight, I used a cubic-bezier impulse curve of `[0.05, 0.9, 0.1, 1.0]`. The movement starts with a sharp push and then eases into a long glide, which makes the fragments feel like they are slipping across a low-friction surface.
+
+```ts
+const animation = node.animate(
+  [{ transform: from }, { transform: to }],
+  {
+    duration: 2200,
+    easing: 'cubic-bezier(0.05, 0.9, 0.1, 1)',
+    fill: 'forwards',
+  }
+);
+```
+
+<h5 class="mt-12 mb-3 text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white border-l-4 border-indigo-500 pl-4">
+  Generative Web Audio Synthesis
+</h5>
+The chimes are synthesized in real time with the Web Audio API. Each split triggers a small stack of oscillators built from a base frequency and a few non-integer harmonics, which produces the spacious, glassy tone. The merge phase mirrors that contour in reverse.
+
+```ts
+const playTone = (freq, volume, duration) => {
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+
+  gain.gain.setValueAtTime(0, ctx.currentTime);
+  gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.01);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+  osc.frequency.setValueAtTime(freq, ctx.currentTime);
+  osc.connect(gain);
+  gain.connect(ctx.destination);
+  osc.start();
+  osc.stop(ctx.currentTime + duration);
+};
+```
+
+<h5 class="mt-12 mb-3 text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white border-l-4 border-indigo-500 pl-4">
+  Atomic State Handover
+</h5>
+To eliminate visual jitter, the merge sequence uses an atomic handover step. Children first animate back toward the parent’s origin, and only after they have visually reassembled does the parent rectangle replace them in state.
+
+```ts
+setPieces((current) => {
+  const filtered = current.filter((piece) => !currentLevelIds.includes(piece.id));
+  const restoredParents = parentLevel.map((piece) => ({
+    ...piece,
+    startX: piece.targetX,
+    startY: piece.targetY,
+  }));
+
+  return [...filtered, ...restoredParents];
+});
+```
+
+<h5 class="mt-12 mb-3 text-xl md:text-2xl font-black tracking-tight text-slate-900 dark:text-white border-l-4 border-indigo-500 pl-4">
+  Browser Responsiveness Under Load
+</h5>
+A later restoration pass exposed a performance bug in the modern version. During deeper fragmentation runs, every piece was being driven through a React-heavy SVG animation path, which could saturate the main thread badly enough that switching tabs felt stuck. Hidden-page transitions could also leave async waits and audio activity alive longer than intended.
+
+Before, every fragment was animated through a per-piece Framer Motion node:
+
+```tsx
+pieces.map((piece) => (
+  <motion.rect
+    key={piece.id}
+    initial={{ x: piece.startX, y: piece.startY }}
+    animate={{ x: piece.targetX, y: piece.targetY }}
+    transition={{
+      type: 'tween',
+      ease: [0.05, 0.9, 0.1, 1],
+      duration: 2.2,
+    }}
+  />
+));
+```
+
+After, the interaction gained explicit teardown and the fragment motion was moved to lighter browser-native transforms:
+
+```tsx
+const cancelInteraction = () => {
+  interactionRunIdRef.current += 1;
+  clearPendingWaits();
+  stopActiveNotes();
+  stopSilentAudio();
+};
+
+const AnimatedPiece = memo(({ piece, duration }) => {
+  const ref = useRef(null);
+
+  useLayoutEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+
+    const from = `translate(${piece.startX - piece.x}px, ${piece.startY - piece.y}px)`;
+    const to = `translate(${piece.targetX - piece.x}px, ${piece.targetY - piece.y}px)`;
+    const animation = node.animate(
+      [{ transform: from }, { transform: to }],
+      {
+        duration: duration * 1000,
+        easing: 'cubic-bezier(0.05, 0.9, 0.1, 1)',
+        fill: 'forwards',
+      }
+    );
+
+    return () => animation.cancel();
+  }, [piece, duration]);
+
+  return (
+    <g ref={ref}>
+      <rect x={piece.x} y={piece.y} width={piece.w} height={piece.h} />
+    </g>
+  );
+});
+```
 
 <div class="mt-20 border-t border-slate-200 dark:border-white/10 pt-10 not-prose">
     <h4 class="text-center text-slate-500 uppercase tracking-[0.2em] text-sm mb-6 font-bold">ORIGINAL REFERENCE</h4>

@@ -1,5 +1,103 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { memo, startTransition, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const SILENT_AUDIO_SRC =
+  'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+const ANIM_EASING = 'cubic-bezier(0.05, 0.9, 0.1, 1)';
+
+function isIOSPlaybackDevice() {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+
+  const userAgent = navigator.userAgent || '';
+  return (
+    /iPad|iPhone|iPod/.test(userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
+
+const AnimatedPiece = memo(function AnimatedPiece({ piece, duration }) {
+  const elementRef = useRef(null);
+  const animationRef = useRef(null);
+  const fromTransform = `translate(${piece.startX - piece.x}px, ${piece.startY - piece.y}px)`;
+  const toTransform = `translate(${piece.targetX - piece.x}px, ${piece.targetY - piece.y}px)`;
+
+  useLayoutEffect(() => {
+    const element = elementRef.current;
+
+    if (!element) {
+      return undefined;
+    }
+
+    animationRef.current?.cancel();
+    element.style.transform = fromTransform;
+
+    if (fromTransform === toTransform) {
+      element.style.transform = toTransform;
+      animationRef.current = null;
+      return undefined;
+    }
+
+    const animation = element.animate(
+      [
+        { transform: fromTransform },
+        { transform: toTransform },
+      ],
+      {
+        duration: duration * 1000,
+        easing: ANIM_EASING,
+        fill: 'forwards',
+      }
+    );
+
+    animationRef.current = animation;
+    element.style.transform = toTransform;
+
+    return () => {
+      animation.cancel();
+
+      if (animationRef.current === animation) {
+        animationRef.current = null;
+      }
+    };
+  }, [duration, fromTransform, toTransform]);
+
+  return (
+    <g
+      ref={elementRef}
+      style={{
+        transformBox: 'fill-box',
+        transformOrigin: '0 0',
+        willChange: 'transform',
+      }}
+    >
+      <rect
+        x={piece.x}
+        y={piece.y}
+        width={piece.w}
+        height={piece.h}
+        fill="rgba(129, 140, 248, 0.35)"
+      />
+    </g>
+  );
+}, (prevProps, nextProps) => {
+  const prev = prevProps.piece;
+  const next = nextProps.piece;
+
+  return (
+    prevProps.duration === nextProps.duration &&
+    prev.id === next.id &&
+    prev.x === next.x &&
+    prev.y === next.y &&
+    prev.w === next.w &&
+    prev.h === next.h &&
+    prev.startX === next.startX &&
+    prev.startY === next.startY &&
+    prev.targetX === next.targetX &&
+    prev.targetY === next.targetY
+  );
+});
 
 const TimeArt = () => {
   const [n, setN] = useState(5);
@@ -12,12 +110,144 @@ const TimeArt = () => {
   const audioCtx = useRef(null);
   const silentAudioRef = useRef(null);
   const isMounted = useRef(true);
+  const isAnimatingRef = useRef(false);
+  const interactionRunIdRef = useRef(0);
+  const pendingWaitsRef = useRef(new Set());
+  const activeNotesRef = useRef(new Set());
+  const useSilentAudioWorkaroundRef = useRef(false);
   
   const ANIM_DURATION = 2.2;
-  const EASE_CURVE = [0.05, 0.9, 0.1, 1.0]; // Icy Slide
+
+  const setPiecesDeferred = (value) => {
+    startTransition(() => {
+      setPieces(value);
+    });
+  };
+
+  const setAnimatingDeferred = (value) => {
+    startTransition(() => {
+      setIsAnimating(value);
+    });
+  };
+
+  const isInteractionActive = (runId) =>
+    isMounted.current && interactionRunIdRef.current === runId;
+
+  const clearPendingWaits = () => {
+    pendingWaitsRef.current.forEach((waitEntry) => {
+      window.clearTimeout(waitEntry.id);
+      waitEntry.resolve(false);
+    });
+    pendingWaitsRef.current.clear();
+  };
+
+  const cleanupNote = (note) => {
+    if (!activeNotesRef.current.has(note)) {
+      return;
+    }
+
+    activeNotesRef.current.delete(note);
+    note.osc.onended = null;
+
+    try {
+      note.osc.disconnect();
+    } catch {
+      // Ignore disconnect failures during teardown.
+    }
+
+    try {
+      note.gain.disconnect();
+    } catch {
+      // Ignore disconnect failures during teardown.
+    }
+  };
+
+  const stopActiveNotes = () => {
+    activeNotesRef.current.forEach((note) => {
+      try {
+        note.osc.stop(0);
+      } catch {
+        // Ignore notes that have already stopped.
+      }
+
+      cleanupNote(note);
+    });
+  };
+
+  const ensureSilentAudio = () => {
+    if (!useSilentAudioWorkaroundRef.current) {
+      return null;
+    }
+
+    if (!silentAudioRef.current) {
+      const silentAudio = new Audio(SILENT_AUDIO_SRC);
+      silentAudio.loop = true;
+      silentAudio.preload = 'auto';
+      silentAudio.playsInline = true;
+      silentAudioRef.current = silentAudio;
+    }
+
+    return silentAudioRef.current;
+  };
+
+  const stopSilentAudio = () => {
+    const silentAudio = silentAudioRef.current;
+
+    if (!silentAudio) {
+      return;
+    }
+
+    silentAudio.pause();
+
+    try {
+      silentAudio.currentTime = 0;
+    } catch {
+      // Ignore browsers that reject seeks immediately after pause.
+    }
+  };
+
+  const teardownSilentAudio = () => {
+    const silentAudio = silentAudioRef.current;
+
+    if (!silentAudio) {
+      return;
+    }
+
+    stopSilentAudio();
+    silentAudio.removeAttribute('src');
+    silentAudio.load();
+    silentAudioRef.current = null;
+  };
+
+  const finishInteraction = ({ resetPieces = true } = {}) => {
+    clearPendingWaits();
+    stopActiveNotes();
+    stopSilentAudio();
+    isAnimatingRef.current = false;
+
+    if (!isMounted.current) {
+      return;
+    }
+
+    setAnimatingDeferred(false);
+
+    if (resetPieces) {
+      setPiecesDeferred([]);
+    }
+  };
+
+  const cancelInteraction = (options) => {
+    interactionRunIdRef.current += 1;
+    finishInteraction(options);
+  };
+
+  useEffect(() => {
+    isAnimatingRef.current = isAnimating;
+  }, [isAnimating]);
 
   useEffect(() => {
     isMounted.current = true;
+    useSilentAudioWorkaroundRef.current = isIOSPlaybackDevice();
     
     const updateLayout = () => {
       const mobile = window.innerWidth < 768;
@@ -39,20 +269,33 @@ const TimeArt = () => {
     return () => {
       isMounted.current = false;
       window.removeEventListener('resize', updateLayout);
-      if (audioCtx.current) {
-        audioCtx.current.close();
-      }
-      if (silentAudioRef.current) {
-        silentAudioRef.current.pause();
-        silentAudioRef.current = null;
+
+      cancelInteraction({ resetPieces: false });
+      teardownSilentAudio();
+
+      const context = audioCtx.current;
+      audioCtx.current = null;
+
+      if (context && context.state !== 'closed') {
+        void context.close().catch(() => {});
       }
     };
   }, []);
 
   // Helper for cancellable delay
-  const wait = (ms) => new Promise((resolve) => {
-    const timeout = setTimeout(resolve, ms);
-    if (!isMounted.current) clearTimeout(timeout);
+  const wait = (ms, runId) => new Promise((resolve) => {
+    if (!isInteractionActive(runId)) {
+      resolve(false);
+      return;
+    }
+
+    const waitEntry = { id: 0, resolve };
+    waitEntry.id = window.setTimeout(() => {
+      pendingWaitsRef.current.delete(waitEntry);
+      resolve(isInteractionActive(runId));
+    }, ms);
+
+    pendingWaitsRef.current.add(waitEntry);
   });
 
   // Sound Synthesis (Spacious Glassy Bell)
@@ -60,7 +303,7 @@ const TimeArt = () => {
     if (!isMounted.current) return;
     
     if (!audioCtx.current) {
-      if (navigator.audioSession) {
+      if (useSilentAudioWorkaroundRef.current && navigator.audioSession) {
         navigator.audioSession.type = 'playback';
       }
       audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
@@ -70,12 +313,15 @@ const TimeArt = () => {
     // Safety check for closed context
     if (ctx.state === 'closed') return;
     if (ctx.state === 'suspended') {
-      ctx.resume();
+      void ctx.resume().catch(() => {});
     }
 
     const playTone = (freq, volume, duration) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
+      const note = { osc, gain };
+
+      activeNotesRef.current.add(note);
       osc.type = 'sine';
       osc.frequency.setValueAtTime(freq, ctx.currentTime);
       
@@ -89,6 +335,9 @@ const TimeArt = () => {
         gain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
       }
 
+      osc.onended = () => {
+        cleanupNote(note);
+      };
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start();
@@ -102,15 +351,21 @@ const TimeArt = () => {
   };
 
   const startInteraction = async () => {
-    if (isAnimating) return;
-    setIsAnimating(true);
+    if (isAnimatingRef.current) return;
+
+    const runId = interactionRunIdRef.current + 1;
+    interactionRunIdRef.current = runId;
+    clearPendingWaits();
+    stopActiveNotes();
+    stopSilentAudio();
+    isAnimatingRef.current = true;
+    setAnimatingDeferred(true);
 
     // Initialize silent audio to force media playback mode on mobile
-    if (!silentAudioRef.current) {
-      silentAudioRef.current = new Audio("data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=");
-      silentAudioRef.current.loop = true;
+    const silentAudio = ensureSilentAudio();
+    if (silentAudio) {
+      void silentAudio.play().catch(() => {});
     }
-    silentAudioRef.current.play().catch(() => {});
 
     const initial = {
       id: 'root',
@@ -125,18 +380,19 @@ const TimeArt = () => {
     };
 
     const history = [[initial]];
-    if (isMounted.current) setPieces(history[0]);
+    if (isInteractionActive(runId)) {
+      setPiecesDeferred(history[0]);
+    }
 
     // Forward Split Phase
     for (let step = 0; step < n; step++) {
-      if (!isMounted.current) return;
+      if (!isInteractionActive(runId)) return;
 
       const prevLevel = history[step];
-      const nextLevel = [];
 
       const splitTasks = prevLevel.map(p => {
         // Purely random split based on probability weight
-        let isHorizontal = Math.random() > 0.5; // 50% chance to split vertically (width)
+        const isHorizontal = Math.random() > 0.5; // 50% chance to split vertically (width)
 
         const ratio = 0.2 + Math.random() * 0.6;
         const baseForce = (15 + Math.random() * 55) * Math.pow(0.85, step);
@@ -163,32 +419,32 @@ const TimeArt = () => {
       const shuffledTasks = [...splitTasks].sort(() => Math.random() - 0.5);
       
       for (const task of shuffledTasks) {
-        if (!isMounted.current) return;
-        setPieces(current => {
-            const filtered = current.filter(ap => ap.id !== task.parentId);
-            return [...filtered, ...task.children];
+        if (!isInteractionActive(runId)) return;
+        setPiecesDeferred((current) => {
+          const filtered = current.filter(ap => ap.id !== task.parentId);
+          return [...filtered, ...task.children];
         });
         playBell(false);
-        await wait(40 + Math.random() * 120);
+        if (!(await wait(40 + Math.random() * 120, runId))) return;
       }
 
       history.push(splitTasks.flatMap(t => t.children));
-      await wait(1200); 
+      if (!(await wait(1200, runId))) return;
     }
 
-    await wait(2000);
+    if (!(await wait(2000, runId))) return;
 
     // Reverse Merge Phase
     for (let step = n - 1; step >= 0; step--) {
-      if (!isMounted.current) return;
+      if (!isInteractionActive(runId)) return;
 
       const parentLevel = history[step];
       const currentLevelIds = history[step + 1].map(p => p.id);
       const shuffledParentIds = [...parentLevel.map(p => p.id)].sort(() => Math.random() - 0.5);
 
       for (const pid of shuffledParentIds) {
-        if (!isMounted.current) return;
-        setPieces(current => current.map(p => {
+        if (!isInteractionActive(runId)) return;
+        setPiecesDeferred((current) => current.map(p => {
           if (p.id.startsWith(pid + '-')) {
             return {
               ...p,
@@ -199,13 +455,13 @@ const TimeArt = () => {
           return p;
         }));
         playBell(true);
-        await wait(40 + Math.random() * 100);
+        if (!(await wait(40 + Math.random() * 100, runId))) return;
       }
 
-      await wait(ANIM_DURATION * 1000);
+      if (!(await wait(ANIM_DURATION * 1000, runId))) return;
 
-      if (!isMounted.current) return;
-      setPieces(current => {
+      if (!isInteractionActive(runId)) return;
+      setPiecesDeferred((current) => {
         const filtered = current.filter(p => !currentLevelIds.includes(p.id));
         const restoredParents = parentLevel.map(p => ({
           ...p,
@@ -214,26 +470,23 @@ const TimeArt = () => {
         return [...filtered, ...restoredParents];
       });
       
-      await wait(200);
+      if (!(await wait(200, runId))) return;
     }
 
-    if (isMounted.current) {
-      setPieces([]);
-      setIsAnimating(false);
-      if (silentAudioRef.current) {
-        silentAudioRef.current.pause();
-      }
+    if (isInteractionActive(runId)) {
+      clearPendingWaits();
+      setPiecesDeferred([]);
+      setAnimatingDeferred(false);
+      stopSilentAudio();
+      isAnimatingRef.current = false;
     }
   };
 
   // Visibility Management during animation
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && isAnimating) {
-        // Cancel everything if user leaves page
-        setIsAnimating(false);
-        setPieces([]);
-        if (silentAudioRef.current) silentAudioRef.current.pause();
+      if (document.visibilityState === 'hidden' && isAnimatingRef.current) {
+        cancelInteraction();
       }
     };
 
@@ -242,7 +495,7 @@ const TimeArt = () => {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [isAnimating]);
+  }, []);
 
   return (
     <div className="not-prose relative w-full aspect-[4/5] md:aspect-[16/10] bg-slate-50 dark:bg-slate-900 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 font-sans mb-12 flex flex-col items-center justify-center group transition-all duration-500">
@@ -307,25 +560,10 @@ const TimeArt = () => {
             />
           ) : (
             pieces.map((p) => (
-              <motion.rect
+              <AnimatedPiece
                 key={p.id}
-                initial={{ 
-                  x: p.startX, 
-                  y: p.startY
-                }}
-                animate={{ 
-                  x: p.targetX, 
-                  y: p.targetY
-                }}
-                transition={{ 
-                  type: "tween", 
-                  ease: EASE_CURVE,
-                  duration: ANIM_DURATION
-                }}
-                width={p.w}
-                height={p.h}
-                fill="rgba(129, 140, 248, 0.35)"
-                className="mix-blend-multiply dark:mix-blend-screen"
+                piece={p}
+                duration={ANIM_DURATION}
               />
             ))
           )}
