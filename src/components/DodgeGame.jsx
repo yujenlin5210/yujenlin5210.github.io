@@ -30,6 +30,13 @@ const DodgeGame = () => {
     status: 'START'
   });
 
+  const stopGameLoop = () => {
+    if (requestRef.current !== undefined) {
+      cancelAnimationFrame(requestRef.current);
+      requestRef.current = undefined;
+    }
+  };
+
   useEffect(() => {
     isMounted.current = true;
 
@@ -88,7 +95,7 @@ const DodgeGame = () => {
       window.removeEventListener('resize', updateLayout);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      stopGameLoop();
     };
   }, []);
 
@@ -161,12 +168,13 @@ const DodgeGame = () => {
     setGameState('PLAYING');
     setScore(0);
     
-    if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    stopGameLoop();
     requestRef.current = requestAnimationFrame(gameLoop);
   };
 
   const gameOver = () => {
     gameRef.current.status = 'GAMEOVER';
+    stopGameLoop();
     if (isMounted.current) setGameState('GAMEOVER');
     const finalScore = Math.floor((Date.now() - gameRef.current.startTime) / 100) / 10;
     if (isMounted.current) setScore(finalScore);
@@ -205,10 +213,16 @@ const DodgeGame = () => {
   };
 
   const gameLoop = () => {
-    if (!isMounted.current || gameRef.current.status !== 'PLAYING') return;
+    if (!isMounted.current || gameRef.current.status !== 'PLAYING') {
+      requestRef.current = undefined;
+      return;
+    }
     
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas) {
+      requestRef.current = undefined;
+      return;
+    }
     const ctx = canvas.getContext('2d');
     const { player, dots, keys } = gameRef.current;
 
