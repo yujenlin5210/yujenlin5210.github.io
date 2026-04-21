@@ -1,0 +1,35 @@
+---
+title: "Stickman Pose Lab: Standing Baseline"
+date: "2026-04-21"
+description: "A lab-only sandbox for tuning a standing stickman pose before porting any ideas back to the projects page."
+folder: "stickman-pose-lab"
+cover: "cover.svg"
+hideCover: true
+tags: [React, Framer-Motion, SVG, Character-Design, Animation-Systems]
+---
+
+import StickmanPoseWorkbench from '../../components/StickmanPoseWorkbench.jsx';
+
+<div class="not-prose">
+  <StickmanPoseWorkbench client:visible />
+</div>
+
+This page is the safe branch for the next stickman pass. Nothing here is wired to the projects page stickman or the existing action registry, so we can tune the baseline pose without risking a regression on `/projects`.
+
+#### Goal
+
+Establish a clean standing silhouette that feels solid before we layer in more animation states, transitions, or props.
+
+#### Current scope
+
+- One lab-only standing figure
+- A reusable 2.5D rig builder with four facing presets plus continuous yaw control
+- Local pose controls for head tilt, torso lean, arm spread, stance width, and knee softness
+- A small preset snapshot that makes the current values easy to port later
+
+#### Next experiments
+
+- Alternate standing presets
+- Subtle idle-motion passes
+- Prop attachment tests
+- Transition tests into walking and project-specific actions
