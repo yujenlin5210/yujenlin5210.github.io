@@ -188,12 +188,49 @@ This document tracks the isolated stickman work happening in the lab before any 
 - This behavior should now be stable across the full yaw range of the lab rig.
 - Limb curvature and limb rendering are now separate concerns, so `spring` limbs can reuse the same motion path as `classic` limbs.
 
-## Suggested Next Steps
+### Animation Split Recommendation
+
+- Start animation work in a separate lab post instead of expanding the current pose lab further.
+- The current pose lab should remain the static character-kit sandbox for:
+  - silhouette
+  - renderer variants
+  - proportions
+  - facing
+- The future animation lab should reuse the existing lab modules instead of forking them:
+  - `src/components/stickman-lab/rig.js`
+  - `src/components/stickman-lab/renderers.jsx`
+- The first animation study should be a minimal idle or standing loop before any walk cycle or project-specific action work.
+
+### Animation Lab Kickoff
+
+- Added a new dedicated animation post: `src/content/lab/2026-04-21-stickman-idle-lab.mdx`
+- Added the first animation presenter: `src/components/StickmanIdleLab.jsx`
+- The first pass intentionally reuses:
+  - `src/components/stickman-lab/rig.js`
+  - `src/components/stickman-lab/renderers.jsx`
+- Current live controls are:
+  - loop profile
+  - facing check
+  - tempo
+  - intensity
+  - gizmo visibility
+  - reduced-motion-safe manual scrub
+- The animation presenter is now locked to the classic renderer stack while the idle motion is being tuned.
+- The current motion direction is now a planted breathing read:
+  - no whole-rig vertical float
+  - torso height and width carry the inhale/exhale
+  - the knees absorb a small amount of settling so the upper and lower body stay connected
+- Endpoint gizmos are hidden by default in the animation lab and can be turned back on as a debug layer.
+- Scope is still deliberately narrow:
+  - idle only
+  - no walk cycle
+  - no project-specific action hooks
+  - no production `/projects` wiring
 
 1. Decide whether the gizmos should stay visible in the final lab presentation or become debug-only.
 2. Add shoulder and hip twist so front/back views feel less flat.
 3. Add more renderer variants now that the slot system exists.
-4. Test subtle idle motion on top of the current standing 2.5D rig.
+4. Refine the new idle loop study and decide which motion channels should become stable defaults.
 5. Refine the face-plane cue if quarter turns still feel weak.
 6. Decide which shape presets are actually worth keeping once more silhouettes are tested.
 7. Decide whether head-to-torso gap and limb arc direction should remain fixed defaults or become preserved preset fields only.

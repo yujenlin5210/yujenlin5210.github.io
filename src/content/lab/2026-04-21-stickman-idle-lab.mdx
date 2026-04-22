@@ -1,0 +1,47 @@
+---
+title: "Stickman Idle Lab: Animation Baseline"
+date: "2026-04-21"
+description: "A separate animation study that reuses the new 2.5D stickman rig for subtle idle loops."
+folder: "stickman-idle-lab"
+cover: "cover.svg"
+hideCover: true
+tags: [React, Framer-Motion, SVG, Character-Design, Animation-Systems]
+---
+
+import StickmanIdleLab from '../../components/StickmanIdleLab.jsx';
+
+<div class="not-prose relative left-1/2 w-[min(100vw-2rem,78rem)] -translate-x-1/2 px-1 sm:px-0">
+  <StickmanIdleLab client:visible />
+</div>
+
+This post starts the separate animation branch recommended in the stickman lab notes. The [standing pose lab](/lab/2026-04-21-stickman-pose-lab) remains the silhouette and facing sandbox; this page is only about getting a minimal standing loop to read well on the current 2.5D rig.
+
+#### Goal
+
+Validate a first idle motion pass before touching walking, props, or project-specific actions.
+
+#### Current scope
+
+- Reuse the existing lab rig and renderer modules instead of forking them
+- Test a small set of idle-loop behaviors on the preferred standing baseline
+- Keep shape editing out of this page so motion decisions stay isolated
+- Hide endpoint gizmos by default, with a debug toggle when needed
+
+#### What is live in this first pass
+
+- Three lightweight loop profiles:
+  - `calm`
+  - `buoyant`
+  - `watchful`
+- Facing checks for front, quarter, right, and back views
+- Tempo and intensity controls for tuning the motion envelope
+- A fixed classic renderer baseline while the motion language is still being tuned
+- A planted breathing pass where the torso carries the inhale and the knees take a small settling response
+- Reduced-motion handling that pauses autoplay and falls back to manual scrubbing
+
+#### Next experiments
+
+- Shoulder and hip twist layered on top of the existing rig
+- Cleaner arm and knee overlap during larger sway
+- A decision on whether endpoint gizmos stay debug-only
+- Transition tests into walk cycles and project-specific actions
