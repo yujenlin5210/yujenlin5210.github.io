@@ -24,8 +24,9 @@ Establish a clean standing silhouette that feels solid before we layer in more a
 
 - One lab-only standing figure
 - A reusable 2.5D rig builder with four facing presets plus continuous yaw control
-- Local controls for body yaw, head yaw/pitch/roll, limb arc direction, head and body size, torso and head proportions, arm and leg length, plus stance tuning
+- Local controls for body yaw, head yaw/pitch/roll, head/body/limb style, limb arc direction, head and body size, torso and head proportions, arm and leg length, plus stance tuning
 - Head and body profile presets so the silhouette can stay rounder or flatter through turns
+- Swappable renderer slots for `head`, `body`, and `limbs`
 - Shape presets for quickly swapping between a few silhouette families before fine-tuning
 - A small preset snapshot that makes the current values easy to port later
 
@@ -34,17 +35,24 @@ Establish a clean standing silhouette that feels solid before we layer in more a
 - `Body` for facing presets and continuous yaw
 - `Head` for yaw, pitch, and roll
 - `Shape` split into `Silhouette`, `Size`, `Proportions`, and `Stance`
+- `Silhouette` further split into `Styles`, `Profiles`, and `Presets`
 
 #### Recent progress
 
 - Neutral head rotation now defaults to all zero
 - Head and torso profile presets can stay rounder through turns
 - Limb arc direction now stays consistent as the character rotates
+- The renderer is now modular enough to swap style families without changing the rig
+- First alternate style variants are now live:
+  - polygon head
+  - Michelin-style torso
+  - spring limbs
 - The current preferred standing preset is a front-facing, round-profile silhouette with a slightly larger head, taller torso, and shorter legs
 
 #### Next experiments
 
 - Alternate standing presets
+- More head/body/limb style families
 - Shoulder and hip twist
 - Subtle idle-motion passes
 - Prop attachment tests

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 import {
   buildStickmanLabRig,
@@ -10,6 +9,14 @@ import {
   STICKMAN_HEAD_PROFILE_PRESETS,
   STICKMAN_SHAPE_PRESETS,
 } from './stickman-lab/rig';
+import {
+  StickmanBodyRenderer,
+  StickmanHeadRenderer,
+  StickmanLimbRenderer,
+  STICKMAN_BODY_STYLE_OPTIONS,
+  STICKMAN_HEAD_STYLE_OPTIONS,
+  STICKMAN_LIMB_STYLE_OPTIONS,
+} from './stickman-lab/renderers';
 
 const CONTROLS = [
   { key: 'yaw', label: 'Body yaw', min: -180, max: 180, step: 1, unit: 'deg' },
@@ -83,6 +90,24 @@ const SHAPE_PANELS = [
   },
 ];
 
+const SILHOUETTE_PANELS = [
+  {
+    id: 'styles',
+    label: 'Styles',
+    description: 'Swap the head, body, and limb visual families.',
+  },
+  {
+    id: 'profiles',
+    label: 'Profiles',
+    description: 'Tune how the head and torso compress through turns.',
+  },
+  {
+    id: 'presets',
+    label: 'Presets',
+    description: 'Load saved silhouette bundles before fine-tuning.',
+  },
+];
+
 const LIMB_ARC_OPTIONS = [
   { id: 'down', label: 'Down' },
   { id: 'up', label: 'Up' },
@@ -141,6 +166,46 @@ function RangeField({ control, value, onChange }) {
   );
 }
 
+function StyleChoiceGroup({ title, value, options, onSelect }) {
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between gap-4">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+          {title}
+        </p>
+        <span className="rounded-full bg-white px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:bg-slate-950 dark:text-slate-500">
+          {value}
+        </span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        {options.map((option) => {
+          const isActive = value === option.id;
+
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onSelect(option.id)}
+              className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
+                isActive
+                  ? 'border-indigo-500 bg-indigo-600 text-white'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
+              }`}
+            >
+              <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
+                {option.label}
+              </span>
+              <span className="mt-2 block text-xs font-medium leading-relaxed opacity-80">
+                {option.description}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function getLimbStyle(depth) {
   if (depth < -6) {
     return {
@@ -183,6 +248,7 @@ export default function StickmanPoseWorkbench() {
   const [pose, setPose] = useState(DEFAULT_STICKMAN_LAB_POSE);
   const [activeSection, setActiveSection] = useState('body');
   const [activeShapePanel, setActiveShapePanel] = useState('silhouette');
+  const [activeSilhouettePanel, setActiveSilhouettePanel] = useState('styles');
   const [showPreset, setShowPreset] = useState(false);
   const [activeShapePreset, setActiveShapePreset] = useState('baseline');
 
@@ -191,6 +257,9 @@ export default function StickmanPoseWorkbench() {
       CONTROL_KEYS.size.includes(key) ||
       CONTROL_KEYS.proportions.includes(key) ||
       CONTROL_KEYS.pose.includes(key) ||
+      key === 'headStyle' ||
+      key === 'bodyStyle' ||
+      key === 'limbStyle' ||
       key === 'headProfilePreset' ||
       key === 'bodyProfilePreset' ||
       key === 'limbArcDirection'
@@ -290,201 +359,46 @@ export default function StickmanPoseWorkbench() {
                 const gizmo = getEndpointGizmoStyle(limb.type, limb.depth);
 
                 return (
-                  <g key={limb.id}>
-                    <motion.path
-                      initial={false}
-                      animate={{ d: limb.path }}
-                      transition={limbTransition}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={limb.type === 'arm' ? 4 : 4.5}
-                      strokeLinecap="round"
-                      className={style.className}
-                      opacity={style.opacity}
-                    />
-                    <motion.g
-                      initial={false}
-                      animate={{
-                        x: limb.end.x,
-                        y: limb.end.y,
-                      }}
-                      transition={limbTransition}
-                      opacity={gizmo.opacity}
-                    >
-                      <circle
-                        cx="0"
-                        cy="0"
-                        r={limb.type === 'arm' ? 4.5 : 5}
-                        fill="currentColor"
-                        fillOpacity="0.12"
-                        stroke="currentColor"
-                        strokeWidth="1.4"
-                        className={gizmo.className}
-                      />
-                      <line
-                        x1={limb.type === 'arm' ? -2.25 : -2.5}
-                        y1="0"
-                        x2={limb.type === 'arm' ? 2.25 : 2.5}
-                        y2="0"
-                        stroke="currentColor"
-                        strokeWidth="1.25"
-                        strokeLinecap="round"
-                        className={gizmo.className}
-                      />
-                      <line
-                        x1="0"
-                        y1={limb.type === 'arm' ? -2.25 : -2.5}
-                        x2="0"
-                        y2={limb.type === 'arm' ? 2.25 : 2.5}
-                        stroke="currentColor"
-                        strokeWidth="1.25"
-                        strokeLinecap="round"
-                        className={gizmo.className}
-                      />
-                    </motion.g>
-                  </g>
+                  <StickmanLimbRenderer
+                    key={limb.id}
+                    styleId={pose.limbStyle}
+                    limb={limb}
+                    transition={limbTransition}
+                    className={style.className}
+                    opacity={style.opacity}
+                    gizmoClassName={gizmo.className}
+                    gizmoOpacity={gizmo.opacity}
+                  />
                 );
               })}
 
-              <motion.rect
-                initial={false}
-                animate={{
-                  x: rig.body.x,
-                  y: rig.body.y,
-                  width: rig.body.width,
-                  height: rig.body.height,
-                  rx: rig.body.radius,
-                }}
+              <StickmanBodyRenderer
+                styleId={pose.bodyStyle}
+                body={rig.body}
                 transition={motionTransition}
-                fill="white"
-                stroke="currentColor"
-                strokeWidth="3"
-                className="fill-white text-slate-800 dark:fill-slate-950 dark:text-slate-100"
               />
 
-              <motion.g
-                initial={false}
-                animate={{
-                  x: rig.head.x,
-                  y: rig.head.y,
-                  rotate: rig.head.roll,
-                }}
+              <StickmanHeadRenderer
+                styleId={pose.headStyle}
+                head={rig.head}
                 transition={motionTransition}
-                style={{ transformBox: 'fill-box', transformOrigin: 'center center' }}
-              >
-                <motion.ellipse
-                  initial={false}
-                  animate={{ rx: rig.head.rx, ry: rig.head.ry }}
-                  transition={motionTransition}
-                  cx="0"
-                  cy="0"
-                  fill="white"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  className="fill-white text-slate-800 dark:fill-slate-950 dark:text-slate-100"
-                />
-                <motion.ellipse
-                  initial={false}
-                  animate={{
-                    cx: rig.head.facePlane.x,
-                    cy: rig.head.facePlane.y,
-                    rx: rig.head.facePlane.rx,
-                    ry: rig.head.facePlane.ry,
-                    opacity: rig.head.facePlane.opacity,
-                  }}
-                  transition={motionTransition}
-                  fill="currentColor"
-                  className="text-indigo-200 dark:text-slate-700"
-                />
-                <motion.line
-                  initial={false}
-                  animate={{
-                    x1: rig.head.nose.x1,
-                    y1: rig.head.nose.y1,
-                    x2: rig.head.nose.x2,
-                    y2: rig.head.nose.y2,
-                    opacity: rig.head.nose.opacity,
-                  }}
-                  transition={motionTransition}
-                  stroke="currentColor"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  className="text-slate-500 dark:text-slate-300"
-                />
-                {rig.head.eyes.map((eye) => (
-                  <motion.circle
-                    key={eye.id}
-                    initial={false}
-                    animate={{
-                      cx: eye.x,
-                      cy: eye.y,
-                      r: eye.radius,
-                      opacity: eye.opacity,
-                    }}
-                    transition={motionTransition}
-                    className="fill-slate-800 dark:fill-slate-100"
-                  />
-                ))}
-              </motion.g>
+              />
 
               {rig.limbs.front.map((limb) => {
                 const style = getLimbStyle(limb.depth);
                 const gizmo = getEndpointGizmoStyle(limb.type, limb.depth);
 
                 return (
-                  <g key={limb.id}>
-                    <motion.path
-                      initial={false}
-                      animate={{ d: limb.path }}
-                      transition={limbTransition}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth={limb.type === 'arm' ? 4 : 4.5}
-                      strokeLinecap="round"
-                      className={style.className}
-                      opacity={style.opacity}
-                    />
-                    <motion.g
-                      initial={false}
-                      animate={{
-                        x: limb.end.x,
-                        y: limb.end.y,
-                      }}
-                      transition={limbTransition}
-                      opacity={gizmo.opacity}
-                    >
-                      <circle
-                        cx="0"
-                        cy="0"
-                        r={limb.type === 'arm' ? 4.5 : 5}
-                        fill="currentColor"
-                        fillOpacity="0.12"
-                        stroke="currentColor"
-                        strokeWidth="1.4"
-                        className={gizmo.className}
-                      />
-                      <line
-                        x1={limb.type === 'arm' ? -2.25 : -2.5}
-                        y1="0"
-                        x2={limb.type === 'arm' ? 2.25 : 2.5}
-                        y2="0"
-                        stroke="currentColor"
-                        strokeWidth="1.25"
-                        strokeLinecap="round"
-                        className={gizmo.className}
-                      />
-                      <line
-                        x1="0"
-                        y1={limb.type === 'arm' ? -2.25 : -2.5}
-                        x2="0"
-                        y2={limb.type === 'arm' ? 2.25 : 2.5}
-                        stroke="currentColor"
-                        strokeWidth="1.25"
-                        strokeLinecap="round"
-                        className={gizmo.className}
-                      />
-                    </motion.g>
-                  </g>
+                  <StickmanLimbRenderer
+                    key={limb.id}
+                    styleId={pose.limbStyle}
+                    limb={limb}
+                    transition={limbTransition}
+                    className={style.className}
+                    opacity={style.opacity}
+                    gizmoClassName={gizmo.className}
+                    gizmoOpacity={gizmo.opacity}
+                  />
                 );
               })}
             </svg>
@@ -637,110 +551,169 @@ export default function StickmanPoseWorkbench() {
 
                 {activeShapePanel === 'silhouette' && (
                   <>
-                    <div>
-                      <div className="mb-3 flex items-center justify-between gap-4">
-                        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                          Body profile
-                        </p>
-                        <span className="rounded-full bg-white px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:bg-slate-950 dark:text-slate-500">
-                          {pose.bodyProfilePreset}
-                        </span>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        {STICKMAN_BODY_PROFILE_PRESETS.map((preset) => {
-                          const isActive = pose.bodyProfilePreset === preset.id;
+                    <div className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950">
+                      <div className="grid grid-cols-3 gap-2">
+                        {SILHOUETTE_PANELS.map((panel) => {
+                          const isActive = activeSilhouettePanel === panel.id;
 
                           return (
                             <button
-                              key={preset.id}
+                              key={panel.id}
                               type="button"
-                              onClick={() => applyBodyProfilePreset(preset)}
-                              className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
+                              onClick={() => setActiveSilhouettePanel(panel.id)}
+                              className={`rounded-2xl px-3 py-3 text-left text-sm font-semibold transition-colors ${
                                 isActive
-                                  ? 'border-indigo-500 bg-indigo-600 text-white'
-                                  : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
+                                  ? 'bg-indigo-600 text-white shadow-sm'
+                                  : 'bg-slate-50 text-slate-600 hover:text-indigo-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:text-indigo-300'
                               }`}
                             >
                               <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
-                                {preset.label}
-                              </span>
-                              <span className="mt-2 block text-xs font-medium leading-relaxed opacity-80">
-                                {preset.description}
+                                {panel.label}
                               </span>
                             </button>
                           );
                         })}
                       </div>
+                      <p className="mt-3 px-1 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                        {SILHOUETTE_PANELS.find((panel) => panel.id === activeSilhouettePanel)?.description}
+                      </p>
                     </div>
 
-                    <div>
-                      <div className="mb-3 flex items-center justify-between gap-4">
-                        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                          Head profile
-                        </p>
-                        <span className="rounded-full bg-white px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:bg-slate-950 dark:text-slate-500">
-                          {pose.headProfilePreset}
-                        </span>
-                      </div>
-                      <div className="grid gap-3 sm:grid-cols-3">
-                        {STICKMAN_HEAD_PROFILE_PRESETS.map((preset) => {
-                          const isActive = pose.headProfilePreset === preset.id;
+                    {activeSilhouettePanel === 'styles' && (
+                      <>
+                        <StyleChoiceGroup
+                          title="Head style"
+                          value={pose.headStyle}
+                          options={STICKMAN_HEAD_STYLE_OPTIONS}
+                          onSelect={(value) => setPoseValue('headStyle', value)}
+                        />
 
-                          return (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              onClick={() => applyHeadProfilePreset(preset)}
-                              className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
-                                isActive
-                                  ? 'border-indigo-500 bg-indigo-600 text-white'
-                                  : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
-                              }`}
-                            >
-                              <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
-                                {preset.label}
-                              </span>
-                              <span className="mt-2 block text-xs font-medium leading-relaxed opacity-80">
-                                {preset.description}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                        <StyleChoiceGroup
+                          title="Body style"
+                          value={pose.bodyStyle}
+                          options={STICKMAN_BODY_STYLE_OPTIONS}
+                          onSelect={(value) => setPoseValue('bodyStyle', value)}
+                        />
 
-                    <div>
-                      <div className="mb-3 flex items-center justify-between gap-4">
-                        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                          Shape presets
-                        </p>
-                        <span className="rounded-full bg-white px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:bg-slate-950 dark:text-slate-500">
-                          {activeShapePreset === 'custom' ? 'custom' : activeShapePreset}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        {STICKMAN_SHAPE_PRESETS.map((preset) => {
-                          const isActive = activeShapePreset === preset.id;
+                        <StyleChoiceGroup
+                          title="Limb style"
+                          value={pose.limbStyle}
+                          options={STICKMAN_LIMB_STYLE_OPTIONS}
+                          onSelect={(value) => setPoseValue('limbStyle', value)}
+                        />
+                      </>
+                    )}
 
-                          return (
-                            <button
-                              key={preset.id}
-                              type="button"
-                              onClick={() => applyShapePreset(preset)}
-                              className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
-                                isActive
-                                  ? 'border-indigo-500 bg-indigo-600 text-white'
-                                  : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
-                              }`}
-                            >
-                              <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
-                                {preset.label}
-                              </span>
-                            </button>
-                          );
-                        })}
+                    {activeSilhouettePanel === 'profiles' && (
+                      <>
+                        <div>
+                          <div className="mb-3 flex items-center justify-between gap-4">
+                            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                              Body profile
+                            </p>
+                            <span className="rounded-full bg-white px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:bg-slate-950 dark:text-slate-500">
+                              {pose.bodyProfilePreset}
+                            </span>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-3">
+                            {STICKMAN_BODY_PROFILE_PRESETS.map((preset) => {
+                              const isActive = pose.bodyProfilePreset === preset.id;
+
+                              return (
+                                <button
+                                  key={preset.id}
+                                  type="button"
+                                  onClick={() => applyBodyProfilePreset(preset)}
+                                  className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
+                                    isActive
+                                      ? 'border-indigo-500 bg-indigo-600 text-white'
+                                      : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
+                                  }`}
+                                >
+                                  <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
+                                    {preset.label}
+                                  </span>
+                                  <span className="mt-2 block text-xs font-medium leading-relaxed opacity-80">
+                                    {preset.description}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="mb-3 flex items-center justify-between gap-4">
+                            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                              Head profile
+                            </p>
+                            <span className="rounded-full bg-white px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:bg-slate-950 dark:text-slate-500">
+                              {pose.headProfilePreset}
+                            </span>
+                          </div>
+                          <div className="grid gap-3 sm:grid-cols-3">
+                            {STICKMAN_HEAD_PROFILE_PRESETS.map((preset) => {
+                              const isActive = pose.headProfilePreset === preset.id;
+
+                              return (
+                                <button
+                                  key={preset.id}
+                                  type="button"
+                                  onClick={() => applyHeadProfilePreset(preset)}
+                                  className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
+                                    isActive
+                                      ? 'border-indigo-500 bg-indigo-600 text-white'
+                                      : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
+                                  }`}
+                                >
+                                  <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
+                                    {preset.label}
+                                  </span>
+                                  <span className="mt-2 block text-xs font-medium leading-relaxed opacity-80">
+                                    {preset.description}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {activeSilhouettePanel === 'presets' && (
+                      <div>
+                        <div className="mb-3 flex items-center justify-between gap-4">
+                          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                            Shape presets
+                          </p>
+                          <span className="rounded-full bg-white px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 dark:bg-slate-950 dark:text-slate-500">
+                            {activeShapePreset === 'custom' ? 'custom' : activeShapePreset}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          {STICKMAN_SHAPE_PRESETS.map((preset) => {
+                            const isActive = activeShapePreset === preset.id;
+
+                            return (
+                              <button
+                                key={preset.id}
+                                type="button"
+                                onClick={() => applyShapePreset(preset)}
+                                className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
+                                  isActive
+                                    ? 'border-indigo-500 bg-indigo-600 text-white'
+                                    : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
+                                }`}
+                              >
+                                <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
+                                  {preset.label}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </>
                 )}
 
@@ -898,6 +871,9 @@ export default function StickmanPoseWorkbench() {
   "headYaw": ${pose.headYaw},
   "headPitch": ${pose.headPitch},
   "headRoll": ${pose.headRoll},
+  "headStyle": "${pose.headStyle}",
+  "bodyStyle": "${pose.bodyStyle}",
+  "limbStyle": "${pose.limbStyle}",
   "headProfilePreset": "${pose.headProfilePreset}",
   "bodyProfilePreset": "${pose.bodyProfilePreset}",
   "headSize": ${pose.headSize},
