@@ -23,12 +23,32 @@ This document tracks the isolated stickman work happening in the lab before any 
 
 - Built a standing stickman playground with adjustable controls for:
   - yaw
-  - head tilt
+  - head yaw
+  - head pitch
+  - head roll
+  - limb arc direction
+  - head size
+  - body size
+  - head width
+  - head height
+  - torso width
+  - torso height
+  - arm length
+  - leg length
   - torso lean
   - arm spread
   - stance width
   - knee softness
 - Added portable preset output so tuned values can be copied into future rig code later
+- The control UI is now grouped into three top-level sections:
+  - body
+  - head
+  - shape
+- The shape section is further split into compact sub-panels:
+  - silhouette
+  - size
+  - proportions
+  - stance
 
 ### 2.5D Rig Refactor
 
@@ -44,7 +64,60 @@ This document tracks the isolated stickman work happening in the lab before any 
   - limb depth ordering
   - torso width changes across yaw
   - head ellipse changes across yaw
+  - head-local yaw, pitch, and roll controls that keep those axes semantically stable
   - eye visibility and position from yaw instead of simple front/back popping
+  - a minimal face-plane cue plus nose line to help the head read as rotating
+- Limb bend control points are now computed in rig-local space before projection.
+- This keeps arm and leg curvature direction stable across front, back, and intermediate turns instead of flipping visually when the character rotates.
+
+### Shape Editing
+
+- The shape tab now supports a hybrid workflow:
+  - body profile presets
+  - quick silhouette presets
+  - head profile presets
+  - head and body size controls
+  - direct proportion sliders
+- Body profile presets now control how much the torso compresses in quarter and side turns.
+- Head profile presets now control how much the skull compresses in side and quarter turns.
+- Head size and body size now act as quick master controls on top of the more detailed width and height sliders.
+- The current default is `round`, which keeps the head fuller across yaw instead of letting profile views flatten too aggressively.
+- The body profile default is `balanced`, which preserves a neutral torso read while still allowing a rounder option.
+- Current editable proportion controls include:
+  - head width and height
+  - torso width and height
+  - arm length
+  - leg length
+- Stance tuning remains separate from pure proportion editing, but both live in the same shape section.
+- The leg-length range was widened downward so shorter silhouettes are now reachable without changing the rig code.
+
+### Default Pose Baseline
+
+- The default head rotation baseline is now zeroed:
+  - head yaw = 0
+  - head pitch = 0
+  - head roll = 0
+- This keeps the neutral head state aligned with the body until the user intentionally adds head motion.
+- The default limb arc baseline is now `down`.
+
+### Current Preferred Preset
+
+- The current favored standing silhouette is a front-facing round profile setup with:
+  - head profile preset = `round`
+  - body profile preset = `round`
+  - head size = `105`
+  - body size = `102`
+  - head width = `38`
+  - head height = `40`
+  - torso width = `32`
+  - torso height = `68`
+  - arm length = `62`
+  - leg length = `54`
+  - torso lean = `0`
+  - arm spread = `14`
+  - stance width = `11`
+  - knee softness = `0`
+- The head-to-torso gap was tightened after this preset was chosen so the silhouette reads more connected.
 
 ## Design Decisions So Far
 
@@ -56,25 +129,36 @@ This document tracks the isolated stickman work happening in the lab before any 
 
 ### Endpoint Dot / Gizmo Readability
 
-- The palm and foot endpoint dots are still not visually locked to the limb tips at all times.
-- This may be partly perceived as a timing mismatch, but it may also be because the dots are being read as anatomy instead of debug handles or gizmos.
-- If those dots are intended as gizmos rather than literal hands/feet, they should probably use a visibly different color treatment so they read as tooling instead of body parts.
-- Do not treat this as resolved. Revisit next session and decide whether to:
-  - fully lock them visually to the limb ends
-  - remove them
-  - or restyle them as explicit rig/debug markers
+- The endpoint markers are now treated as explicit rig gizmos instead of anatomy.
+- Arms use cyan gizmos and legs use amber gizmos so they read as debug or rig handles rather than hands or feet.
+- Limb morphs and gizmo motion now share the same tween timing, which should reduce the feeling that the markers are drifting away from the path tips.
+- Revisit next session and decide whether to:
+  - keep the gizmos as part of the lab rig language
+  - hide them by default and show them only in a debug mode
+  - or remove them entirely once the rig feels stable
 
 ### Face Rotation Readability
 
 - Eye motion was improved from discrete pop-in/pop-out behavior to continuous yaw-based projection.
-- This is better than the earlier threshold-based approach, but the head may still need an additional facial cue later.
+- A first face-plane cue and nose line have now been added.
+- Head and body profile compression are now separated from raw width and height, so a rounder front silhouette can stay rounder in profile too.
+- The neutral head position now sits closer to the torso so the standing silhouette feels less disconnected.
+- This should make the head orientation read more clearly, but it may still need refinement if the rotation feels too synthetic.
 - Possible next step:
-  - add a subtle face-plane cue such as a nose, mask, or clipped facial patch to make rotation read more clearly
+  - refine the face plane, nose, or mask shape to make quarter turns feel stronger
+
+### Limb Curvature Consistency
+
+- Limb arcs can now be set explicitly to `down` or `up`.
+- Arc direction no longer changes just because the character turns from front to back.
+- This behavior should now be stable across the full yaw range of the lab rig.
 
 ## Suggested Next Steps
 
-1. Resolve the endpoint-dot behavior and decide whether those markers are anatomy or gizmos.
-2. Improve face rotation readability with a subtle front-plane cue.
-3. Add shoulder and hip twist so front/back views feel less flat.
-4. Test subtle idle motion on top of the current standing 2.5D rig.
-5. Only after the standing language feels solid, explore walking transitions and project-specific actions.
+1. Decide whether the gizmos should stay visible in the final lab presentation or become debug-only.
+2. Add shoulder and hip twist so front/back views feel less flat.
+3. Test subtle idle motion on top of the current standing 2.5D rig.
+4. Refine the face-plane cue if quarter turns still feel weak.
+5. Decide which shape presets are actually worth keeping once more silhouettes are tested.
+6. Decide whether head-to-torso gap and limb arc direction should remain fixed defaults or become preserved preset fields only.
+7. Only after the standing language feels solid, explore walking transitions and project-specific actions.

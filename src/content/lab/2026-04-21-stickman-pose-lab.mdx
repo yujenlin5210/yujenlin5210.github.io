@@ -10,7 +10,7 @@ tags: [React, Framer-Motion, SVG, Character-Design, Animation-Systems]
 
 import StickmanPoseWorkbench from '../../components/StickmanPoseWorkbench.jsx';
 
-<div class="not-prose">
+<div class="not-prose relative left-1/2 w-[min(100vw-2rem,78rem)] -translate-x-1/2 px-1 sm:px-0">
   <StickmanPoseWorkbench client:visible />
 </div>
 
@@ -24,12 +24,28 @@ Establish a clean standing silhouette that feels solid before we layer in more a
 
 - One lab-only standing figure
 - A reusable 2.5D rig builder with four facing presets plus continuous yaw control
-- Local pose controls for head tilt, torso lean, arm spread, stance width, and knee softness
+- Local controls for body yaw, head yaw/pitch/roll, limb arc direction, head and body size, torso and head proportions, arm and leg length, plus stance tuning
+- Head and body profile presets so the silhouette can stay rounder or flatter through turns
+- Shape presets for quickly swapping between a few silhouette families before fine-tuning
 - A small preset snapshot that makes the current values easy to port later
+
+#### Current editor structure
+
+- `Body` for facing presets and continuous yaw
+- `Head` for yaw, pitch, and roll
+- `Shape` split into `Silhouette`, `Size`, `Proportions`, and `Stance`
+
+#### Recent progress
+
+- Neutral head rotation now defaults to all zero
+- Head and torso profile presets can stay rounder through turns
+- Limb arc direction now stays consistent as the character rotates
+- The current preferred standing preset is a front-facing, round-profile silhouette with a slightly larger head, taller torso, and shorter legs
 
 #### Next experiments
 
 - Alternate standing presets
+- Shoulder and hip twist
 - Subtle idle-motion passes
 - Prop attachment tests
 - Transition tests into walking and project-specific actions

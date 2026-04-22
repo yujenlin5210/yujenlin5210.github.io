@@ -1,6 +1,19 @@
 export const DEFAULT_STICKMAN_LAB_POSE = {
   yaw: 40,
-  headTilt: 4,
+  headYaw: 0,
+  headPitch: 0,
+  headRoll: 0,
+  limbArcDirection: 'down',
+  headProfilePreset: 'round',
+  bodyProfilePreset: 'balanced',
+  headSize: 100,
+  bodySize: 100,
+  headWidth: 36,
+  headHeight: 38,
+  torsoWidth: 34,
+  torsoHeight: 56,
+  armLength: 72,
+  legLength: 82,
   torsoLean: 2,
   armSpread: 22,
   stanceWidth: 20,
@@ -14,14 +27,113 @@ export const STICKMAN_FACING_PRESETS = [
   { id: 'left', label: 'Left', yaw: -90 },
 ];
 
+export const STICKMAN_SHAPE_PRESETS = [
+  {
+    id: 'baseline',
+    label: 'Baseline',
+    values: {
+      headSize: 100,
+      bodySize: 100,
+      headWidth: 36,
+      headHeight: 38,
+      torsoWidth: 34,
+      torsoHeight: 56,
+      armLength: 72,
+      legLength: 82,
+    },
+  },
+  {
+    id: 'compact',
+    label: 'Compact',
+    values: {
+      headSize: 96,
+      bodySize: 92,
+      headWidth: 34,
+      headHeight: 36,
+      torsoWidth: 31,
+      torsoHeight: 50,
+      armLength: 64,
+      legLength: 74,
+    },
+  },
+  {
+    id: 'tall',
+    label: 'Tall',
+    values: {
+      headSize: 98,
+      bodySize: 104,
+      headWidth: 34,
+      headHeight: 40,
+      torsoWidth: 32,
+      torsoHeight: 62,
+      armLength: 78,
+      legLength: 92,
+    },
+  },
+  {
+    id: 'heroic',
+    label: 'Heroic',
+    values: {
+      headSize: 102,
+      bodySize: 110,
+      headWidth: 38,
+      headHeight: 40,
+      torsoWidth: 40,
+      torsoHeight: 60,
+      armLength: 76,
+      legLength: 88,
+    },
+  },
+];
+
+export const STICKMAN_HEAD_PROFILE_PRESETS = [
+  {
+    id: 'round',
+    label: 'Round',
+    description: 'Keeps the skull fuller in side and quarter turns.',
+    compression: 0.035,
+    verticalStretch: 0.012,
+  },
+  {
+    id: 'balanced',
+    label: 'Balanced',
+    description: 'A middle ground between a sphere and a flat profile.',
+    compression: 0.075,
+    verticalStretch: 0.028,
+  },
+  {
+    id: 'flat',
+    label: 'Flat',
+    description: 'Leans into a more compressed side silhouette.',
+    compression: 0.12,
+    verticalStretch: 0.045,
+  },
+];
+
+export const STICKMAN_BODY_PROFILE_PRESETS = [
+  {
+    id: 'round',
+    label: 'Round',
+    description: 'Keeps the torso fuller in quarter and side views.',
+    compression: 0.12,
+  },
+  {
+    id: 'balanced',
+    label: 'Balanced',
+    description: 'A neutral torso read without getting too pill-like.',
+    compression: 0.2,
+  },
+  {
+    id: 'flat',
+    label: 'Flat',
+    description: 'Compresses more aggressively for a thinner profile.',
+    compression: 0.28,
+  },
+];
+
 const BASE_LAYOUT = {
   centerX: 150,
   groundY: 220,
-  shoulderY: 98,
-  hipY: 144,
-  bodyY: 86,
-  bodyHeight: 56,
-  headY: 60,
   perspective: 0.26,
 };
 
@@ -31,6 +143,42 @@ function clamp(value, min, max) {
 
 function degToRad(value) {
   return (value * Math.PI) / 180;
+}
+
+function rotatePoint3D(point, { pitch = 0, yaw = 0, roll = 0 } = {}) {
+  let { x, y, z } = point;
+
+  if (pitch !== 0) {
+    const radians = degToRad(pitch);
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    const nextY = y * cos - z * sin;
+    const nextZ = y * sin + z * cos;
+    y = nextY;
+    z = nextZ;
+  }
+
+  if (yaw !== 0) {
+    const radians = degToRad(yaw);
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    const nextX = x * cos - z * sin;
+    const nextZ = x * sin + z * cos;
+    x = nextX;
+    z = nextZ;
+  }
+
+  if (roll !== 0) {
+    const radians = degToRad(roll);
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    const nextX = x * cos - y * sin;
+    const nextY = x * sin + y * cos;
+    x = nextX;
+    y = nextY;
+  }
+
+  return { x, y, z };
 }
 
 export function normalizeYaw(value) {
@@ -53,15 +201,7 @@ export function getHeadingLabel(yaw) {
 }
 
 function rotatePoint(point, yaw) {
-  const radians = degToRad(yaw);
-  const cos = Math.cos(radians);
-  const sin = Math.sin(radians);
-
-  return {
-    x: point.x * cos - point.z * sin,
-    y: point.y,
-    z: point.x * sin + point.z * cos,
-  };
+  return rotatePoint3D(point, { yaw });
 }
 
 function projectPoint(point, centerX) {
@@ -74,30 +214,48 @@ function projectPoint(point, centerX) {
 
 function projectLocalPoint(point) {
   return {
-    x: point.x + point.z * BASE_LAYOUT.perspective,
+    x: point.x,
     y: point.y,
     depth: point.z,
   };
 }
 
-function buildQuadraticPath(start, end, curveX, curveY) {
-  const controlX = (start.x + end.x) / 2 + curveX;
-  const controlY = (start.y + end.y) / 2 + curveY;
-
-  return `M ${start.x},${start.y} Q ${controlX},${controlY} ${end.x},${end.y}`;
+function buildQuadraticPath(start, control, end) {
+  return `M ${start.x},${start.y} Q ${control.x},${control.y} ${end.x},${end.y}`;
 }
 
-function buildLimb(id, type, sideSign, start, end, curveX, curveY) {
-  const depth = (start.depth + end.depth) / 2;
+function buildRigPoint(point, yaw, centerX) {
+  return projectPoint(rotatePoint(point, yaw), centerX);
+}
+
+function buildLimb(id, type, sideSign, startPoint, endPoint, controlPoint, yaw, centerX) {
+  const start = buildRigPoint(startPoint, yaw, centerX);
+  const control = buildRigPoint(controlPoint, yaw, centerX);
+  const end = buildRigPoint(endPoint, yaw, centerX);
+  const depth = (start.depth + control.depth + end.depth) / 3;
 
   return {
     id,
     type,
     sideSign,
     depth,
-    path: buildQuadraticPath(start, end, curveX, curveY),
+    path: buildQuadraticPath(start, control, end),
     end,
   };
+}
+
+function getHeadProfilePreset(presetId) {
+  return (
+    STICKMAN_HEAD_PROFILE_PRESETS.find((preset) => preset.id === presetId) ||
+    STICKMAN_HEAD_PROFILE_PRESETS[0]
+  );
+}
+
+function getBodyProfilePreset(presetId) {
+  return (
+    STICKMAN_BODY_PROFILE_PRESETS.find((preset) => preset.id === presetId) ||
+    STICKMAN_BODY_PROFILE_PRESETS[1]
+  );
 }
 
 export function buildStickmanLabRig(pose) {
@@ -107,92 +265,154 @@ export function buildStickmanLabRig(pose) {
   const profile = Math.sin(radians);
   const absFrontness = Math.abs(frontness);
   const absProfile = Math.abs(profile);
+  const headYaw = normalizeYaw(yaw + (pose.headYaw || 0));
+  const headPitch = pose.headPitch || 0;
+  const headRadians = degToRad(headYaw);
+  const headFrontness = Math.cos(headRadians);
+  const headProfile = Math.sin(headRadians);
+  const absHeadProfile = Math.abs(headProfile);
+  const bodyScale = (pose.bodySize || DEFAULT_STICKMAN_LAB_POSE.bodySize) / 100;
+  const headScale = (pose.headSize || DEFAULT_STICKMAN_LAB_POSE.headSize) / 100;
+  const torsoWidth = (pose.torsoWidth || DEFAULT_STICKMAN_LAB_POSE.torsoWidth) * bodyScale;
+  const torsoHeight = (pose.torsoHeight || DEFAULT_STICKMAN_LAB_POSE.torsoHeight) * bodyScale;
+  const headWidth = (pose.headWidth || DEFAULT_STICKMAN_LAB_POSE.headWidth) * headScale;
+  const headHeight = (pose.headHeight || DEFAULT_STICKMAN_LAB_POSE.headHeight) * headScale;
+  const armLength = pose.armLength || DEFAULT_STICKMAN_LAB_POSE.armLength;
+  const legLength = pose.legLength || DEFAULT_STICKMAN_LAB_POSE.legLength;
+  const limbArcDirection = pose.limbArcDirection || DEFAULT_STICKMAN_LAB_POSE.limbArcDirection;
+  const headProfilePreset = getHeadProfilePreset(pose.headProfilePreset);
+  const bodyProfilePreset = getBodyProfilePreset(pose.bodyProfilePreset);
+  const hipY = BASE_LAYOUT.groundY - (legLength - 6);
+  const bodyY = hipY - torsoHeight - 2;
+  const shoulderY = bodyY + 12;
+  const headBaseRx = headWidth / 2;
+  const headBaseRy = headHeight / 2;
+  const headTorsoGap = 3;
+  const headY = bodyY - headBaseRy - headTorsoGap;
 
   const torsoCenterX = BASE_LAYOUT.centerX + pose.torsoLean;
   const lowerBodyCenterX = BASE_LAYOUT.centerX;
 
-  const shoulderSpan = 18;
-  const hipSpan = 10;
-  const handReach = 20 + pose.armSpread;
-  const handDrop = 58 + Math.max(0, pose.torsoLean * 0.35);
-  const footReach = 10 + pose.stanceWidth;
+  const shoulderSpan = torsoWidth / 2 + 1;
+  const hipSpan = torsoWidth * 0.29;
+  const handReach = 20 + pose.armSpread + (armLength - DEFAULT_STICKMAN_LAB_POSE.armLength) * 0.22;
+  const handDrop = Math.max(40, armLength - 14 + Math.max(0, pose.torsoLean * 0.35));
+  const footReach = 10 + pose.stanceWidth + (legLength - DEFAULT_STICKMAN_LAB_POSE.legLength) * 0.15;
 
-  const leftShoulder = projectPoint(
-    rotatePoint({ x: -shoulderSpan, y: BASE_LAYOUT.shoulderY, z: 0 }, yaw),
-    torsoCenterX
-  );
-  const rightShoulder = projectPoint(
-    rotatePoint({ x: shoulderSpan, y: BASE_LAYOUT.shoulderY, z: 0 }, yaw),
-    torsoCenterX
-  );
-  const leftHand = projectPoint(
-    rotatePoint({ x: -handReach, y: BASE_LAYOUT.shoulderY + handDrop, z: 0 }, yaw),
-    torsoCenterX
-  );
-  const rightHand = projectPoint(
-    rotatePoint({ x: handReach, y: BASE_LAYOUT.shoulderY + handDrop, z: 0 }, yaw),
-    torsoCenterX
-  );
+  const leftShoulderPoint = { x: -shoulderSpan, y: shoulderY, z: 0 };
+  const rightShoulderPoint = { x: shoulderSpan, y: shoulderY, z: 0 };
+  const leftHandPoint = { x: -handReach, y: shoulderY + handDrop, z: 0 };
+  const rightHandPoint = { x: handReach, y: shoulderY + handDrop, z: 0 };
+  const leftHipPoint = { x: -hipSpan, y: hipY, z: 0 };
+  const rightHipPoint = { x: hipSpan, y: hipY, z: 0 };
+  const leftFootPoint = { x: -footReach, y: BASE_LAYOUT.groundY, z: 0 };
+  const rightFootPoint = { x: footReach, y: BASE_LAYOUT.groundY, z: 0 };
 
-  const leftHip = projectPoint(
-    rotatePoint({ x: -hipSpan, y: BASE_LAYOUT.hipY, z: 0 }, yaw),
-    lowerBodyCenterX
-  );
-  const rightHip = projectPoint(
-    rotatePoint({ x: hipSpan, y: BASE_LAYOUT.hipY, z: 0 }, yaw),
-    lowerBodyCenterX
-  );
-  const leftFoot = projectPoint(
-    rotatePoint({ x: -footReach, y: BASE_LAYOUT.groundY, z: 0 }, yaw),
-    lowerBodyCenterX
-  );
-  const rightFoot = projectPoint(
-    rotatePoint({ x: footReach, y: BASE_LAYOUT.groundY, z: 0 }, yaw),
-    lowerBodyCenterX
-  );
-
-  const armCurveY = 14 + pose.armSpread * 0.2 + absProfile * 4;
-  const legCurveY = 10 + pose.kneeSoftness;
+  const curveDirection = limbArcDirection === 'up' ? -1 : 1;
+  const armCurveY = (14 + pose.armSpread * 0.2 + absProfile * 4) * curveDirection;
+  const legCurveY = (10 + pose.kneeSoftness) * curveDirection;
   const armCurveX = 6 + pose.armSpread * 0.15;
   const legCurveX = 2 + pose.stanceWidth * 0.12;
 
   const limbs = [
-    buildLimb('left-arm', 'arm', -1, leftShoulder, leftHand, -armCurveX, armCurveY),
-    buildLimb('right-arm', 'arm', 1, rightShoulder, rightHand, armCurveX, armCurveY),
+    buildLimb(
+      'left-arm',
+      'arm',
+      -1,
+      leftShoulderPoint,
+      leftHandPoint,
+      {
+        x: (leftShoulderPoint.x + leftHandPoint.x) / 2 - armCurveX,
+        y: (leftShoulderPoint.y + leftHandPoint.y) / 2 + armCurveY,
+        z: 0,
+      },
+      yaw,
+      torsoCenterX
+    ),
+    buildLimb(
+      'right-arm',
+      'arm',
+      1,
+      rightShoulderPoint,
+      rightHandPoint,
+      {
+        x: (rightShoulderPoint.x + rightHandPoint.x) / 2 + armCurveX,
+        y: (rightShoulderPoint.y + rightHandPoint.y) / 2 + armCurveY,
+        z: 0,
+      },
+      yaw,
+      torsoCenterX
+    ),
     buildLimb(
       'left-leg',
       'leg',
       -1,
-      leftHip,
-      leftFoot,
-      -legCurveX * (0.35 + absFrontness * 0.65),
-      legCurveY
+      leftHipPoint,
+      leftFootPoint,
+      {
+        x: (leftHipPoint.x + leftFootPoint.x) / 2 - legCurveX * (0.35 + absFrontness * 0.65),
+        y: (leftHipPoint.y + leftFootPoint.y) / 2 + legCurveY,
+        z: 0,
+      },
+      yaw,
+      lowerBodyCenterX
     ),
     buildLimb(
       'right-leg',
       'leg',
       1,
-      rightHip,
-      rightFoot,
-      legCurveX * (0.35 + absFrontness * 0.65),
-      legCurveY
+      rightHipPoint,
+      rightFootPoint,
+      {
+        x: (rightHipPoint.x + rightFootPoint.x) / 2 + legCurveX * (0.35 + absFrontness * 0.65),
+        y: (rightHipPoint.y + rightFootPoint.y) / 2 + legCurveY,
+        z: 0,
+      },
+      yaw,
+      lowerBodyCenterX
     ),
   ].sort((left, right) => left.depth - right.depth);
 
   const rearLimbs = limbs.filter((limb) => limb.depth < -2);
   const frontLimbs = limbs.filter((limb) => limb.depth >= -2);
 
-  const bodyWidth = 34 - absProfile * 8;
-  const headRx = 18 - absProfile * 2;
-  const headRy = 19 + absProfile * 0.8;
+  const bodyWidth = Math.max(
+    20,
+    torsoWidth - absProfile * torsoWidth * bodyProfilePreset.compression
+  );
+  const headRx = Math.max(
+    12,
+    headBaseRx - absHeadProfile * headBaseRx * headProfilePreset.compression
+  );
+  const headRy =
+    headBaseRy +
+    absHeadProfile * Math.max(0.45, headBaseRy * headProfilePreset.verticalStretch);
+  const facePlaneVisibility = clamp((headFrontness + 0.08) / 1.08, 0, 1);
+  const headOrientation = {
+    yaw: headYaw,
+    pitch: headPitch,
+  };
+  const projectHeadFeature = (point) => projectLocalPoint(rotatePoint3D(point, headOrientation));
+  const facePlaneDepth = headBaseRx * 0.45 + 1;
+  const facePlaneCenter = projectHeadFeature({ x: 0, y: 1, z: facePlaneDepth });
+  const facePlaneLeft = projectHeadFeature({ x: -headBaseRx * 0.38, y: 1, z: facePlaneDepth });
+  const facePlaneRight = projectHeadFeature({ x: headBaseRx * 0.38, y: 1, z: facePlaneDepth });
+  const facePlaneTop = projectHeadFeature({ x: 0, y: -headBaseRy * 0.36, z: facePlaneDepth });
+  const facePlaneBottom = projectHeadFeature({ x: 0, y: headBaseRy * 0.43, z: facePlaneDepth });
+  const noseStart = projectHeadFeature({ x: 0, y: -headBaseRy * 0.08, z: headBaseRx * 0.58 });
+  const noseEnd = projectHeadFeature({ x: 0, y: headBaseRy * 0.26, z: headBaseRx * 0.72 });
   const eyes = [
-    { id: 'eye-left', point: { x: -7, y: -3, z: 9 } },
-    { id: 'eye-right', point: { x: 7, y: -3, z: 9 } },
+    { id: 'eye-left', point: { x: -headBaseRx * 0.38, y: -headBaseRy * 0.18, z: headBaseRx * 0.5 } },
+    { id: 'eye-right', point: { x: headBaseRx * 0.38, y: -headBaseRy * 0.18, z: headBaseRx * 0.5 } },
   ]
     .map(({ id, point }) => {
-      const rotatedEye = rotatePoint(point, yaw);
+      const rotatedEye = rotatePoint3D(point, headOrientation);
       const projectedEye = projectLocalPoint(rotatedEye);
-      const visibility = clamp((rotatedEye.z + 1.5) / 8, 0, 1);
+      const visibility = clamp(
+        (rotatedEye.z + headBaseRx * 0.08) / Math.max(6.5, headBaseRx * 0.44),
+        0,
+        1
+      );
 
       return {
         id,
@@ -209,22 +429,43 @@ export function buildStickmanLabRig(pose) {
     headingLabel: getHeadingLabel(yaw),
     body: {
       x: torsoCenterX - bodyWidth / 2,
-      y: BASE_LAYOUT.bodyY,
+      y: bodyY,
       width: bodyWidth,
-      height: BASE_LAYOUT.bodyHeight,
+      height: torsoHeight,
       radius: bodyWidth / 2,
+      profilePreset: bodyProfilePreset.id,
     },
     head: {
       x: torsoCenterX,
-      y: BASE_LAYOUT.headY,
+      y: headY,
       rx: headRx,
       ry: headRy,
+      size: pose.headSize || DEFAULT_STICKMAN_LAB_POSE.headSize,
+      yaw: headYaw,
+      pitch: headPitch,
+      roll: pose.headRoll || 0,
+      profilePreset: headProfilePreset.id,
+      facePlane: {
+        x: facePlaneCenter.x,
+        y: facePlaneCenter.y,
+        rx: Math.max(5.8, Math.abs(facePlaneRight.x - facePlaneLeft.x) / 2),
+        ry: Math.max(6.4, Math.abs(facePlaneBottom.y - facePlaneTop.y) / 2),
+        opacity: Number((facePlaneVisibility * 0.2).toFixed(3)),
+      },
+      nose: {
+        x1: noseStart.x,
+        y1: noseStart.y,
+        x2: noseEnd.x,
+        y2: noseEnd.y,
+        opacity: Number((facePlaneVisibility * (0.22 + absHeadProfile * 0.28)).toFixed(3)),
+      },
       eyes,
     },
     limbs: {
       rear: rearLimbs,
       front: frontLimbs,
     },
+    limbArcDirection,
     guides: {
       centerX: BASE_LAYOUT.centerX,
       groundY: BASE_LAYOUT.groundY,
