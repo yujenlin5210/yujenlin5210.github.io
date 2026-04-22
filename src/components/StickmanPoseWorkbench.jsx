@@ -187,7 +187,14 @@ export default function StickmanPoseWorkbench() {
   const [activeShapePreset, setActiveShapePreset] = useState('baseline');
 
   const setPoseValue = (key, value) => {
-    if (CONTROL_KEYS.size.includes(key) || CONTROL_KEYS.proportions.includes(key)) {
+    if (
+      CONTROL_KEYS.size.includes(key) ||
+      CONTROL_KEYS.proportions.includes(key) ||
+      CONTROL_KEYS.pose.includes(key) ||
+      key === 'headProfilePreset' ||
+      key === 'bodyProfilePreset' ||
+      key === 'limbArcDirection'
+    ) {
       setActiveShapePreset('custom');
     }
 
@@ -200,10 +207,12 @@ export default function StickmanPoseWorkbench() {
   };
 
   const applyHeadProfilePreset = (preset) => {
+    setActiveShapePreset('custom');
     setPose((currentPose) => ({ ...currentPose, headProfilePreset: preset.id }));
   };
 
   const applyBodyProfilePreset = (preset) => {
+    setActiveShapePreset('custom');
     setPose((currentPose) => ({ ...currentPose, bodyProfilePreset: preset.id }));
   };
 
