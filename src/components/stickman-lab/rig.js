@@ -236,15 +236,51 @@ function buildQuadraticPath(start, control, end) {
   return `M ${start.x},${start.y} Q ${control.x},${control.y} ${end.x},${end.y}`;
 }
 
+function buildKneePath(start, knee, end) {
+  const tangent = {
+    x: end.x - start.x,
+    y: end.y - start.y,
+  };
+  const tangentLength = Math.hypot(tangent.x, tangent.y) || 1;
+  const normalizedTangent = {
+    x: tangent.x / tangentLength,
+    y: tangent.y / tangentLength,
+  };
+  const incomingLength = Math.hypot(knee.x - start.x, knee.y - start.y);
+  const outgoingLength = Math.hypot(end.x - knee.x, end.y - knee.y);
+  const kneeHandle = Math.min(incomingLength, outgoingLength) * 0.34;
+  const hipControl = {
+    x: start.x + (knee.x - start.x) * 0.42,
+    y: start.y + (knee.y - start.y) * 0.42,
+  };
+  const kneeControlIn = {
+    x: knee.x - normalizedTangent.x * kneeHandle,
+    y: knee.y - normalizedTangent.y * kneeHandle,
+  };
+  const kneeControlOut = {
+    x: knee.x + normalizedTangent.x * kneeHandle,
+    y: knee.y + normalizedTangent.y * kneeHandle,
+  };
+  const ankleControl = {
+    x: end.x + (knee.x - end.x) * 0.42,
+    y: end.y + (knee.y - end.y) * 0.42,
+  };
+
+  return `M ${start.x},${start.y} C ${hipControl.x},${hipControl.y} ${kneeControlIn.x},${kneeControlIn.y} ${knee.x},${knee.y} C ${kneeControlOut.x},${kneeControlOut.y} ${ankleControl.x},${ankleControl.y} ${end.x},${end.y}`;
+}
+
 function buildRigPoint(point, yaw, centerX) {
   return projectPoint(rotatePoint(point, yaw), centerX);
 }
 
-function buildLimb(id, type, sideSign, startPoint, endPoint, controlPoint, yaw, centerX) {
+function buildLimb(id, type, sideSign, startPoint, endPoint, controlPoint, yaw, centerX, kneePoint = null) {
   const start = buildRigPoint(startPoint, yaw, centerX);
   const control = buildRigPoint(controlPoint, yaw, centerX);
   const end = buildRigPoint(endPoint, yaw, centerX);
-  const depth = (start.depth + control.depth + end.depth) / 3;
+  const knee = kneePoint ? buildRigPoint(kneePoint, yaw, centerX) : null;
+  const depth = knee
+    ? (start.depth + knee.depth + end.depth) / 3
+    : (start.depth + control.depth + end.depth) / 3;
 
   return {
     id,
@@ -252,9 +288,10 @@ function buildLimb(id, type, sideSign, startPoint, endPoint, controlPoint, yaw, 
     sideSign,
     depth,
     start,
-    control,
-    path: buildQuadraticPath(start, control, end),
+    control: knee || control,
+    path: knee ? buildKneePath(start, knee, end) : buildQuadraticPath(start, control, end),
     end,
+    ...(knee ? { knee } : {}),
   };
 }
 
@@ -269,6 +306,31 @@ function getBodyProfilePreset(presetId) {
   return (
     STICKMAN_BODY_PROFILE_PRESETS.find((preset) => preset.id === presetId) ||
     STICKMAN_BODY_PROFILE_PRESETS[1]
+  );
+}
+
+function getAnimationOffset(animationOffsets, key) {
+  const offset = animationOffsets?.[key];
+
+  return {
+    x: typeof offset?.x === 'number' ? offset.x : 0,
+    y: typeof offset?.y === 'number' ? offset.y : 0,
+    z: typeof offset?.z === 'number' ? offset.z : 0,
+  };
+}
+
+function addPointOffset(point, offset) {
+  return {
+    x: point.x + offset.x,
+    y: point.y + offset.y,
+    z: point.z + offset.z,
+  };
+}
+
+function hasAnimationOffset(animationOffsets, key) {
+  return (
+    animationOffsets &&
+    Object.prototype.hasOwnProperty.call(animationOffsets, key)
   );
 }
 
@@ -296,6 +358,7 @@ export function buildStickmanLabRig(pose) {
   const limbArcDirection = pose.limbArcDirection || DEFAULT_STICKMAN_LAB_POSE.limbArcDirection;
   const headProfilePreset = getHeadProfilePreset(pose.headProfilePreset);
   const bodyProfilePreset = getBodyProfilePreset(pose.bodyProfilePreset);
+  const animationOffsets = pose.animationOffsets || {};
   const hipY = BASE_LAYOUT.groundY - (legLength - 6);
   const bodyY = hipY - torsoHeight - 2;
   const shoulderY = bodyY + 12;
@@ -313,20 +376,92 @@ export function buildStickmanLabRig(pose) {
   const handDrop = Math.max(40, armLength - 14 + Math.max(0, pose.torsoLean * 0.35));
   const footReach = 10 + pose.stanceWidth + (legLength - DEFAULT_STICKMAN_LAB_POSE.legLength) * 0.15;
 
-  const leftShoulderPoint = { x: -shoulderSpan, y: shoulderY, z: 0 };
-  const rightShoulderPoint = { x: shoulderSpan, y: shoulderY, z: 0 };
-  const leftHandPoint = { x: -handReach, y: shoulderY + handDrop, z: 0 };
-  const rightHandPoint = { x: handReach, y: shoulderY + handDrop, z: 0 };
-  const leftHipPoint = { x: -hipSpan, y: hipY, z: 0 };
-  const rightHipPoint = { x: hipSpan, y: hipY, z: 0 };
-  const leftFootPoint = { x: -footReach, y: BASE_LAYOUT.groundY, z: 0 };
-  const rightFootPoint = { x: footReach, y: BASE_LAYOUT.groundY, z: 0 };
+  const leftShoulderPoint = addPointOffset(
+    { x: -shoulderSpan, y: shoulderY, z: 0 },
+    getAnimationOffset(animationOffsets, 'leftShoulder')
+  );
+  const rightShoulderPoint = addPointOffset(
+    { x: shoulderSpan, y: shoulderY, z: 0 },
+    getAnimationOffset(animationOffsets, 'rightShoulder')
+  );
+  const leftHandPoint = addPointOffset(
+    { x: -handReach, y: shoulderY + handDrop, z: 0 },
+    getAnimationOffset(animationOffsets, 'leftHand')
+  );
+  const rightHandPoint = addPointOffset(
+    { x: handReach, y: shoulderY + handDrop, z: 0 },
+    getAnimationOffset(animationOffsets, 'rightHand')
+  );
+  const leftHipPoint = addPointOffset(
+    { x: -hipSpan, y: hipY, z: 0 },
+    getAnimationOffset(animationOffsets, 'leftHip')
+  );
+  const rightHipPoint = addPointOffset(
+    { x: hipSpan, y: hipY, z: 0 },
+    getAnimationOffset(animationOffsets, 'rightHip')
+  );
+  const leftFootPoint = addPointOffset(
+    { x: -footReach, y: BASE_LAYOUT.groundY, z: 0 },
+    getAnimationOffset(animationOffsets, 'leftFoot')
+  );
+  const rightFootPoint = addPointOffset(
+    { x: footReach, y: BASE_LAYOUT.groundY, z: 0 },
+    getAnimationOffset(animationOffsets, 'rightFoot')
+  );
 
   const curveDirection = limbArcDirection === 'up' ? -1 : 1;
   const armCurveY = (14 + pose.armSpread * 0.2 + absProfile * 4) * curveDirection;
   const legCurveY = (10 + pose.kneeSoftness) * curveDirection;
   const armCurveX = 6 + pose.armSpread * 0.15;
   const legCurveX = 2 + pose.stanceWidth * 0.12;
+  const leftArmControlPoint = addPointOffset(
+    {
+      x: (leftShoulderPoint.x + leftHandPoint.x) / 2 - armCurveX,
+      y: (leftShoulderPoint.y + leftHandPoint.y) / 2 + armCurveY,
+      z: 0,
+    },
+    getAnimationOffset(animationOffsets, 'leftArmControl')
+  );
+  const rightArmControlPoint = addPointOffset(
+    {
+      x: (rightShoulderPoint.x + rightHandPoint.x) / 2 + armCurveX,
+      y: (rightShoulderPoint.y + rightHandPoint.y) / 2 + armCurveY,
+      z: 0,
+    },
+    getAnimationOffset(animationOffsets, 'rightArmControl')
+  );
+  const leftLegControlPoint = addPointOffset(
+    {
+      x: (leftHipPoint.x + leftFootPoint.x) / 2 - legCurveX * (0.35 + absFrontness * 0.65),
+      y: (leftHipPoint.y + leftFootPoint.y) / 2 + legCurveY,
+      z: 0,
+    },
+    getAnimationOffset(animationOffsets, 'leftLegControl')
+  );
+  const rightLegControlPoint = addPointOffset(
+    {
+      x: (rightHipPoint.x + rightFootPoint.x) / 2 + legCurveX * (0.35 + absFrontness * 0.65),
+      y: (rightHipPoint.y + rightFootPoint.y) / 2 + legCurveY,
+      z: 0,
+    },
+    getAnimationOffset(animationOffsets, 'rightLegControl')
+  );
+  const leftLegKneeBasePoint = {
+    x: (leftHipPoint.x + leftFootPoint.x) / 2,
+    y: (leftHipPoint.y + leftFootPoint.y) / 2,
+    z: (leftHipPoint.z + leftFootPoint.z) / 2,
+  };
+  const rightLegKneeBasePoint = {
+    x: (rightHipPoint.x + rightFootPoint.x) / 2,
+    y: (rightHipPoint.y + rightFootPoint.y) / 2,
+    z: (rightHipPoint.z + rightFootPoint.z) / 2,
+  };
+  const leftLegKneePoint = hasAnimationOffset(animationOffsets, 'leftLegKnee')
+    ? addPointOffset(leftLegKneeBasePoint, getAnimationOffset(animationOffsets, 'leftLegKnee'))
+    : null;
+  const rightLegKneePoint = hasAnimationOffset(animationOffsets, 'rightLegKnee')
+    ? addPointOffset(rightLegKneeBasePoint, getAnimationOffset(animationOffsets, 'rightLegKnee'))
+    : null;
 
   const limbs = [
     buildLimb(
@@ -335,11 +470,7 @@ export function buildStickmanLabRig(pose) {
       -1,
       leftShoulderPoint,
       leftHandPoint,
-      {
-        x: (leftShoulderPoint.x + leftHandPoint.x) / 2 - armCurveX,
-        y: (leftShoulderPoint.y + leftHandPoint.y) / 2 + armCurveY,
-        z: 0,
-      },
+      leftArmControlPoint,
       yaw,
       torsoCenterX
     ),
@@ -349,11 +480,7 @@ export function buildStickmanLabRig(pose) {
       1,
       rightShoulderPoint,
       rightHandPoint,
-      {
-        x: (rightShoulderPoint.x + rightHandPoint.x) / 2 + armCurveX,
-        y: (rightShoulderPoint.y + rightHandPoint.y) / 2 + armCurveY,
-        z: 0,
-      },
+      rightArmControlPoint,
       yaw,
       torsoCenterX
     ),
@@ -363,13 +490,10 @@ export function buildStickmanLabRig(pose) {
       -1,
       leftHipPoint,
       leftFootPoint,
-      {
-        x: (leftHipPoint.x + leftFootPoint.x) / 2 - legCurveX * (0.35 + absFrontness * 0.65),
-        y: (leftHipPoint.y + leftFootPoint.y) / 2 + legCurveY,
-        z: 0,
-      },
+      leftLegControlPoint,
       yaw,
-      lowerBodyCenterX
+      lowerBodyCenterX,
+      leftLegKneePoint
     ),
     buildLimb(
       'right-leg',
@@ -377,13 +501,10 @@ export function buildStickmanLabRig(pose) {
       1,
       rightHipPoint,
       rightFootPoint,
-      {
-        x: (rightHipPoint.x + rightFootPoint.x) / 2 + legCurveX * (0.35 + absFrontness * 0.65),
-        y: (rightHipPoint.y + rightFootPoint.y) / 2 + legCurveY,
-        z: 0,
-      },
+      rightLegControlPoint,
       yaw,
-      lowerBodyCenterX
+      lowerBodyCenterX,
+      rightLegKneePoint
     ),
   ].sort((left, right) => left.depth - right.depth);
 

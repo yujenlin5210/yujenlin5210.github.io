@@ -216,22 +216,35 @@ This document tracks the isolated stickman work happening in the lab before any 
   - gizmo visibility
   - reduced-motion-safe manual scrub
 - The animation presenter is now locked to the classic renderer stack while the idle motion is being tuned.
+- The shared rig now accepts lab-only asymmetric animation offsets for:
+  - shoulders
+  - hips
+  - hands
+  - feet
+  - arm control points
+  - leg control points
 - The current motion direction is now a planted breathing read:
   - no whole-rig vertical float
   - torso height and width carry the inhale/exhale
   - the knees absorb a small amount of settling so the upper and lower body stay connected
+- `buoyant` is now the default idle loop because it currently gives the clearest connected breathing read.
+- A first in-place walk cycle now runs through the same rig using asymmetric arm swing, lifted swing feet, and per-limb bend offsets.
+- The current walk checkpoint is mixed:
+  - front view now reads closer to the intended `()` leg shape
+  - side view is better than the first pass and the knee bend is less severe
+  - the default quarter view at roughly 40 degrees still does not feel grounded and still reads too much like paddling or swimming
+- The current conclusion is that the quarter walk likely needs its own clearer contact / pass / lift / plant treatment instead of more small parameter tuning on the shared cycle.
 - Endpoint gizmos are hidden by default in the animation lab and can be turned back on as a debug layer.
 - Scope is still deliberately narrow:
-  - idle only
-  - no walk cycle
+  - buoyant idle plus first walk cycle
   - no project-specific action hooks
   - no production `/projects` wiring
 
 1. Decide whether the gizmos should stay visible in the final lab presentation or become debug-only.
 2. Add shoulder and hip twist so front/back views feel less flat.
 3. Add more renderer variants now that the slot system exists.
-4. Refine the new idle loop study and decide which motion channels should become stable defaults.
+4. Rebuild the quarter-view walk with clearer planted contact timing and body weight transfer so it stops reading like paddling.
 5. Refine the face-plane cue if quarter turns still feel weak.
 6. Decide which shape presets are actually worth keeping once more silhouettes are tested.
 7. Decide whether head-to-torso gap and limb arc direction should remain fixed defaults or become preserved preset fields only.
-8. Only after the standing language feels solid, explore walking transitions and project-specific actions.
+8. Once idle and walk feel stable, explore transitions and project-specific actions.

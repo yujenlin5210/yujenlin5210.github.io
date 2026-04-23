@@ -28,6 +28,11 @@ const LOOP_OPTIONS = [
     label: 'Watchful',
     description: 'A restrained breathing loop with a slight look-around layered on top.',
   },
+  {
+    id: 'walk',
+    label: 'Walk',
+    description: 'A first in-place walk cycle built on the same 2.5D rig.',
+  },
 ];
 
 const FACING_OPTIONS = [
@@ -63,9 +68,23 @@ function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
-function formatSignedValue(value, unit) {
+function lerp(start, end, t) {
+  return start + (end - start) * t;
+}
+
+function easeInOutSine(t) {
+  return -(Math.cos(Math.PI * t) - 1) / 2;
+}
+
+function normalizeUnitCycle(value) {
+  return ((value % 1) + 1) % 1;
+}
+
+const WALK_GROUND_Y = 220;
+
+function formatMetricValue(value, unit, signed = false) {
   const roundedValue = Number(value.toFixed(1));
-  const prefix = roundedValue > 0 ? '+' : '';
+  const prefix = signed && roundedValue > 0 ? '+' : '';
   return `${prefix}${roundedValue}${unit}`;
 }
 
@@ -109,6 +128,40 @@ function getEndpointGizmoStyle(type, depth, showGizmos) {
   };
 }
 
+function setAnimationOffset(target, key, x = 0, y = 0, z = 0) {
+  target[key] = { x, y, z };
+}
+
+function solveWalkLegKneePoint({ hip, foot, upperLength, lowerLength, bendWeight }) {
+  const dz = foot.z - hip.z;
+  const dy = foot.y - hip.y;
+  const distance = Math.hypot(dz, dy);
+  const maxReach = Math.max(upperLength + lowerLength - 0.001, 0.001);
+  const clampedDistance = clamp(distance, 0.001, maxReach);
+  const along = (upperLength ** 2 - lowerLength ** 2 + clampedDistance ** 2) / (2 * clampedDistance);
+  const height = Math.sqrt(Math.max(upperLength ** 2 - along ** 2, 0));
+  const base = {
+    z: hip.z + (dz / clampedDistance) * along,
+    y: hip.y + (dy / clampedDistance) * along,
+  };
+  const bent = {
+    x: (hip.x + foot.x) / 2,
+    z: base.z + (dy / clampedDistance) * height,
+    y: base.y - (dz / clampedDistance) * height,
+  };
+  const midpoint = {
+    x: (hip.x + foot.x) / 2,
+    y: (hip.y + foot.y) / 2,
+    z: (hip.z + foot.z) / 2,
+  };
+
+  return {
+    x: lerp(midpoint.x, bent.x, bendWeight),
+    y: lerp(midpoint.y, bent.y, bendWeight),
+    z: lerp(midpoint.z, bent.z, bendWeight),
+  };
+}
+
 function applyBreathChannels(pose, t, gain, channels) {
   const breath = Math.sin(t * channels.breathRate);
   const settle = Math.max(0, -breath);
@@ -124,8 +177,136 @@ function applyBreathChannels(pose, t, gain, channels) {
   pose.yaw += Math.sin(t * channels.breathRate * 0.28 + 0.18) * channels.bodyYaw * gain;
 }
 
-function formatUnsignedValue(value, unit) {
-  return `${Number(value.toFixed(1))}${unit}`;
+function applyWalkCycle(pose, t, gain, baseYaw) {
+  const yawRadians = (baseYaw * Math.PI) / 180;
+  const frontness = Math.abs(Math.cos(yawRadians));
+  const profile = Math.abs(Math.sin(yawRadians));
+  const frontalBias = frontness * (1 - profile);
+  const frontOnlyBias = frontalBias * clamp((frontness - 0.8) / 0.2, 0, 1);
+  const quarterBias = Math.sqrt(frontness * profile);
+  const walkCycle = t * 1.05;
+  const walkPhase = walkCycle * Math.PI * 2;
+  const animationOffsets = {};
+  const shoulderTwist = Math.sin(walkPhase) * 1.2 * frontness * gain;
+  const hipTwist = Math.sin(walkPhase) * 0.7 * frontness * gain;
+  const stepLength = lerp(2.6, 15, profile) * lerp(1, 0.74, quarterBias) * gain;
+  const stepHeight = lerp(4.4, 7.6, profile) * lerp(1, 0.8, quarterBias) * gain;
+  const armSwing = (7 + profile * 1.4) * gain;
+  const bodyScale = (pose.bodySize || DEFAULT_STICKMAN_LAB_POSE.bodySize) / 100;
+  let stepLift = 0;
+  let strideDepth = 0;
+
+  pose.legLength -= (Math.abs(Math.sin(walkPhase)) * 1.1 + quarterBias * 0.5) * gain;
+  pose.torsoHeight += Math.sin(walkPhase * 2 - 0.4) * 0.2 * gain;
+  pose.headPitch += -0.35 + Math.sin(walkPhase * 2 - 0.3) * 0.1 * gain;
+  pose.headRoll += Math.sin(walkPhase) * 0.08 * frontness * gain;
+  pose.headYaw += Math.sin(walkPhase) * 0.12 * frontness * gain;
+  pose.armSpread += 0.15 * gain;
+  pose.stanceWidth -= 3.4 * gain;
+  pose.kneeSoftness += 0.15 * gain;
+  pose.torsoLean += Math.sin(walkPhase) * 0.14 * frontness * gain;
+  pose.yaw += Math.sin(walkPhase) * 0.12 * frontness * gain;
+
+  const baseArmCurveY = 14 + pose.armSpread * 0.2 + profile * 4;
+
+  setAnimationOffset(animationOffsets, 'leftShoulder', 0, 0, -shoulderTwist);
+  setAnimationOffset(animationOffsets, 'rightShoulder', 0, 0, shoulderTwist);
+  setAnimationOffset(animationOffsets, 'leftHip', 0, 0, hipTwist);
+  setAnimationOffset(animationOffsets, 'rightHip', 0, 0, -hipTwist);
+
+  const torsoWidth = (pose.torsoWidth || DEFAULT_STICKMAN_LAB_POSE.torsoWidth) * bodyScale;
+  const hipSpan = torsoWidth * 0.29;
+  const hipY = WALK_GROUND_Y - (pose.legLength - 6);
+  const footReach =
+    10 +
+    pose.stanceWidth +
+    (pose.legLength - DEFAULT_STICKMAN_LAB_POSE.legLength) * 0.15 -
+    quarterBias * 4.8 * gain;
+  const thighLength = pose.legLength * 0.52;
+  const shinLength = pose.legLength * 0.48;
+
+  [
+    { key: 'left', sideSign: -1, phaseOffset: 0 },
+    { key: 'right', sideSign: 1, phaseOffset: 0.5 },
+  ].forEach(({ key, sideSign, phaseOffset }) => {
+    const cycle = normalizeUnitCycle(walkCycle + phaseOffset);
+    const isStancePhase = cycle < 0.5;
+    const cycleProgress = isStancePhase ? cycle / 0.5 : (cycle - 0.5) / 0.5;
+    const swingCurve = Math.sin(cycleProgress * Math.PI);
+    const easedCycleProgress = easeInOutSine(cycleProgress);
+    const quarterStanceTravel = easeInOutSine(clamp((cycleProgress - 0.18) / 0.64, 0, 1));
+    const baseFootZ = isStancePhase
+      ? lerp(stepLength * 0.72, -stepLength * 0.88, cycleProgress)
+      : lerp(-stepLength * 0.88, stepLength * 0.72, cycleProgress);
+    const quarterFootZ = isStancePhase
+      ? lerp(stepLength * 0.44, -stepLength * 0.48, quarterStanceTravel)
+      : lerp(-stepLength * 0.48, stepLength * 0.52, easedCycleProgress);
+    const footZ = lerp(baseFootZ, quarterFootZ, quarterBias * 0.82);
+    const footY = (isStancePhase ? 0 : -swingCurve * stepHeight) * lerp(1, 0.76, quarterBias);
+    const armPhase = (cycle + 0.5) * Math.PI * 2;
+    const armStride = Math.sin(armPhase);
+    const handZ = armStride * armSwing;
+    const handY = -Math.max(0, armStride) * 1.3 * gain;
+    const desiredArmCurveY = 1.4 * gain + Math.max(0, armStride) * 1.2 * gain;
+    const elbowY = -baseArmCurveY + desiredArmCurveY;
+    const frontPerspectiveCancel = -footZ * lerp(0.24, 0.26, profile) * frontOnlyBias;
+    const frontFootTarget = lerp(footReach, hipSpan - 0.8, frontOnlyBias);
+    const frontFootInward = sideSign * (frontFootTarget - footReach) * gain;
+    const swingOutward = isStancePhase ? 0 : sideSign * swingCurve * 0.32 * frontOnlyBias * gain;
+    const profileCross = isStancePhase
+      ? 0
+      : -sideSign * swingCurve * 0.12 * (1 - frontOnlyBias) * profile * gain;
+    const footX = frontPerspectiveCancel + frontFootInward + swingOutward + profileCross;
+    const hipPoint = {
+      x: sideSign * hipSpan,
+      y: hipY,
+      z: 0,
+    };
+    const footPoint = {
+      x: sideSign * footReach + footX,
+      y: WALK_GROUND_Y + footY,
+      z: footZ,
+    };
+    const kneePoint = solveWalkLegKneePoint({
+      hip: hipPoint,
+      foot: footPoint,
+      upperLength: thighLength,
+      lowerLength: shinLength,
+      bendWeight: isStancePhase ? 0.01 : lerp(0.12, 0.34, profile) * lerp(1, 0.68, quarterBias),
+    });
+    const frontKneeOpen = sideSign * lerp(0.2, 0.32, swingCurve) * frontOnlyBias * gain;
+    if (!isStancePhase) {
+      const profileKneeCross = -sideSign * swingCurve * 0.08 * (1 - frontOnlyBias) * profile * gain;
+      kneePoint.x += frontKneeOpen + profileKneeCross;
+    } else {
+      kneePoint.x += frontKneeOpen;
+    }
+    const kneeBasePoint = {
+      x: (hipPoint.x + footPoint.x) / 2,
+      y: (hipPoint.y + footPoint.y) / 2,
+      z: (hipPoint.z + footPoint.z) / 2,
+    };
+
+    setAnimationOffset(animationOffsets, `${key}Foot`, footX, footY, footZ);
+    setAnimationOffset(
+      animationOffsets,
+      `${key}LegKnee`,
+      kneePoint.x - kneeBasePoint.x,
+      kneePoint.y - kneeBasePoint.y,
+      kneePoint.z - kneeBasePoint.z
+    );
+    setAnimationOffset(animationOffsets, `${key}Hand`, 0, handY, handZ);
+    setAnimationOffset(animationOffsets, `${key}ArmControl`, sideSign * 0.12 * gain, elbowY, handZ * 0.22);
+
+    stepLift = Math.max(stepLift, -footY);
+    strideDepth = Math.max(strideDepth, Math.abs(footZ));
+  });
+
+  return {
+    animationOffsets,
+    stepLift,
+    strideDepth,
+  };
 }
 
 function buildAnimatedPose({ baseYaw, loopId, speed, intensity, timeline }) {
@@ -135,8 +316,12 @@ function buildAnimatedPose({ baseYaw, loopId, speed, intensity, timeline }) {
     ...BASE_IDLE_POSE,
     yaw: baseYaw,
   };
+  let walkMetrics = null;
 
-  if (loopId === 'buoyant') {
+  if (loopId === 'walk') {
+    walkMetrics = applyWalkCycle(pose, t, gain, baseYaw);
+    pose.animationOffsets = walkMetrics.animationOffsets;
+  } else if (loopId === 'buoyant') {
     applyBreathChannels(pose, t, gain, {
       breathRate: 1.2,
       torsoHeight: 3.6,
@@ -184,6 +369,8 @@ function buildAnimatedPose({ baseYaw, loopId, speed, intensity, timeline }) {
     });
   }
 
+  pose.legLength = clamp(pose.legLength, 44, 104);
+  pose.stanceWidth = clamp(pose.stanceWidth, 8, 34);
   pose.torsoWidth = clamp(pose.torsoWidth, 24, 46);
   pose.torsoHeight = clamp(pose.torsoHeight, 42, 72);
   pose.torsoLean = clamp(pose.torsoLean, -14, 14);
@@ -195,12 +382,36 @@ function buildAnimatedPose({ baseYaw, loopId, speed, intensity, timeline }) {
 
   return {
     pose,
-    metrics: {
-      bodyYaw: pose.yaw,
-      headOffset: pose.headYaw,
-      chestLift: pose.torsoHeight - BASE_IDLE_POSE.torsoHeight,
-      kneeSoftness: pose.kneeSoftness,
-    },
+    readout: [
+      { label: 'Body yaw', value: pose.yaw, unit: 'deg', signed: true },
+      { label: 'Head offset', value: pose.headYaw, unit: 'deg', signed: true },
+      loopId === 'walk'
+        ? {
+            label: 'Stride depth',
+            value: walkMetrics?.strideDepth || 0,
+            unit: 'px',
+            signed: false,
+          }
+        : {
+            label: 'Chest lift',
+            value: pose.torsoHeight - BASE_IDLE_POSE.torsoHeight,
+            unit: 'px',
+            signed: true,
+          },
+      loopId === 'walk'
+        ? {
+            label: 'Step lift',
+            value: walkMetrics?.stepLift || 0,
+            unit: 'px',
+            signed: false,
+          }
+        : {
+            label: 'Knee softness',
+            value: pose.kneeSoftness,
+            unit: 'px',
+            signed: false,
+          },
+    ],
   };
 }
 
@@ -272,7 +483,7 @@ function ChoiceGrid({ title, description, options, activeId, columns = 2, onSele
 
 export default function StickmanIdleLab() {
   const prefersReducedMotion = usePrefersReducedMotion();
-  const [loopId, setLoopId] = useState('calm');
+  const [loopId, setLoopId] = useState('buoyant');
   const [facingId, setFacingId] = useState('quarter');
   const [speed, setSpeed] = useState(1);
   const [intensity, setIntensity] = useState(100);
@@ -342,7 +553,7 @@ export default function StickmanIdleLab() {
 
           <div className="relative flex min-h-[420px] items-center justify-center p-6 sm:p-10 xl:min-h-[760px]">
             <div className="absolute left-6 top-6 rounded-full border border-indigo-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600 shadow-sm backdrop-blur dark:border-indigo-900/60 dark:bg-slate-950/80 dark:text-indigo-300">
-              Idle Loop Study
+              Motion Study
             </div>
             <div className="absolute right-6 top-6 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400">
               {activeLoop.label}
@@ -358,11 +569,11 @@ export default function StickmanIdleLab() {
               viewBox="0 0 300 240"
               className="w-full max-w-[34rem] overflow-visible"
               role="img"
-              aria-labelledby="stickman-idle-lab-title stickman-idle-lab-desc"
+              aria-labelledby="stickman-motion-lab-title stickman-motion-lab-desc"
             >
-              <title id="stickman-idle-lab-title">Stickman idle animation lab</title>
-              <desc id="stickman-idle-lab-desc">
-                A separate animation lab that reuses the standing 2.5D stickman rig to test subtle idle loops.
+              <title id="stickman-motion-lab-title">Stickman motion lab</title>
+              <desc id="stickman-motion-lab-desc">
+                A separate motion lab that reuses the standing 2.5D stickman rig to test idle breathing and a first walk cycle.
               </desc>
 
               <line
@@ -449,7 +660,7 @@ export default function StickmanIdleLab() {
               Separate Animation Branch
             </p>
             <h3 className="mb-3 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-              Minimal standing motion before walk cycles
+              Buoyant idle plus first walk cycle
             </h3>
             <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
               This page reuses the lab rig and renderer modules from the pose sandbox, but keeps the scope on motion
@@ -460,7 +671,7 @@ export default function StickmanIdleLab() {
               >
                 standing pose lab
               </a>
-              .
+              , while breathing, walking, and future transitions are tuned here.
             </p>
           </div>
 
@@ -506,7 +717,7 @@ export default function StickmanIdleLab() {
           <div className="space-y-6 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/80">
             <ChoiceGrid
               title="Loop Profile"
-              description="Start with small idle behaviors before trying transitions or actions."
+              description="Use the same motion lab for breathing studies, the first walk cycle, and future transitions."
               options={LOOP_OPTIONS}
               activeId={loopId}
               onSelect={setLoopId}
@@ -567,30 +778,14 @@ export default function StickmanIdleLab() {
                 Live Readout
               </p>
               <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-slate-400 dark:text-slate-500">Body yaw</p>
-                  <p className="mt-1 font-semibold text-slate-900 dark:text-white">
-                    {formatSignedValue(animated.metrics.bodyYaw, 'deg')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-slate-400 dark:text-slate-500">Head offset</p>
-                  <p className="mt-1 font-semibold text-slate-900 dark:text-white">
-                    {formatSignedValue(animated.metrics.headOffset, 'deg')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-slate-400 dark:text-slate-500">Chest lift</p>
-                  <p className="mt-1 font-semibold text-slate-900 dark:text-white">
-                    {formatSignedValue(animated.metrics.chestLift, 'px')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-slate-400 dark:text-slate-500">Knee softness</p>
-                  <p className="mt-1 font-semibold text-slate-900 dark:text-white">
-                    {formatUnsignedValue(animated.metrics.kneeSoftness, 'px')}
-                  </p>
-                </div>
+                {animated.readout.map((metric) => (
+                  <div key={metric.label}>
+                    <p className="text-slate-400 dark:text-slate-500">{metric.label}</p>
+                    <p className="mt-1 font-semibold text-slate-900 dark:text-white">
+                      {formatMetricValue(metric.value, metric.unit, metric.signed)}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -599,8 +794,9 @@ export default function StickmanIdleLab() {
                 Current Scope
               </p>
               <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                The animation layer is still deliberately small: idle only, no walking, no props, and no production action
-                registry wiring yet. The goal is to make this standing loop read cleanly before the next step.
+                The motion layer now covers the buoyant idle baseline plus a first in-place walk cycle, but it is still
+                deliberately narrow: no props, no project-specific action hooks, and no production action registry wiring
+                yet.
               </p>
               <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
                 Renderer baseline: classic only

@@ -47,11 +47,11 @@
       <circle cx="6" cy="-3" r="1.8" fill="#0f172a" />
     </g>
 
-    <text x="-2" y="12" fill="#64748b" font-family="monospace" font-size="4.5" letter-spacing="1">IDLE LAB</text>
-    <text x="-2" y="106" fill="#64748b" font-family="monospace" font-size="4.5" letter-spacing="1">LOOP PASS 01</text>
+    <text x="-2" y="12" fill="#64748b" font-family="monospace" font-size="4.5" letter-spacing="1">MOTION LAB</text>
+    <text x="-2" y="106" fill="#64748b" font-family="monospace" font-size="4.5" letter-spacing="1">IDLE + WALK</text>
   </g>
 
   <text x="100" y="138" fill="#64748b" font-family="monospace" font-size="6" text-anchor="middle" letter-spacing="1.4">
-    STANDING_LOOP_BASELINE
+    STICKMAN_MOTION_STUDIES
   </text>
 </svg>

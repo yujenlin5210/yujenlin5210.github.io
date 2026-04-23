@@ -1,7 +1,7 @@
 ---
-title: "Stickman Idle Lab: Animation Baseline"
+title: "Stickman Motion Lab: Idle And Walk Baseline"
 date: "2026-04-21"
-description: "A separate animation study that reuses the new 2.5D stickman rig for subtle idle loops."
+description: "A separate motion study that reuses the new 2.5D stickman rig for buoyant idle breathing and a first walk cycle."
 folder: "stickman-idle-lab"
 cover: "cover.svg"
 hideCover: true
@@ -14,34 +14,38 @@ import StickmanIdleLab from '../../components/StickmanIdleLab.jsx';
   <StickmanIdleLab client:visible />
 </div>
 
-This post starts the separate animation branch recommended in the stickman lab notes. The [standing pose lab](/lab/2026-04-21-stickman-pose-lab) remains the silhouette and facing sandbox; this page is only about getting a minimal standing loop to read well on the current 2.5D rig.
+This post is the motion branch of the stickman lab. The [standing pose lab](/lab/2026-04-21-stickman-pose-lab) remains the silhouette and facing sandbox; this page is where the current 2.5D rig is pushed through breathing, gait, and transition studies.
 
 #### Goal
 
-Validate a first idle motion pass before touching walking, props, or project-specific actions.
+Validate the buoyant idle baseline and start a first in-place walking cycle before touching props or project-specific actions.
 
 #### Current scope
 
 - Reuse the existing lab rig and renderer modules instead of forking them
-- Test a small set of idle-loop behaviors on the preferred standing baseline
+- Test idle and walking motion on the preferred standing baseline
 - Keep shape editing out of this page so motion decisions stay isolated
 - Hide endpoint gizmos by default, with a debug toggle when needed
 
 #### What is live in this first pass
 
-- Three lightweight loop profiles:
+- Four loop profiles:
   - `calm`
   - `buoyant`
   - `watchful`
+  - `walk`
+- `buoyant` is the current default because it gives the breathing pass the clearest full-body read so far
 - Facing checks for front, quarter, right, and back views
 - Tempo and intensity controls for tuning the motion envelope
 - A fixed classic renderer baseline while the motion language is still being tuned
 - A planted breathing pass where the torso carries the inhale and the knees take a small settling response
+- A first asymmetrical walk cycle with arm swing, foot lift, and limb-depth changes running through the same shared rig
 - Reduced-motion handling that pauses autoplay and falls back to manual scrubbing
 
 #### Next experiments
 
 - Shoulder and hip twist layered on top of the existing rig
-- Cleaner arm and knee overlap during larger sway
+- Cleaner foot planting and contact timing in the walk cycle
+- Transitions from buoyant idle into walking
 - A decision on whether endpoint gizmos stay debug-only
 - Transition tests into walk cycles and project-specific actions
