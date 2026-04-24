@@ -131,25 +131,25 @@ This document tracks the isolated stickman work happening in the lab before any 
 
 ### Current Preferred Preset
 
-- The current favored standing silhouette is a front-facing round profile setup with:
+- The current favored standing silhouette now follows the cover-study proportions and stays quarter-facing by default:
   - head style = `classic`
   - body style = `classic`
   - limb style = `classic`
   - head profile preset = `round`
   - body profile preset = `round`
-  - head size = `105`
+  - head size = `118`
   - body size = `102`
   - head width = `38`
-  - head height = `40`
+  - head height = `38`
   - torso width = `32`
-  - torso height = `68`
-  - arm length = `62`
-  - leg length = `54`
+  - torso height = `52`
+  - arm length = `60`
+  - leg length = `44`
   - torso lean = `0`
-  - arm spread = `14`
-  - stance width = `11`
+  - arm spread = `12`
+  - stance width = `10`
   - knee softness = `0`
-- The head-to-torso gap was tightened after this preset was chosen so the silhouette reads more connected.
+- This baseline intentionally keeps the head larger and rounder, with a fatter compact torso and short legs, so the lab default stays closer to the current cover silhouette.
 
 ## Design Decisions So Far
 
