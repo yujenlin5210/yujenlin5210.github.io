@@ -509,12 +509,100 @@ function ChoiceGrid({
   );
 }
 
+function StickmanFigureGroup({ rig, pose, showGizmos }) {
+  return (
+    <g>
+      {rig.limbs.rear.map((limb) => {
+        const style = getLimbStyle(limb.depth);
+        const gizmo = getEndpointGizmoStyle(limb.type, limb.depth, showGizmos);
+
+        return (
+          <StickmanLimbRenderer
+            key={limb.id}
+            styleId={pose.limbStyle}
+            limb={limb}
+            transition={RENDER_TRANSITION}
+            className={style.className}
+            opacity={style.opacity}
+            gizmoClassName={gizmo.className}
+            gizmoOpacity={gizmo.opacity}
+          />
+        );
+      })}
+
+      <StickmanBodyRenderer
+        styleId={pose.bodyStyle}
+        body={rig.body}
+        transition={RENDER_TRANSITION}
+      />
+
+      <StickmanHeadRenderer
+        styleId={pose.headStyle}
+        head={rig.head}
+        transition={RENDER_TRANSITION}
+      />
+
+      {rig.limbs.front.map((limb) => {
+        const style = getLimbStyle(limb.depth);
+        const gizmo = getEndpointGizmoStyle(limb.type, limb.depth, showGizmos);
+
+        return (
+          <StickmanLimbRenderer
+            key={limb.id}
+            styleId={pose.limbStyle}
+            limb={limb}
+            transition={RENDER_TRANSITION}
+            className={style.className}
+            opacity={style.opacity}
+            gizmoClassName={gizmo.className}
+            gizmoOpacity={gizmo.opacity}
+          />
+        );
+      })}
+    </g>
+  );
+}
+
+function buildTrackWalkPreview({ timeline, speed, intensity, travelWidth }) {
+  const gain = intensity / 100;
+  const travelHalfSpan = travelWidth * 1.6;
+  const corridorWidth = travelHalfSpan * 2;
+  const gaitCycle = timeline * speed * 1.05;
+  const sideViewStepLength = 15 * gain;
+  const rootAdvancePerCycle = Math.max(sideViewStepLength * 3.2, 1);
+  const cyclesPerTraverse = Math.max(corridorWidth / rootAdvancePerCycle, 1);
+  const travelCycle = normalizeUnitCycle(gaitCycle / (cyclesPerTraverse * 2));
+  const movingRight = travelCycle < 0.5;
+  const segmentProgress = movingRight ? travelCycle / 0.5 : (travelCycle - 0.5) / 0.5;
+  const travelX = movingRight
+    ? lerp(-travelHalfSpan, travelHalfSpan, segmentProgress)
+    : lerp(travelHalfSpan, -travelHalfSpan, segmentProgress);
+  const baseYaw = movingRight ? -90 : 90;
+  const animated = buildAnimatedPose({
+    baseYaw,
+    loopId: 'walk',
+    speed,
+    intensity,
+    timeline,
+  });
+
+  return {
+    animated,
+    travelX,
+    facingLabel: movingRight ? 'Right' : 'Left',
+    corridorHalfSpan: travelHalfSpan,
+    corridorWidth,
+  };
+}
+
 export default function StickmanIdleLab() {
   const prefersReducedMotion = usePrefersReducedMotion();
   const [loopId, setLoopId] = useState('buoyant');
   const [bodyYaw, setBodyYaw] = useState(FACING_OPTIONS[0].yaw);
   const [speed, setSpeed] = useState(1);
   const [intensity, setIntensity] = useState(100);
+  const [trackSpeed, setTrackSpeed] = useState(0.95);
+  const [trackWidth, setTrackWidth] = useState(88);
   const [showGizmos, setShowGizmos] = useState(false);
   const [paused, setPaused] = useState(false);
   const [timeline, setTimeline] = useState(0);
@@ -559,294 +647,446 @@ export default function StickmanIdleLab() {
     timeline,
   });
   const rig = buildStickmanLabRig(animated.pose);
+  const trackWalk = buildTrackWalkPreview({
+    timeline,
+    speed: trackSpeed,
+    intensity,
+    travelWidth: trackWidth,
+  });
+  const trackRig = buildStickmanLabRig(trackWalk.animated.pose);
+  const trackPreviewOffsetX = 60;
+  const trackPreviewCenterX = trackRig.guides.centerX + trackPreviewOffsetX;
+  const trackFigureScale = 0.7;
   const activeLoop = LOOP_OPTIONS.find((option) => option.id === loopId) || LOOP_OPTIONS[0];
   const showScrubber = prefersReducedMotion || paused;
 
   return (
-    <div className="my-10 overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_24px_80px_-40px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-950">
-      <div className="grid xl:grid-cols-[minmax(0,1.12fr)_minmax(380px,0.88fr)]">
-        <div className="relative overflow-hidden border-b border-slate-200 dark:border-slate-800 xl:border-b-0 xl:border-r">
+    <div className="my-10 space-y-10">
+      <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_24px_80px_-40px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-950">
+        <div className="grid xl:grid-cols-[minmax(0,1.12fr)_minmax(380px,0.88fr)]">
+          <div className="relative overflow-hidden border-b border-slate-200 dark:border-slate-800 xl:border-b-0 xl:border-r">
+            <div
+              className="absolute inset-0 opacity-80 dark:opacity-60"
+              style={{
+                backgroundImage: [
+                  'radial-gradient(circle at 18% 18%, rgba(99, 102, 241, 0.16), transparent 30%)',
+                  'radial-gradient(circle at 78% 28%, rgba(14, 165, 233, 0.14), transparent 24%)',
+                  'linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px)',
+                  'linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px)',
+                ].join(', '),
+                backgroundSize: '100% 100%, 100% 100%, 30px 30px, 30px 30px',
+              }}
+            />
+
+            <div className="relative flex min-h-[420px] items-center justify-center p-6 sm:p-10 xl:min-h-[760px]">
+              <div className="absolute left-6 top-6 rounded-full border border-indigo-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600 shadow-sm backdrop-blur dark:border-indigo-900/60 dark:bg-slate-950/80 dark:text-indigo-300">
+                Motion Study
+              </div>
+              <div className="absolute right-6 top-6 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400">
+                {activeLoop.label}
+              </div>
+              <div className="absolute bottom-6 left-6 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400">
+                {rig.headingLabel}
+              </div>
+              <div className="absolute bottom-6 right-6 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400">
+                Tempo {speed.toFixed(2)}x
+              </div>
+
+              <svg
+                viewBox="0 0 300 240"
+                className="w-full max-w-[34rem] overflow-visible"
+                role="img"
+                aria-labelledby="stickman-motion-lab-title stickman-motion-lab-desc"
+              >
+                <title id="stickman-motion-lab-title">Stickman motion lab</title>
+                <desc id="stickman-motion-lab-desc">
+                  A separate motion lab that reuses the standing 2.5D stickman rig to test idle breathing and a first walk cycle.
+                </desc>
+
+                <line
+                  x1="40"
+                  y1={rig.guides.groundY}
+                  x2="260"
+                  y2={rig.guides.groundY}
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeDasharray="6 6"
+                  className="text-slate-300 dark:text-slate-700"
+                />
+                <line
+                  x1={rig.guides.centerX}
+                  y1="26"
+                  x2={rig.guides.centerX}
+                  y2={rig.guides.groundY}
+                  stroke="currentColor"
+                  strokeWidth="1"
+                  strokeDasharray="4 6"
+                  className="text-slate-200 dark:text-slate-800"
+                />
+
+                <text x="44" y="214" className="fill-slate-400 text-[9px] font-mono uppercase tracking-[0.24em]">
+                  Ground
+                </text>
+
+                <StickmanFigureGroup
+                  rig={rig}
+                  pose={animated.pose}
+                  showGizmos={showGizmos}
+                />
+              </svg>
+            </div>
+          </div>
+
+          <div className="p-6 sm:p-8 xl:p-10">
+            <div className="mb-6">
+              <p className="mb-3 font-mono text-[11px] font-bold uppercase tracking-[0.28em] text-indigo-600 dark:text-indigo-300">
+                Separate Animation Branch
+              </p>
+              <h3 className="mb-3 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+                Buoyant idle plus first walk cycle
+              </h3>
+              <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                This page reuses the lab rig and renderer modules from the pose sandbox, but keeps the scope on motion
+                only. Shape editing stays in the{' '}
+                <a
+                  href="/lab/2026-04-21-stickman-pose-lab"
+                  className="font-semibold text-indigo-600 underline decoration-indigo-200 underline-offset-4 hover:text-indigo-500 dark:text-indigo-300 dark:decoration-indigo-500/40"
+                >
+                  standing pose lab
+                </a>
+                , while breathing, walking, and future transitions are tuned here.
+              </p>
+            </div>
+
+            {prefersReducedMotion && (
+              <div className="mb-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
+                Reduced motion is enabled, so autoplay is paused here. Use the scrubber to inspect the loop without continuous motion.
+              </div>
+            )}
+
+            <div className="mb-6 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setPaused((current) => !current)}
+                disabled={prefersReducedMotion}
+                className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
+                  prefersReducedMotion
+                    ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-500'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
+                }`}
+              >
+                <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
+                  Motion
+                </span>
+                <span className="mt-1 block">{paused ? 'Resume autoplay' : 'Pause on current frame'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowGizmos((current) => !current)}
+                className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
+                  showGizmos
+                    ? 'border-indigo-500 bg-indigo-600 text-white'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
+                }`}
+              >
+                <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
+                  Gizmos
+                </span>
+                <span className="mt-1 block">{showGizmos ? 'Visible for debug' : 'Hidden by default'}</span>
+              </button>
+            </div>
+
+            <div className="space-y-6 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/80">
+              <ChoiceGrid
+                title="Loop Profile"
+                description="Use the same motion lab for breathing studies, the first walk cycle, and future transitions."
+                options={LOOP_OPTIONS}
+                activeId={loopId}
+                onSelect={setLoopId}
+              />
+
+              <RangeField
+                id="stickman-motion-yaw"
+                label="Body Yaw"
+                value={bodyYaw}
+                min={-180}
+                max={180}
+                step={1}
+                displayValue={formatSignedDegrees(bodyYaw)}
+                onChange={setBodyYaw}
+              />
+
+              <ChoiceGrid
+                title="Facing Check"
+                description={null}
+                options={FACING_OPTIONS}
+                activeId={activeFacing?.id || null}
+                columns={2}
+                compact
+                hideOptionDescriptions
+                onSelect={(nextFacingId) => {
+                  const nextFacing = FACING_OPTIONS.find((option) => option.id === nextFacingId);
+
+                  if (nextFacing) {
+                    setBodyYaw(nextFacing.yaw);
+                  }
+                }}
+              />
+
+              <RangeField
+                id="stickman-idle-tempo"
+                label="Tempo"
+                value={speed}
+                min={0.55}
+                max={1.8}
+                step={0.05}
+                displayValue={`${speed.toFixed(2)}x`}
+                onChange={setSpeed}
+              />
+
+              <RangeField
+                id="stickman-idle-intensity"
+                label="Intensity"
+                value={intensity}
+                min={35}
+                max={150}
+                step={1}
+                displayValue={`${intensity}%`}
+                onChange={setIntensity}
+              />
+
+              {showScrubber && (
+                <RangeField
+                  id="stickman-idle-scrub"
+                  label="Frame Scrub"
+                  value={timeline}
+                  min={0}
+                  max={12}
+                  step={0.01}
+                  displayValue={`${timeline.toFixed(2)}s`}
+                  onChange={(value) => {
+                    timelineRef.current = value;
+                    setTimeline(value);
+                  }}
+                />
+              )}
+            </div>
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+                <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                  Live Readout
+                </p>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  {animated.readout.map((metric) => (
+                    <div key={metric.label}>
+                      <p className="text-slate-400 dark:text-slate-500">{metric.label}</p>
+                      <p className="mt-1 font-semibold text-slate-900 dark:text-white">
+                        {formatMetricValue(metric.value, metric.unit, metric.signed)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+                <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                  Current Scope
+                </p>
+                <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  The motion layer now covers the buoyant idle baseline plus a first in-place walk cycle, but it is still
+                  deliberately narrow: no props, no project-specific action hooks, and no production action registry wiring
+                  yet.
+                </p>
+                <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
+                  Renderer baseline: classic only
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-[0_24px_80px_-40px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-950">
+        <div className="relative overflow-hidden border-b border-slate-200 dark:border-slate-800">
           <div
             className="absolute inset-0 opacity-80 dark:opacity-60"
             style={{
               backgroundImage: [
-                'radial-gradient(circle at 18% 18%, rgba(99, 102, 241, 0.16), transparent 30%)',
-                'radial-gradient(circle at 78% 28%, rgba(14, 165, 233, 0.14), transparent 24%)',
-                'linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px)',
-                'linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px)',
+                'radial-gradient(circle at 20% 20%, rgba(14, 165, 233, 0.12), transparent 28%)',
+                'radial-gradient(circle at 78% 26%, rgba(99, 102, 241, 0.14), transparent 22%)',
+                'linear-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px)',
+                'linear-gradient(90deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px)',
               ].join(', '),
-              backgroundSize: '100% 100%, 100% 100%, 30px 30px, 30px 30px',
+              backgroundSize: '100% 100%, 100% 100%, 28px 28px, 28px 28px',
             }}
           />
 
-          <div className="relative flex min-h-[420px] items-center justify-center p-6 sm:p-10 xl:min-h-[760px]">
-            <div className="absolute left-6 top-6 rounded-full border border-indigo-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600 shadow-sm backdrop-blur dark:border-indigo-900/60 dark:bg-slate-950/80 dark:text-indigo-300">
-              Motion Study
+          <div className="relative flex min-h-[320px] items-center justify-center p-6 sm:p-8 xl:min-h-[440px] xl:p-10">
+            <div className="absolute left-6 top-6 rounded-full border border-cyan-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-cyan-600 shadow-sm backdrop-blur dark:border-cyan-900/60 dark:bg-slate-950/80 dark:text-cyan-300">
+              Track Walk Study
             </div>
             <div className="absolute right-6 top-6 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400">
-              {activeLoop.label}
+              Fixed Walk Loop
             </div>
             <div className="absolute bottom-6 left-6 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400">
-              {rig.headingLabel}
+              Facing {trackWalk.facingLabel}
             </div>
             <div className="absolute bottom-6 right-6 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400">
-              Tempo {speed.toFixed(2)}x
+              Span {Math.round(trackWalk.corridorWidth)}px
             </div>
 
             <svg
-              viewBox="0 0 300 240"
-              className="w-full max-w-[34rem] overflow-visible"
+              viewBox="0 0 420 240"
+              className="w-full max-w-[72rem] overflow-visible"
               role="img"
-              aria-labelledby="stickman-motion-lab-title stickman-motion-lab-desc"
+              aria-labelledby="stickman-track-walk-title stickman-track-walk-desc"
             >
-              <title id="stickman-motion-lab-title">Stickman motion lab</title>
-              <desc id="stickman-motion-lab-desc">
-                A separate motion lab that reuses the standing 2.5D stickman rig to test idle breathing and a first walk cycle.
+              <title id="stickman-track-walk-title">Stickman track walk study</title>
+              <desc id="stickman-track-walk-desc">
+                A left-right locomotion preview that keeps the character locked to side-facing motion while testing root travel across a short track.
               </desc>
 
               <line
-                x1="40"
-                y1={rig.guides.groundY}
-                x2="260"
-                y2={rig.guides.groundY}
+                x1="30"
+                y1={trackRig.guides.groundY}
+                x2="390"
+                y2={trackRig.guides.groundY}
                 stroke="currentColor"
                 strokeWidth="1.5"
                 strokeDasharray="6 6"
                 className="text-slate-300 dark:text-slate-700"
               />
               <line
-                x1={rig.guides.centerX}
-                y1="26"
-                x2={rig.guides.centerX}
-                y2={rig.guides.groundY}
+                x1={trackPreviewCenterX - trackWalk.corridorHalfSpan}
+                y1="34"
+                x2={trackPreviewCenterX - trackWalk.corridorHalfSpan}
+                y2={trackRig.guides.groundY}
                 stroke="currentColor"
                 strokeWidth="1"
                 strokeDasharray="4 6"
                 className="text-slate-200 dark:text-slate-800"
               />
-
-              <text x="44" y="214" className="fill-slate-400 text-[9px] font-mono uppercase tracking-[0.24em]">
-                Ground
+              <line
+                x1={trackPreviewCenterX + trackWalk.corridorHalfSpan}
+                y1="34"
+                x2={trackPreviewCenterX + trackWalk.corridorHalfSpan}
+                y2={trackRig.guides.groundY}
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeDasharray="4 6"
+                className="text-slate-200 dark:text-slate-800"
+              />
+              <path
+                d={`M ${trackPreviewCenterX - trackWalk.corridorHalfSpan},${trackRig.guides.groundY - 12} L ${trackPreviewCenterX + trackWalk.corridorHalfSpan},${trackRig.guides.groundY - 12}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1"
+                strokeDasharray="3 5"
+                className="text-cyan-200 dark:text-cyan-900/50"
+              />
+              <text x="34" y="214" className="fill-slate-400 text-[9px] font-mono uppercase tracking-[0.24em]">
+                Track
               </text>
 
-              <g>
-                {rig.limbs.rear.map((limb) => {
-                  const style = getLimbStyle(limb.depth);
-                  const gizmo = getEndpointGizmoStyle(limb.type, limb.depth, showGizmos);
-
-                  return (
-                    <StickmanLimbRenderer
-                      key={limb.id}
-                      styleId={animated.pose.limbStyle}
-                      limb={limb}
-                      transition={RENDER_TRANSITION}
-                      className={style.className}
-                      opacity={style.opacity}
-                      gizmoClassName={gizmo.className}
-                      gizmoOpacity={gizmo.opacity}
-                    />
-                  );
-                })}
-
-                <StickmanBodyRenderer
-                  styleId={animated.pose.bodyStyle}
-                  body={rig.body}
-                  transition={RENDER_TRANSITION}
-                />
-
-                <StickmanHeadRenderer
-                  styleId={animated.pose.headStyle}
-                  head={rig.head}
-                  transition={RENDER_TRANSITION}
-                />
-
-                {rig.limbs.front.map((limb) => {
-                  const style = getLimbStyle(limb.depth);
-                  const gizmo = getEndpointGizmoStyle(limb.type, limb.depth, showGizmos);
-
-                  return (
-                    <StickmanLimbRenderer
-                      key={limb.id}
-                      styleId={animated.pose.limbStyle}
-                      limb={limb}
-                      transition={RENDER_TRANSITION}
-                      className={style.className}
-                      opacity={style.opacity}
-                      gizmoClassName={gizmo.className}
-                      gizmoOpacity={gizmo.opacity}
-                    />
-                  );
-                })}
+              <g transform={`translate(${trackPreviewOffsetX + trackWalk.travelX} 0)`}>
+                <g
+                  transform={`translate(${trackRig.guides.centerX} ${trackRig.guides.groundY}) scale(${trackFigureScale}) translate(${-trackRig.guides.centerX} ${-trackRig.guides.groundY})`}
+                >
+                  <StickmanFigureGroup
+                    rig={trackRig}
+                    pose={trackWalk.animated.pose}
+                    showGizmos={showGizmos}
+                  />
+                </g>
               </g>
             </svg>
           </div>
         </div>
 
         <div className="p-6 sm:p-8 xl:p-10">
-          <div className="mb-6">
-            <p className="mb-3 font-mono text-[11px] font-bold uppercase tracking-[0.28em] text-indigo-600 dark:text-indigo-300">
-              Separate Animation Branch
+          <div className="mb-6 max-w-3xl">
+            <p className="mb-3 font-mono text-[11px] font-bold uppercase tracking-[0.28em] text-cyan-600 dark:text-cyan-300">
+              Locomotion Preview
             </p>
             <h3 className="mb-3 text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-              Buoyant idle plus first walk cycle
+              Left-right pacing on a fixed track
             </h3>
             <p className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-              This page reuses the lab rig and renderer modules from the pose sandbox, but keeps the scope on motion
-              only. Shape editing stays in the{' '}
-              <a
-                href="/lab/2026-04-21-stickman-pose-lab"
-                className="font-semibold text-indigo-600 underline decoration-indigo-200 underline-offset-4 hover:text-indigo-500 dark:text-indigo-300 dark:decoration-indigo-500/40"
-              >
-                standing pose lab
-              </a>
-              , while breathing, walking, and future transitions are tuned here.
+              This second preview locks the body to left and right facings only, so the problem becomes root motion and edge-to-edge travel instead of free yaw inspection. It reuses the same walk cycle, but treats pacing as a separate locomotion study.
             </p>
           </div>
 
-          {prefersReducedMotion && (
-            <div className="mb-6 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
-              Reduced motion is enabled, so autoplay is paused here. Use the scrubber to inspect the loop without continuous motion.
-            </div>
-          )}
-
-          <div className="mb-6 grid gap-3 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setPaused((current) => !current)}
-              disabled={prefersReducedMotion}
-              className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
-                prefersReducedMotion
-                  ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-500'
-                  : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
-              }`}
-            >
-              <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
-                Motion
-              </span>
-              <span className="mt-1 block">{paused ? 'Resume autoplay' : 'Pause on current frame'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowGizmos((current) => !current)}
-              className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
-                showGizmos
-                  ? 'border-indigo-500 bg-indigo-600 text-white'
-                  : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
-              }`}
-            >
-              <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
-                Gizmos
-              </span>
-              <span className="mt-1 block">{showGizmos ? 'Visible for debug' : 'Hidden by default'}</span>
-            </button>
-          </div>
-
-          <div className="space-y-6 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/80">
-            <ChoiceGrid
-              title="Loop Profile"
-              description="Use the same motion lab for breathing studies, the first walk cycle, and future transitions."
-              options={LOOP_OPTIONS}
-              activeId={loopId}
-              onSelect={setLoopId}
-            />
-
-            <RangeField
-              id="stickman-motion-yaw"
-              label="Body Yaw"
-              value={bodyYaw}
-              min={-180}
-              max={180}
-              step={1}
-              displayValue={formatSignedDegrees(bodyYaw)}
-              onChange={setBodyYaw}
-            />
-
-            <ChoiceGrid
-              title="Facing Check"
-              description={null}
-              options={FACING_OPTIONS}
-              activeId={activeFacing?.id || null}
-              columns={2}
-              compact
-              hideOptionDescriptions
-              onSelect={(nextFacingId) => {
-                const nextFacing = FACING_OPTIONS.find((option) => option.id === nextFacingId);
-
-                if (nextFacing) {
-                  setBodyYaw(nextFacing.yaw);
-                }
-              }}
-            />
-
-            <RangeField
-              id="stickman-idle-tempo"
-              label="Tempo"
-              value={speed}
-              min={0.55}
-              max={1.8}
-              step={0.05}
-              displayValue={`${speed.toFixed(2)}x`}
-              onChange={setSpeed}
-            />
-
-            <RangeField
-              id="stickman-idle-intensity"
-              label="Intensity"
-              value={intensity}
-              min={35}
-              max={150}
-              step={1}
-              displayValue={`${intensity}%`}
-              onChange={setIntensity}
-            />
-
-            {showScrubber && (
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+            <div className="space-y-6 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900/80">
               <RangeField
-                id="stickman-idle-scrub"
-                label="Frame Scrub"
-                value={timeline}
-                min={0}
-                max={12}
-                step={0.01}
-                displayValue={`${timeline.toFixed(2)}s`}
-                onChange={(value) => {
-                  timelineRef.current = value;
-                  setTimeline(value);
-                }}
+                id="stickman-track-tempo"
+                label="Pace Speed"
+                value={trackSpeed}
+                min={0.55}
+                max={1.5}
+                step={0.05}
+                displayValue={`${trackSpeed.toFixed(2)}x`}
+                onChange={setTrackSpeed}
               />
-            )}
-          </div>
 
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
-              <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                Live Readout
-              </p>
-              <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                {animated.readout.map((metric) => (
-                  <div key={metric.label}>
-                    <p className="text-slate-400 dark:text-slate-500">{metric.label}</p>
-                    <p className="mt-1 font-semibold text-slate-900 dark:text-white">
-                      {formatMetricValue(metric.value, metric.unit, metric.signed)}
-                    </p>
-                  </div>
-                ))}
+              <RangeField
+                id="stickman-track-width"
+                label="Travel Width"
+                value={trackWidth}
+                min={20}
+                max={88}
+                step={1}
+                displayValue={`${Math.round(trackWalk.corridorWidth)}px`}
+                onChange={setTrackWidth}
+              />
+
+              <div className="rounded-[1.25rem] border border-slate-200 bg-white p-4 text-sm leading-relaxed text-slate-600 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-300">
+                This panel intentionally does not expose free body yaw. The character stays side-facing so pacing, travel width, and future turn logic can be judged separately from the in-place gait checks above.
               </div>
             </div>
 
-            <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
-              <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
-                Current Scope
-              </p>
-              <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-                The motion layer now covers the buoyant idle baseline plus a first in-place walk cycle, but it is still
-                deliberately narrow: no props, no project-specific action hooks, and no production action registry wiring
-                yet.
-              </p>
-              <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
-                Renderer baseline: classic only
-              </p>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+              <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+                <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                  Track Readout
+                </p>
+                <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p className="text-slate-400 dark:text-slate-500">Facing</p>
+                    <p className="mt-1 font-semibold text-slate-900 dark:text-white">{trackWalk.facingLabel}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 dark:text-slate-500">Travel X</p>
+                    <p className="mt-1 font-semibold text-slate-900 dark:text-white">
+                      {formatMetricValue(trackWalk.travelX, 'px', true)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 dark:text-slate-500">Track Span</p>
+                    <p className="mt-1 font-semibold text-slate-900 dark:text-white">
+                      {formatMetricValue(trackWalk.corridorWidth, 'px')}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-slate-400 dark:text-slate-500">Loop</p>
+                    <p className="mt-1 font-semibold text-slate-900 dark:text-white">Walk only</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[1.5rem] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-950">
+                <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+                  Current Focus
+                </p>
+                <p className="mt-4 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+                  This first pass is only checking side-facing pacing across a short corridor. Root travel is now visible, but edge pauses and explicit turn behavior are still deferred.
+                </p>
+                <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
+                  Facing mode: left / right only
+                </p>
+              </div>
             </div>
           </div>
         </div>

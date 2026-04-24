@@ -242,10 +242,25 @@ This document tracks the isolated stickman work happening in the lab before any 
   - direct body-yaw slider
   - smaller quick facing buttons without per-button descriptive copy
   - quarter preset nudged slightly forward from the older 40-degree default
+- The motion lab is now split into two preview surfaces inside the same post:
+  - an `in-place motion study` that keeps the free yaw and facing checks for gait inspection
+  - a separate `track walk study` that locks the character to left/right views and shows root travel across a short corridor
+- The new track-walk panel deliberately does not expose body yaw:
+  - pacing should be judged as locomotion, not as another quarter/front-facing check
+  - this makes side-facing travel width and future turn behavior easier to reason about
+- The track-walk panel presentation is now closer to a horizontal pacing strip:
+  - the preview is wider and the controls sit below it instead of beside it
+  - the corridor defaults to its widest current span
+  - the pacing figure is scaled down so travel reads more clearly
+- The first pacing pass is in a better place than the initial version:
+  - direction/facing are no longer inverted
+  - root travel is no longer using a separate ease-in/ease-out slope against a fixed gait
+  - the remaining obvious issue is the edge turn, which still snaps too directly between left and right
 - The current conclusion is that the quarter walk likely needs its own clearer contact / pass / lift / plant treatment, with straighter local-space back-step tracking, instead of more small parameter tuning on the shared cycle.
 - Endpoint gizmos are hidden by default in the animation lab and can be turned back on as a debug layer.
 - Scope is still deliberately narrow:
   - buoyant idle plus first walk cycle
+  - an early side-facing pacing preview
   - no project-specific action hooks
   - no production `/projects` wiring
 
@@ -256,4 +271,6 @@ This document tracks the isolated stickman work happening in the lab before any 
 5. Refine the face-plane cue if quarter turns still feel weak.
 6. Decide which shape presets are actually worth keeping once more silhouettes are tested.
 7. Decide whether head-to-torso gap and limb arc direction should remain fixed defaults or become preserved preset fields only.
-8. Once idle and walk feel stable, explore transitions and project-specific actions.
+8. Smooth the pacing turn at each edge so the figure rotates through a short turn phase instead of snapping directly from left to right.
+9. Add edge pauses and explicit turn behavior to the new left-right pacing preview once the core walk feels stable.
+10. Once idle, walk, and pacing feel stable, explore transitions and project-specific actions.
