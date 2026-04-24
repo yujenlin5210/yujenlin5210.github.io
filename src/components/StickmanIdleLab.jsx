@@ -571,25 +571,112 @@ function buildTrackWalkPreview({ timeline, speed, intensity, travelWidth }) {
   const sideViewStepLength = 15 * gain;
   const rootAdvancePerCycle = Math.max(sideViewStepLength * 3.2, 1);
   const cyclesPerTraverse = Math.max(corridorWidth / rootAdvancePerCycle, 1);
-  const travelCycle = normalizeUnitCycle(gaitCycle / (cyclesPerTraverse * 2));
-  const movingRight = travelCycle < 0.5;
-  const segmentProgress = movingRight ? travelCycle / 0.5 : (travelCycle - 0.5) / 0.5;
-  const travelX = movingRight
-    ? lerp(-travelHalfSpan, travelHalfSpan, segmentProgress)
-    : lerp(travelHalfSpan, -travelHalfSpan, segmentProgress);
-  const baseYaw = movingRight ? -90 : 90;
-  const animated = buildAnimatedPose({
-    baseYaw,
-    loopId: 'walk',
-    speed,
-    intensity,
-    timeline,
-  });
+  const settleCycles = 0.24;
+  const turnCycles = 0.32;
+  const edgeInset = Math.min(10, travelHalfSpan * 0.06);
+  const turnDrift = Math.min(5, travelHalfSpan * 0.03);
+  const rightTurnX = travelHalfSpan - edgeInset;
+  const leftTurnX = -rightTurnX;
+  const rightExitX = rightTurnX - turnDrift;
+  const leftExitX = leftTurnX + turnDrift;
+  const fullCycleSpan = cyclesPerTraverse * 2 + (settleCycles + turnCycles) * 2;
+  const cyclePosition = ((gaitCycle % fullCycleSpan) + fullCycleSpan) % fullCycleSpan;
+  let travelX = -travelHalfSpan;
+  let baseYaw = -90;
+  let statusLabel = 'Facing right';
+  let phase = 'walk';
+  let turnProgress = 0;
+  let turnDirection = 0;
+
+  const buildPivotPose = ({ yaw, direction = 0, progress = 0 }) => {
+    const pivotPose = buildAnimatedPose({
+      baseYaw: yaw,
+      loopId: 'calm',
+      speed: 1,
+      intensity: 0,
+      timeline: 0,
+    });
+    const pose = pivotPose.pose;
+    const turnWave = Math.sin(progress * Math.PI);
+    const animationOffsets = {};
+
+    pose.stanceWidth = clamp(8.5 + turnWave * 0.8, 8, 34);
+    pose.kneeSoftness = clamp(2.4 + turnWave * 0.9 * gain, 0, 18);
+    pose.armSpread = clamp(pose.armSpread - 1.6, 10, 36);
+    pose.torsoLean = clamp(pose.torsoLean + direction * turnWave * 0.8 * gain, -14, 14);
+    pose.headYaw = clamp(pose.headYaw + direction * turnWave * 5.5 * gain, -90, 90);
+    pose.headRoll = clamp(pose.headRoll + direction * turnWave * 0.8 * gain, -35, 35);
+    pose.headPitch = clamp(pose.headPitch - 0.4 - turnWave * 0.2, -35, 35);
+
+    setAnimationOffset(animationOffsets, 'leftHand', 0, turnWave * 0.9, direction * 1.2);
+    setAnimationOffset(animationOffsets, 'rightHand', 0, turnWave * 0.6, -direction * 1.2);
+    setAnimationOffset(animationOffsets, 'leftFoot', direction * 0.8, 0, direction * 1.2);
+    setAnimationOffset(animationOffsets, 'rightFoot', direction * 1.4, 0, -direction * 1.2);
+
+    pose.animationOffsets = animationOffsets;
+
+    return pivotPose;
+  };
+
+  if (cyclePosition < cyclesPerTraverse) {
+    const travelProgress = cyclePosition / cyclesPerTraverse;
+    travelX = lerp(leftExitX, rightTurnX, travelProgress);
+    baseYaw = -90;
+    statusLabel = 'Facing right';
+  } else if (cyclePosition < cyclesPerTraverse + settleCycles) {
+    travelX = rightTurnX;
+    baseYaw = -90;
+    phase = 'settle';
+    turnDirection = -1;
+    statusLabel = 'Settling right';
+  } else if (cyclePosition < cyclesPerTraverse + settleCycles + turnCycles) {
+    turnProgress = (cyclePosition - (cyclesPerTraverse + settleCycles)) / turnCycles;
+    travelX = lerp(rightTurnX, rightExitX, easeInOutSine(turnProgress));
+    baseYaw = lerp(-90, -270, easeInOutSine(turnProgress));
+    phase = 'turn';
+    turnDirection = -1;
+    statusLabel = 'Turning left';
+  } else if (cyclePosition < cyclesPerTraverse * 2 + settleCycles + turnCycles) {
+    const travelProgress =
+      (cyclePosition - (cyclesPerTraverse + settleCycles + turnCycles)) / cyclesPerTraverse;
+    travelX = lerp(rightExitX, leftTurnX, travelProgress);
+    baseYaw = 90;
+    statusLabel = 'Facing left';
+  } else if (cyclePosition < cyclesPerTraverse * 2 + settleCycles * 2 + turnCycles) {
+    travelX = leftTurnX;
+    baseYaw = 90;
+    phase = 'settle';
+    turnDirection = 1;
+    statusLabel = 'Settling left';
+  } else {
+    turnProgress =
+      (cyclePosition - (cyclesPerTraverse * 2 + settleCycles * 2 + turnCycles)) / turnCycles;
+    travelX = lerp(leftTurnX, leftExitX, easeInOutSine(turnProgress));
+    baseYaw = lerp(90, 270, easeInOutSine(turnProgress));
+    phase = 'turn';
+    turnDirection = 1;
+    statusLabel = 'Turning right';
+  }
+
+  const animated =
+    phase === 'walk'
+      ? buildAnimatedPose({
+          baseYaw,
+          loopId: 'walk',
+          speed,
+          intensity,
+          timeline,
+        })
+      : buildPivotPose({
+          yaw: baseYaw,
+          direction: turnDirection,
+          progress: phase === 'turn' ? turnProgress : 0,
+        });
 
   return {
     animated,
     travelX,
-    facingLabel: movingRight ? 'Right' : 'Left',
+    statusLabel,
     corridorHalfSpan: travelHalfSpan,
     corridorWidth,
   };
@@ -931,7 +1018,7 @@ export default function StickmanIdleLab() {
               Fixed Walk Loop
             </div>
             <div className="absolute bottom-6 left-6 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400">
-              Facing {trackWalk.facingLabel}
+              {trackWalk.statusLabel}
             </div>
             <div className="absolute bottom-6 right-6 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400">
               Span {Math.round(trackWalk.corridorWidth)}px
@@ -1054,8 +1141,8 @@ export default function StickmanIdleLab() {
                 </p>
                 <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p className="text-slate-400 dark:text-slate-500">Facing</p>
-                    <p className="mt-1 font-semibold text-slate-900 dark:text-white">{trackWalk.facingLabel}</p>
+                    <p className="text-slate-400 dark:text-slate-500">State</p>
+                    <p className="mt-1 font-semibold text-slate-900 dark:text-white">{trackWalk.statusLabel}</p>
                   </div>
                   <div>
                     <p className="text-slate-400 dark:text-slate-500">Travel X</p>

@@ -255,7 +255,8 @@ This document tracks the isolated stickman work happening in the lab before any 
 - The first pacing pass is in a better place than the initial version:
   - direction/facing are no longer inverted
   - root travel is no longer using a separate ease-in/ease-out slope against a fixed gait
-  - the remaining obvious issue is the edge turn, which still snaps too directly between left and right
+  - the edge turn is now better than the earlier snap and rebound versions
+  - the current turn uses a short `settle -> turn -> exit` treatment, which feels acceptable as a checkpoint even though it is still an approximation
 - The current conclusion is that the quarter walk likely needs its own clearer contact / pass / lift / plant treatment, with straighter local-space back-step tracking, instead of more small parameter tuning on the shared cycle.
 - Endpoint gizmos are hidden by default in the animation lab and can be turned back on as a debug layer.
 - Scope is still deliberately narrow:
@@ -271,6 +272,6 @@ This document tracks the isolated stickman work happening in the lab before any 
 5. Refine the face-plane cue if quarter turns still feel weak.
 6. Decide which shape presets are actually worth keeping once more silhouettes are tested.
 7. Decide whether head-to-torso gap and limb arc direction should remain fixed defaults or become preserved preset fields only.
-8. Smooth the pacing turn at each edge so the figure rotates through a short turn phase instead of snapping directly from left to right.
+8. If the pacing turn still feels too approximate, replace the current settle-and-turn pass with a more explicit foot-supported pivot.
 9. Add edge pauses and explicit turn behavior to the new left-right pacing preview once the core walk feels stable.
 10. Once idle, walk, and pacing feel stable, explore transitions and project-specific actions.
