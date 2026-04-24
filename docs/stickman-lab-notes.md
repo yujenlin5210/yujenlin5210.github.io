@@ -143,7 +143,7 @@ This document tracks the isolated stickman work happening in the lab before any 
   - head height = `38`
   - torso width = `32`
   - torso height = `52`
-  - arm length = `60`
+  - arm length = `56`
   - leg length = `44`
   - torso lean = `0`
   - arm spread = `12`
@@ -229,11 +229,20 @@ This document tracks the isolated stickman work happening in the lab before any 
   - the knees absorb a small amount of settling so the upper and lower body stay connected
 - `buoyant` is now the default idle loop because it currently gives the clearest connected breathing read.
 - A first in-place walk cycle now runs through the same rig using asymmetric arm swing, lifted swing feet, and per-limb bend offsets.
+- The shared stickman baseline now also follows the current cover-study proportions:
+  - larger rounder head
+  - fatter compact torso
+  - shorter legs
+  - shorter arms
 - The current walk checkpoint is mixed:
   - front view now reads closer to the intended `()` leg shape
   - side view is better than the first pass and the knee bend is less severe
-  - the default quarter view at roughly 40 degrees still does not feel grounded and still reads too much like paddling or swimming
-- The current conclusion is that the quarter walk likely needs its own clearer contact / pass / lift / plant treatment instead of more small parameter tuning on the shared cycle.
+  - the quarter walk still does not feel grounded enough and still shows some outward foot drift during the back-step portion
+- The motion lab controls are now more practical for debugging gait:
+  - direct body-yaw slider
+  - smaller quick facing buttons without per-button descriptive copy
+  - quarter preset nudged slightly forward from the older 40-degree default
+- The current conclusion is that the quarter walk likely needs its own clearer contact / pass / lift / plant treatment, with straighter local-space back-step tracking, instead of more small parameter tuning on the shared cycle.
 - Endpoint gizmos are hidden by default in the animation lab and can be turned back on as a debug layer.
 - Scope is still deliberately narrow:
   - buoyant idle plus first walk cycle
@@ -243,7 +252,7 @@ This document tracks the isolated stickman work happening in the lab before any 
 1. Decide whether the gizmos should stay visible in the final lab presentation or become debug-only.
 2. Add shoulder and hip twist so front/back views feel less flat.
 3. Add more renderer variants now that the slot system exists.
-4. Rebuild the quarter-view walk with clearer planted contact timing and body weight transfer so it stops reading like paddling.
+4. Rebuild the quarter-view walk with clearer planted contact timing, body weight transfer, and local-space back-step tracking so it stops reading like paddling or outward sliding.
 5. Refine the face-plane cue if quarter turns still feel weak.
 6. Decide which shape presets are actually worth keeping once more silhouettes are tested.
 7. Decide whether head-to-torso gap and limb arc direction should remain fixed defaults or become preserved preset fields only.

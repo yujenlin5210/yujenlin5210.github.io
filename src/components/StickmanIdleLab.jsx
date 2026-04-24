@@ -40,7 +40,7 @@ const FACING_OPTIONS = [
     id: 'quarter',
     label: 'Quarter',
     description: 'The current preferred 2.5D baseline.',
-    yaw: 40,
+    yaw: 34,
   },
   {
     id: 'front',
@@ -86,6 +86,12 @@ function formatMetricValue(value, unit, signed = false) {
   const roundedValue = Number(value.toFixed(1));
   const prefix = signed && roundedValue > 0 ? '+' : '';
   return `${prefix}${roundedValue}${unit}`;
+}
+
+function formatSignedDegrees(value) {
+  const roundedValue = Math.round(value);
+  const prefix = roundedValue > 0 ? '+' : '';
+  return `${prefix}${roundedValue}deg`;
 }
 
 function getLimbStyle(depth) {
@@ -249,21 +255,23 @@ function applyWalkCycle(pose, t, gain, baseYaw) {
     const handY = -Math.max(0, armStride) * 1.3 * gain;
     const desiredArmCurveY = 1.4 * gain + Math.max(0, armStride) * 1.2 * gain;
     const elbowY = -baseArmCurveY + desiredArmCurveY;
+    const trackReach = lerp(footReach, hipSpan + 2.6, quarterBias);
     const frontPerspectiveCancel = -footZ * lerp(0.24, 0.26, profile) * frontOnlyBias;
-    const frontFootTarget = lerp(footReach, hipSpan - 0.8, frontOnlyBias);
-    const frontFootInward = sideSign * (frontFootTarget - footReach) * gain;
-    const swingOutward = isStancePhase ? 0 : sideSign * swingCurve * 0.32 * frontOnlyBias * gain;
+    const frontFootTarget = lerp(trackReach, hipSpan - 1.6, frontOnlyBias);
+    const frontFootInward = sideSign * (frontFootTarget - trackReach) * gain;
+    const swingOutward = isStancePhase ? 0 : sideSign * swingCurve * 0.18 * frontOnlyBias * gain;
     const profileCross = isStancePhase
       ? 0
       : -sideSign * swingCurve * 0.12 * (1 - frontOnlyBias) * profile * gain;
-    const footX = frontPerspectiveCancel + frontFootInward + swingOutward + profileCross;
+    const quarterBackTrack = -sideSign * Math.max(0, -footZ) * 0.28 * quarterBias;
+    const footX = frontPerspectiveCancel + frontFootInward + swingOutward + profileCross + quarterBackTrack;
     const hipPoint = {
       x: sideSign * hipSpan,
       y: hipY,
       z: 0,
     };
     const footPoint = {
-      x: sideSign * footReach + footX,
+      x: sideSign * trackReach + footX,
       y: WALK_GROUND_Y + footY,
       z: footZ,
     };
@@ -272,7 +280,7 @@ function applyWalkCycle(pose, t, gain, baseYaw) {
       foot: footPoint,
       upperLength: thighLength,
       lowerLength: shinLength,
-      bendWeight: isStancePhase ? 0.01 : lerp(0.12, 0.34, profile) * lerp(1, 0.68, quarterBias),
+      bendWeight: isStancePhase ? 0.01 : lerp(0.09, 0.26, profile) * lerp(1, 0.58, quarterBias),
     });
     const frontKneeOpen = sideSign * lerp(0.2, 0.32, swingCurve) * frontOnlyBias * gain;
     if (!isStancePhase) {
@@ -438,14 +446,26 @@ function RangeField({ id, label, value, min, max, step, displayValue, onChange }
   );
 }
 
-function ChoiceGrid({ title, description, options, activeId, columns = 2, onSelect, renderMeta }) {
+function ChoiceGrid({
+  title,
+  description = null,
+  options,
+  activeId,
+  columns = 2,
+  onSelect,
+  renderMeta,
+  compact = false,
+  hideOptionDescriptions = false,
+}) {
   return (
     <section>
       <div className="mb-3">
         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
           {title}
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{description}</p>
+        {description ? (
+          <p className="mt-2 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{description}</p>
+        ) : null}
       </div>
       <div className={`grid gap-3 ${columns === 1 ? 'grid-cols-1' : columns === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
         {options.map((option) => {
@@ -456,19 +476,27 @@ function ChoiceGrid({ title, description, options, activeId, columns = 2, onSele
               key={option.id}
               type="button"
               onClick={() => onSelect(option.id)}
-              className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-colors ${
+              className={`border text-left font-semibold transition-colors ${
+                compact ? 'rounded-xl px-3 py-2 text-xs' : 'rounded-2xl px-4 py-3 text-sm'
+              } ${
                 isActive
                   ? 'border-indigo-500 bg-indigo-600 text-white'
                   : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
               }`}
             >
-              <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
+              <span
+                className={`block font-mono uppercase opacity-70 ${
+                  compact ? 'text-[10px] tracking-[0.2em]' : 'text-[11px] tracking-[0.24em]'
+                }`}
+              >
                 {option.label}
               </span>
-              <span className="mt-2 block text-xs font-medium leading-relaxed opacity-80">
-                {option.description}
-              </span>
-              {renderMeta ? (
+              {!hideOptionDescriptions ? (
+                <span className="mt-2 block text-xs font-medium leading-relaxed opacity-80">
+                  {option.description}
+                </span>
+              ) : null}
+              {renderMeta && !compact ? (
                 <span className="mt-3 block font-mono text-[10px] uppercase tracking-[0.2em] opacity-60">
                   {renderMeta(option)}
                 </span>
@@ -484,14 +512,14 @@ function ChoiceGrid({ title, description, options, activeId, columns = 2, onSele
 export default function StickmanIdleLab() {
   const prefersReducedMotion = usePrefersReducedMotion();
   const [loopId, setLoopId] = useState('buoyant');
-  const [facingId, setFacingId] = useState('quarter');
+  const [bodyYaw, setBodyYaw] = useState(FACING_OPTIONS[0].yaw);
   const [speed, setSpeed] = useState(1);
   const [intensity, setIntensity] = useState(100);
   const [showGizmos, setShowGizmos] = useState(false);
   const [paused, setPaused] = useState(false);
   const [timeline, setTimeline] = useState(0);
   const timelineRef = useRef(0);
-  const facing = FACING_OPTIONS.find((option) => option.id === facingId) || FACING_OPTIONS[0];
+  const activeFacing = FACING_OPTIONS.find((option) => Math.abs(option.yaw - bodyYaw) < 0.5) || null;
   const autoPlay = !prefersReducedMotion && !paused;
 
   useEffect(() => {
@@ -524,7 +552,7 @@ export default function StickmanIdleLab() {
   }, [autoPlay]);
 
   const animated = buildAnimatedPose({
-    baseYaw: facing.yaw,
+    baseYaw: bodyYaw,
     loopId,
     speed,
     intensity,
@@ -723,14 +751,32 @@ export default function StickmanIdleLab() {
               onSelect={setLoopId}
             />
 
+            <RangeField
+              id="stickman-motion-yaw"
+              label="Body Yaw"
+              value={bodyYaw}
+              min={-180}
+              max={180}
+              step={1}
+              displayValue={formatSignedDegrees(bodyYaw)}
+              onChange={setBodyYaw}
+            />
+
             <ChoiceGrid
               title="Facing Check"
-              description="Keep checking the same loop across front, quarter, profile, and back views."
+              description={null}
               options={FACING_OPTIONS}
-              activeId={facingId}
+              activeId={activeFacing?.id || null}
               columns={2}
-              onSelect={setFacingId}
-              renderMeta={(option) => `${option.yaw}deg`}
+              compact
+              hideOptionDescriptions
+              onSelect={(nextFacingId) => {
+                const nextFacing = FACING_OPTIONS.find((option) => option.id === nextFacingId);
+
+                if (nextFacing) {
+                  setBodyYaw(nextFacing.yaw);
+                }
+              }}
             />
 
             <RangeField
