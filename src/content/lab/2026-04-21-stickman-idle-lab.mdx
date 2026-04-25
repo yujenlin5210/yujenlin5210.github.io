@@ -1,7 +1,7 @@
 ---
-title: "Stickman Motion Lab: Idle And Walk Baseline"
+title: "Stickman Rig Lab: Motion And Props"
 date: "2026-04-21"
-description: "A separate motion study that reuses the new 2.5D stickman rig for buoyant idle breathing, in-place walk tuning, and a first left-right pacing preview."
+description: "The rebuilt stickman runtime opened deeper into the roadmap, with idle, walking, and prop-slot validation already unlocked."
 folder: "stickman-idle-lab"
 cover: "cover.svg"
 hideCover: true
@@ -10,47 +10,6 @@ tags: [React, Framer-Motion, SVG, Character-Design, Animation-Systems]
 
 import StickmanIdleLab from '../../components/StickmanIdleLab.jsx';
 
-<div class="not-prose relative left-1/2 w-[min(100vw-2rem,78rem)] -translate-x-1/2 px-1 sm:px-0">
+<div class="not-prose relative left-1/2 w-[min(100vw-2rem,84rem)] -translate-x-1/2 px-1 sm:px-0">
   <StickmanIdleLab client:visible />
 </div>
-
-This post is the motion branch of the stickman lab. The [standing pose lab](/lab/2026-04-21-stickman-pose-lab) remains the silhouette and facing sandbox; this page is where the current 2.5D rig is pushed through breathing, gait, and transition studies.
-
-#### Goal
-
-Validate the buoyant idle baseline, tune the first in-place walking cycle, and start a separate left-right pacing preview before touching props or project-specific actions.
-
-#### Current scope
-
-- Reuse the existing lab rig and renderer modules instead of forking them
-- Test idle, in-place gait, and root travel on the preferred standing baseline
-- Keep shape editing out of this page so motion decisions stay isolated
-- Hide endpoint gizmos by default, with a debug toggle when needed
-
-#### What is live in this first pass
-
-- Four loop profiles:
-  - `calm`
-  - `buoyant`
-  - `watchful`
-  - `walk`
-- `buoyant` is the current default because it gives the breathing pass the clearest full-body read so far
-- Facing checks for front, quarter, right, and back views
-- A direct body-yaw slider plus smaller quick facing buttons for checking in-between angles without leaving the motion page
-- Tempo and intensity controls for tuning the motion envelope
-- A second `Track Walk Study` preview with a wider horizontal stage, controls below the preview, and a left/right pacing pass locked to side views
-- A fixed classic renderer baseline while the motion language is still being tuned
-- A planted breathing pass where the torso carries the inhale and the knees take a small settling response
-- A first asymmetrical walk cycle with arm swing, foot lift, and limb-depth changes running through the same shared rig
-- A first root-travel pass that scales the corridor width, defaults to the widest track span, and ties pacing speed more closely to the walk cadence
-- A first edge-turn pass for the pacing preview that now settles and turns more cleanly instead of snapping directly or bouncing off the boundary
-- Reduced-motion handling that pauses autoplay and falls back to manual scrubbing
-
-#### Next experiments
-
-- Shoulder and hip twist layered on top of the existing rig
-- Cleaner foot planting, contact timing, and straighter quarter-view back-step tracking in the walk cycle
-- A more explicit foot-supported pivot for the pacing turn, if the current settle-and-turn pass still feels too approximate
-- Transitions from buoyant idle into walking
-- A decision on whether endpoint gizmos stay debug-only
-- Transition tests into walk cycles and project-specific actions

@@ -21,6 +21,30 @@ body {
   width: 100%;
 }
 
+body > header {
+  transition:
+    transform 220ms ease,
+    opacity 220ms ease;
+  will-change: transform;
+}
+
+body > footer {
+  transition: opacity 220ms ease;
+}
+
+body.immersive-stickman-workspace-active > header {
+  transform: translate3d(0, calc(-100% - 0.75rem), 0);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (min-width: 1024px) {
+  body.immersive-stickman-workspace-active > footer {
+    opacity: 0;
+    pointer-events: none;
+  }
+}
+
 .perspective-1000 {
   perspective: 1000px;
 }

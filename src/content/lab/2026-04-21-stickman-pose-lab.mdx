@@ -1,7 +1,7 @@
 ---
-title: "Stickman Pose Lab: Standing Baseline"
+title: "Stickman Rig Lab: Standing Foundation"
 date: "2026-04-21"
-description: "A lab-only sandbox for tuning a standing stickman pose before porting any ideas back to the projects page."
+description: "The new canonical 2.5D rig sandbox, opened at the standing phase so the rebuilt silhouette and facing logic can be reviewed first."
 folder: "stickman-pose-lab"
 cover: "cover.svg"
 hideCover: true
@@ -10,50 +10,6 @@ tags: [React, Framer-Motion, SVG, Character-Design, Animation-Systems]
 
 import StickmanPoseWorkbench from '../../components/StickmanPoseWorkbench.jsx';
 
-<div class="not-prose relative left-1/2 w-[min(100vw-2rem,78rem)] -translate-x-1/2 px-1 sm:px-0">
+<div class="not-prose relative left-1/2 w-[min(100vw-2rem,84rem)] -translate-x-1/2 px-1 sm:px-0">
   <StickmanPoseWorkbench client:visible />
 </div>
-
-This page is the safe branch for the next stickman pass. Nothing here is wired to the projects page stickman or the existing action registry, so we can tune the baseline pose without risking a regression on `/projects`.
-
-#### Goal
-
-Establish a clean standing silhouette that feels solid before we layer in more animation states, transitions, or props.
-
-#### Current scope
-
-- One lab-only standing figure
-- A reusable 2.5D rig builder with four facing presets plus continuous yaw control
-- Local controls for body yaw, head yaw/pitch/roll, head/body/limb style, limb arc direction, head and body size, torso and head proportions, arm and leg length, plus stance tuning
-- Head and body profile presets so the silhouette can stay rounder or flatter through turns
-- Swappable renderer slots for `head`, `body`, and `limbs`
-- Shape presets for quickly swapping between a few silhouette families before fine-tuning
-- A small preset snapshot that makes the current values easy to port later
-
-#### Current editor structure
-
-- `Body` for facing presets and continuous yaw
-- `Head` for yaw, pitch, and roll
-- `Shape` split into `Silhouette`, `Size`, `Proportions`, and `Stance`
-- `Silhouette` further split into `Styles`, `Profiles`, and `Presets`
-
-#### Recent progress
-
-- Neutral head rotation now defaults to all zero
-- Head and torso profile presets can stay rounder through turns
-- Limb arc direction now stays consistent as the character rotates
-- The renderer is now modular enough to swap style families without changing the rig
-- First alternate style variants are now live:
-  - polygon head
-  - Michelin-style torso
-  - spring limbs
-- The current preferred standing preset now follows the cover-study proportions: a quarter-facing, round-profile silhouette with a bigger rounder head, a fatter shorter torso, shorter legs, and tighter limb spacing
-
-#### Next experiments
-
-- Alternate standing presets
-- More head/body/limb style families
-- Shoulder and hip twist
-- Subtle idle-motion passes
-- Prop attachment tests
-- Transition tests into walking and project-specific actions

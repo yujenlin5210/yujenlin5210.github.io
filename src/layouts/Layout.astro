@@ -11,6 +11,7 @@ interface Props {
 }
 
 const { title, description = "Yu-Jen Lin - Portfolio", maxWidth = "max-w-5xl", image = '/assets/images/meta.png' } = Astro.props;
+const showConstructionBanner = false;
 ---
 
 <!doctype html>
@@ -39,9 +40,11 @@ const { title, description = "Yu-Jen Lin - Portfolio", maxWidth = "max-w-5xl", i
 
 		<ClientRouter /></head>
 	<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white dark:bg-slate-950 dark:text-slate-50">
-		<div class="w-full bg-indigo-600 text-white text-center py-2 px-4 text-sm font-medium sticky top-0 z-[60]">
-			🚧 This website is currently under construction. Some information may be incomplete. Please refer to my <a href="https://www.linkedin.com/in/yujenlin1/" class="underline hover:text-indigo-200 transition-colors">LinkedIn</a> for up-to-date details.
-		</div>
+		{showConstructionBanner && (
+			<div class="w-full bg-indigo-600 text-white text-center py-2 px-4 text-sm font-medium sticky top-0 z-[60]">
+				🚧 This website is currently under construction. Some information may be incomplete. Please refer to my <a href="https://www.linkedin.com/in/yujenlin1/" class="underline hover:text-indigo-200 transition-colors">LinkedIn</a> for up-to-date details.
+			</div>
+		)}
 		{(Astro.url.pathname === '/projects' || Astro.url.pathname === '/projects/') && <Stickman client:idle />}
 		<header class={`w-full ${maxWidth} mx-auto p-6 flex items-center justify-between sticky top-0 z-50 bg-slate-50/80 backdrop-blur-md dark:bg-slate-950/80`}>
 			<a href="/" class="text-xl font-bold tracking-tight hover:text-indigo-500 transition-colors">YJ.</a>
