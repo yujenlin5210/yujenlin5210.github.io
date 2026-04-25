@@ -193,6 +193,7 @@ function applyWalkCycle(pose, t, gain, baseYaw) {
   const walkCycle = t * 1.05;
   const walkPhase = walkCycle * Math.PI * 2;
   const animationOffsets = {};
+  const bodyBob = Math.sin(walkPhase * 2 - 0.42);
   const shoulderTwist = Math.sin(walkPhase) * 1.2 * frontness * gain;
   const hipTwist = Math.sin(walkPhase) * 0.7 * frontness * gain;
   const stepLength = lerp(2.6, 15, profile) * lerp(1, 0.74, quarterBias) * gain;
@@ -202,8 +203,9 @@ function applyWalkCycle(pose, t, gain, baseYaw) {
   let stepLift = 0;
   let strideDepth = 0;
 
-  pose.legLength -= (Math.abs(Math.sin(walkPhase)) * 1.1 + quarterBias * 0.5) * gain;
-  pose.torsoHeight += Math.sin(walkPhase * 2 - 0.4) * 0.2 * gain;
+  pose.rootYOffset = -bodyBob * 2.4 * gain;
+  pose.legLength -= (Math.abs(Math.sin(walkPhase)) * 0.4 + quarterBias * 0.18) * gain;
+  pose.torsoHeight += bodyBob * 0.12 * gain;
   pose.headPitch += -0.35 + Math.sin(walkPhase * 2 - 0.3) * 0.1 * gain;
   pose.headRoll += Math.sin(walkPhase) * 0.08 * frontness * gain;
   pose.headYaw += Math.sin(walkPhase) * 0.12 * frontness * gain;
@@ -222,7 +224,7 @@ function applyWalkCycle(pose, t, gain, baseYaw) {
 
   const torsoWidth = (pose.torsoWidth || DEFAULT_STICKMAN_LAB_POSE.torsoWidth) * bodyScale;
   const hipSpan = torsoWidth * 0.29;
-  const hipY = WALK_GROUND_Y - (pose.legLength - 6);
+  const hipY = WALK_GROUND_Y - (pose.legLength - 6) + (pose.rootYOffset || 0);
   const footReach =
     10 +
     pose.stanceWidth +

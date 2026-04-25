@@ -359,7 +359,8 @@ export function buildStickmanLabRig(pose) {
   const headProfilePreset = getHeadProfilePreset(pose.headProfilePreset);
   const bodyProfilePreset = getBodyProfilePreset(pose.bodyProfilePreset);
   const animationOffsets = pose.animationOffsets || {};
-  const hipY = BASE_LAYOUT.groundY - (legLength - 6);
+  const rootYOffset = pose.rootYOffset || 0;
+  const hipY = BASE_LAYOUT.groundY - (legLength - 6) + rootYOffset;
   const bodyY = hipY - torsoHeight - 2;
   const shoulderY = bodyY + 12;
   const headBaseRx = headWidth / 2;
