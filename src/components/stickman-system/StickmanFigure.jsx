@@ -4,7 +4,8 @@ import {
   StickmanHeadRenderer,
   StickmanLimbRenderer,
 } from '../stickman-lab/renderers';
-import { STICKMAN_DEFAULT_STYLE } from './config';
+import { getHeadsetTransitionMotion } from './clips';
+import { STICKMAN_DEFAULT_STYLE, STICKMAN_HEADSET_PROP_IDS } from './config';
 
 const RENDER_TRANSITION = { duration: 0 };
 
@@ -46,6 +47,66 @@ function getEndpointGizmoStyle(type, depth, showGizmos) {
         : 'text-amber-500 dark:text-amber-300',
     opacity: baseOpacity,
   };
+}
+
+function isHeadsetPropId(propId) {
+  return STICKMAN_HEADSET_PROP_IDS.includes(propId);
+}
+
+function getPropRenderPresentation(propId, attachments, role) {
+  if (!isHeadsetPropId(propId)) {
+    return { y: 0 };
+  }
+
+  const transition = attachments.headsetPropTransition;
+
+  if (!transition || transition.headsetPropId !== propId) {
+    return { y: 0 };
+  }
+
+  const motion = getHeadsetTransitionMotion(transition, attachments.bodyYaw);
+
+  if (!motion) {
+    return { y: 0 };
+  }
+
+  if (transition.kind === 'donning' && role === 'current') {
+    return { y: motion.headsetY };
+  }
+
+  if (transition.kind === 'doffing' && role === 'previous') {
+    return { y: motion.headsetY };
+  }
+
+  return { y: 0 };
+}
+
+function getPropOpacity(propId, attachments, role, fallbackOpacity) {
+  if (!isHeadsetPropId(propId)) {
+    return fallbackOpacity;
+  }
+
+  const transition = attachments.headsetPropTransition;
+
+  if (!transition || transition.headsetPropId !== propId) {
+    return fallbackOpacity;
+  }
+
+  const motion = getHeadsetTransitionMotion(transition, attachments.bodyYaw);
+
+  if (!motion) {
+    return fallbackOpacity;
+  }
+
+  if (transition.kind === 'donning' && role === 'current') {
+    return motion.currentOpacity;
+  }
+
+  if (transition.kind === 'doffing' && role === 'previous') {
+    return motion.previousOpacity;
+  }
+
+  return fallbackOpacity;
 }
 
 function getHeadsetMetrics(pose) {
@@ -115,7 +176,19 @@ function HeadsetBand({ pose, strokeClassName, strokeWidth = 3 }) {
   );
 }
 
-function VRHeadsetSolidProp({ pose, opacity }) {
+function HeadsetMotionGroup({ opacity, presentation, children }) {
+  return (
+    <motion.g
+      initial={false}
+      animate={{ opacity, y: presentation?.y || 0 }}
+      transition={RENDER_TRANSITION}
+    >
+      {children}
+    </motion.g>
+  );
+}
+
+function VRHeadsetSolidProp({ pose, opacity, presentation }) {
   const boxWidth = 40;
   const boxDepth = 24;
   const boxHeight = 19;
@@ -123,7 +196,7 @@ function VRHeadsetSolidProp({ pose, opacity }) {
   const visorWidth = boxWidth * (1 - profileAmount) + boxDepth * profileAmount;
 
   return (
-    <motion.g initial={false} animate={{ opacity }} transition={RENDER_TRANSITION}>
+    <HeadsetMotionGroup opacity={opacity} presentation={presentation}>
       <HeadsetBand pose={pose} strokeClassName="text-slate-700 dark:text-slate-300" />
       {visorOpacity > 0.01 && (
         <rect
@@ -137,11 +210,11 @@ function VRHeadsetSolidProp({ pose, opacity }) {
           opacity={Math.min(1, visorOpacity)}
         />
       )}
-    </motion.g>
+    </HeadsetMotionGroup>
   );
 }
 
-function VRHeadsetWireProp({ pose, opacity, fill, fillClassName, strokeClassName }) {
+function VRHeadsetWireProp({ pose, opacity, presentation, fill, fillClassName, strokeClassName }) {
   const boxWidth = 40;
   const boxDepth = 24;
   const boxHeight = 19;
@@ -149,7 +222,7 @@ function VRHeadsetWireProp({ pose, opacity, fill, fillClassName, strokeClassName
   const visorWidth = boxWidth * (1 - profileAmount) + boxDepth * profileAmount;
 
   return (
-    <motion.g initial={false} animate={{ opacity }} transition={RENDER_TRANSITION}>
+    <HeadsetMotionGroup opacity={opacity} presentation={presentation}>
       <HeadsetBand pose={pose} strokeClassName={strokeClassName} strokeWidth={2.8} />
       {visorOpacity > 0.01 && (
         <>
@@ -177,11 +250,11 @@ function VRHeadsetWireProp({ pose, opacity, fill, fillClassName, strokeClassName
           />
         </>
       )}
-    </motion.g>
+    </HeadsetMotionGroup>
   );
 }
 
-function VRHeadsetBobaProp({ pose, opacity }) {
+function VRHeadsetBobaProp({ pose, opacity, presentation }) {
   const shellWidthFront = 44;
   const shellWidthProfile = 30;
   const shellHeight = 20;
@@ -191,7 +264,7 @@ function VRHeadsetBobaProp({ pose, opacity }) {
   const centerY = pose.slots.face.y;
   const shellPath = buildBobaVisorPath(centerX, centerY, visorWidth, shellHeight, profileAmount);
   return (
-    <motion.g initial={false} animate={{ opacity }} transition={RENDER_TRANSITION}>
+    <HeadsetMotionGroup opacity={opacity} presentation={presentation}>
       <HeadsetBand pose={pose} strokeClassName="text-slate-800 dark:text-slate-300" strokeWidth={3.1} />
       {visorOpacity > 0.01 && (
         <>
@@ -211,18 +284,18 @@ function VRHeadsetBobaProp({ pose, opacity }) {
           />
         </>
       )}
-    </motion.g>
+    </HeadsetMotionGroup>
   );
 }
 
-function renderProp(propId, pose, opacity, layer) {
+function renderProp(propId, pose, opacity, layer, presentation) {
   if (!propId || propId === 'none' || opacity <= 0.01) {
     return null;
   }
 
   if (layer === 'head') {
     if (propId === 'vr-headset') {
-      return <VRHeadsetSolidProp pose={pose} opacity={opacity} />;
+      return <VRHeadsetSolidProp pose={pose} opacity={opacity} presentation={presentation} />;
     }
 
     if (propId === 'vr-headset-wire-dark') {
@@ -230,6 +303,7 @@ function renderProp(propId, pose, opacity, layer) {
         <VRHeadsetWireProp
           pose={pose}
           opacity={opacity}
+          presentation={presentation}
           fill="white"
           fillClassName=""
           strokeClassName="text-slate-900 dark:text-slate-100"
@@ -242,6 +316,7 @@ function renderProp(propId, pose, opacity, layer) {
         <VRHeadsetWireProp
           pose={pose}
           opacity={opacity}
+          presentation={presentation}
           fill="currentColor"
           fillClassName="text-slate-900 dark:text-slate-950"
           strokeClassName="text-white dark:text-slate-100"
@@ -250,7 +325,7 @@ function renderProp(propId, pose, opacity, layer) {
     }
 
     if (propId === 'vr-headset-boba') {
-      return <VRHeadsetBobaProp pose={pose} opacity={opacity} />;
+      return <VRHeadsetBobaProp pose={pose} opacity={opacity} presentation={presentation} />;
     }
   }
 
@@ -258,9 +333,32 @@ function renderProp(propId, pose, opacity, layer) {
 }
 
 export default function StickmanFigure({ pose, attachments, showGizmos }) {
-  const previousPropOpacity =
+  const previousPropBaseOpacity =
     attachments.previousPropId !== attachments.currentPropId ? 1 - attachments.blendProgress : 0;
-  const currentPropOpacity = attachments.currentPropId === attachments.previousPropId ? 1 : attachments.blendProgress;
+  const currentPropBaseOpacity =
+    attachments.currentPropId === attachments.previousPropId ? 1 : attachments.blendProgress;
+  const previousPropOpacity = getPropOpacity(
+    attachments.previousPropId,
+    attachments,
+    'previous',
+    previousPropBaseOpacity
+  );
+  const currentPropOpacity = getPropOpacity(
+    attachments.currentPropId,
+    attachments,
+    'current',
+    currentPropBaseOpacity
+  );
+  const previousPropPresentation = getPropRenderPresentation(
+    attachments.previousPropId,
+    attachments,
+    'previous'
+  );
+  const currentPropPresentation = getPropRenderPresentation(
+    attachments.currentPropId,
+    attachments,
+    'current'
+  );
 
   return (
     <g>
@@ -294,8 +392,8 @@ export default function StickmanFigure({ pose, attachments, showGizmos }) {
         transition={RENDER_TRANSITION}
       />
 
-      {renderProp(attachments.previousPropId, pose, previousPropOpacity, 'head')}
-      {renderProp(attachments.currentPropId, pose, currentPropOpacity, 'head')}
+      {renderProp(attachments.previousPropId, pose, previousPropOpacity, 'head', previousPropPresentation)}
+      {renderProp(attachments.currentPropId, pose, currentPropOpacity, 'head', currentPropPresentation)}
 
       {pose.limbs.front.map((limb) => {
         const style = getLimbStyle(limb.depth);
@@ -315,8 +413,8 @@ export default function StickmanFigure({ pose, attachments, showGizmos }) {
         );
       })}
 
-      {renderProp(attachments.previousPropId, pose, previousPropOpacity, 'front')}
-      {renderProp(attachments.currentPropId, pose, currentPropOpacity, 'front')}
+      {renderProp(attachments.previousPropId, pose, previousPropOpacity, 'front', previousPropPresentation)}
+      {renderProp(attachments.currentPropId, pose, currentPropOpacity, 'front', currentPropPresentation)}
     </g>
   );
 }

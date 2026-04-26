@@ -1,4 +1,4 @@
-import { STICKMAN_DEFAULT_SHAPE } from './config';
+import { STICKMAN_DEFAULT_SHAPE, STICKMAN_HEADSET_PROP_IDS } from './config';
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
@@ -8,8 +8,16 @@ function lerp(start, end, t) {
   return start + (end - start) * t;
 }
 
+function degToRad(value) {
+  return (value * Math.PI) / 180;
+}
+
 function easeInOutSine(t) {
   return -(Math.cos(Math.PI * t) - 1) / 2;
+}
+
+function easeOutSine(t) {
+  return Math.sin((t * Math.PI) / 2);
 }
 
 function normalizeUnitCycle(value) {
@@ -18,6 +26,10 @@ function normalizeUnitCycle(value) {
 
 function createPoint(x = 0, y = 0, z = 0) {
   return { x, y, z };
+}
+
+function isHeadsetPropId(propId) {
+  return STICKMAN_HEADSET_PROP_IDS.includes(propId);
 }
 
 function solveWalkLegKneePoint({ hip, foot, upperLength, lowerLength, bendWeight }) {
@@ -298,6 +310,193 @@ export function blendChannels(left, right, progress) {
   return progress < 0.5 ? left : right;
 }
 
+export function buildHeadsetPropTransition({ fromPropId, toPropId, progress }) {
+  const fromIsHeadset = isHeadsetPropId(fromPropId);
+  const toIsHeadset = isHeadsetPropId(toPropId);
+
+  if (fromPropId === toPropId || fromIsHeadset === toIsHeadset) {
+    return null;
+  }
+
+  return {
+    kind: toIsHeadset ? 'donning' : 'doffing',
+    headsetPropId: toIsHeadset ? toPropId : fromPropId,
+    progress,
+  };
+}
+
+export function getHeadsetTransitionMotion(transition, bodyYaw = 0) {
+  if (!transition) {
+    return null;
+  }
+
+  const progress = clamp(transition.progress, 0, 1);
+  const yawRadians = degToRad(bodyYaw);
+  const frontBias = clamp((Math.cos(yawRadians) - 0.84) / 0.16, 0, 1);
+  const profileBias = clamp((Math.abs(Math.sin(yawRadians)) - 0.9) / 0.1, 0, 1);
+  const stagedBias = Math.max(frontBias, profileBias);
+
+  if (stagedBias <= 0.001) {
+    return {
+      kind: transition.kind,
+      progress,
+      frontBias,
+      profileBias,
+      armBlend: Math.sin(progress * Math.PI),
+      headsetY:
+        transition.kind === 'donning'
+          ? -28 * (1 - progress)
+          : -28 * progress,
+      currentOpacity:
+        transition.kind === 'donning'
+          ? progress
+          : 0,
+      previousOpacity:
+        transition.kind === 'doffing'
+          ? 1 - progress
+          : 0,
+      holdAmount: 0,
+    };
+  }
+
+  if (transition.kind === 'donning') {
+    const settleEnd = 0.3;
+    const holdEnd = 0.6;
+    const lowerEnd = 0.84;
+    const releaseHoldEnd = 0.92;
+    const startY = lerp(-18, -12, frontBias);
+    const holdY = lerp(-30, -34, frontBias);
+    const riseAmount = progress < settleEnd ? easeOutSine(progress / settleEnd) : 1;
+
+    let headsetY = holdY;
+    let gripAmount = 1;
+    let armBlend = 1;
+
+    if (progress < settleEnd) {
+      headsetY = lerp(startY, holdY, riseAmount);
+      gripAmount = riseAmount;
+      armBlend = riseAmount;
+    } else if (progress < holdEnd) {
+      headsetY = holdY;
+    } else if (progress < lowerEnd) {
+      const lowerProgress = easeInOutSine((progress - holdEnd) / (lowerEnd - holdEnd));
+      headsetY = lerp(holdY, 0, lowerProgress);
+    } else if (progress < releaseHoldEnd) {
+      headsetY = 0;
+    } else {
+      const releaseProgress = easeInOutSine((progress - releaseHoldEnd) / (1 - releaseHoldEnd));
+      headsetY = 0;
+      gripAmount = 1 - releaseProgress;
+      armBlend = 1 - releaseProgress;
+    }
+
+    return {
+      kind: transition.kind,
+      progress,
+      frontBias,
+      profileBias,
+      armBlend,
+      headsetY,
+      currentOpacity: clamp((progress - 0.04) / 0.12, 0, 1),
+      previousOpacity: 0,
+      holdAmount: gripAmount,
+    };
+  }
+
+  const holdY = lerp(-30, -34, frontBias);
+  const grabEnd = 0.22;
+  const faceHoldEnd = 0.32;
+  const liftEnd = 0.62;
+  const overheadHoldEnd = 0.8;
+  const fadeStart = 0.88;
+
+  let headsetY = 0;
+  let holdAmount = 1;
+  let armBlend = 1;
+
+  if (progress < grabEnd) {
+    const grabProgress = easeOutSine(progress / grabEnd);
+    holdAmount = grabProgress;
+    armBlend = grabProgress;
+  } else if (progress < faceHoldEnd) {
+    headsetY = 0;
+  } else if (progress < liftEnd) {
+    const liftProgress = easeInOutSine((progress - faceHoldEnd) / (liftEnd - faceHoldEnd));
+    headsetY = lerp(0, holdY, liftProgress);
+  } else if (progress < overheadHoldEnd) {
+    headsetY = holdY;
+  } else {
+    const releaseProgress = easeInOutSine((progress - overheadHoldEnd) / (1 - overheadHoldEnd));
+    headsetY = holdY;
+    holdAmount = 1 - releaseProgress;
+    armBlend = 1 - releaseProgress;
+  }
+
+  return {
+    kind: transition.kind,
+    progress,
+    frontBias,
+    profileBias,
+    armBlend,
+    headsetY,
+    currentOpacity: 0,
+    previousOpacity:
+      progress < fadeStart ? 1 : 1 - clamp((progress - fadeStart) / (1 - fadeStart), 0, 1),
+    holdAmount,
+  };
+}
+
+export function applyHeadsetTransitionChannels(channels, transition) {
+  if (!transition) {
+    return channels;
+  }
+
+  const motion = getHeadsetTransitionMotion(transition, channels.bodyYaw);
+
+  if (!motion) {
+    return channels;
+  }
+
+  const handLift = motion.armBlend;
+  const shoulderLift = handLift * 0.72;
+  const forwardReach = lerp(
+    lerp(4.6, 9.2, motion.profileBias),
+    7.4,
+    motion.frontBias
+  ) * handLift;
+  const projectionComp = forwardReach * 0.26;
+  const headsetY = motion.headsetY;
+
+  channels.shape.armSpread += handLift * 1.2;
+  channels.root.y -= handLift * 0.8;
+  channels.headPitch += handLift * 4.6;
+  channels.headRoll *= 1 - handLift * 0.65;
+
+  ['left', 'right'].forEach((side) => {
+    const sideSign = side === 'left' ? -1 : 1;
+    const hand = channels.joints[`${side}Hand`];
+    const control = channels.joints[`${side}ArmControl`];
+    const shoulder = channels.joints[`${side}Shoulder`];
+    const gripInset = lerp(0.5, 1.8, motion.frontBias) * motion.holdAmount;
+    const handGripX = lerp(11.5, 19 - gripInset, motion.frontBias);
+    const elbowGripX = lerp(3.4, 5.5, motion.frontBias);
+
+    hand.x = lerp(hand.x, -sideSign * handGripX - projectionComp, handLift);
+    hand.y = lerp(hand.y, -72 + headsetY, handLift);
+    hand.z = lerp(hand.z, forwardReach, handLift * 0.85);
+
+    // In front view the elbow should track the headset lift while staying below
+    // the grip, otherwise the quadratic arm curve looks detached.
+    control.x = lerp(control.x, sideSign * elbowGripX - projectionComp * 0.4, handLift);
+    control.y = lerp(control.y, 6 + headsetY * 0.72, handLift);
+    control.z = lerp(control.z, forwardReach * 0.52, handLift * 0.8);
+
+    shoulder.y -= shoulderLift * 5.5;
+  });
+
+  return channels;
+}
+
 export function getTransitionDurationMs({
   fromClipId,
   toClipId,
@@ -308,6 +507,8 @@ export function getTransitionDurationMs({
   transitionSoftness = 1,
 }) {
   let duration = 320;
+  const fromIsHeadset = isHeadsetPropId(fromPropId);
+  const toIsHeadset = isHeadsetPropId(toPropId);
 
   if (fromClipId !== toClipId) {
     const pairKey = `${fromClipId}:${toClipId}`;
@@ -328,7 +529,11 @@ export function getTransitionDurationMs({
   }
 
   if (fromPropId !== toPropId) {
-    duration = Math.max(duration, 280);
+    if (fromIsHeadset !== toIsHeadset && (fromIsHeadset || toIsHeadset)) {
+      duration = Math.max(duration, 860);
+    } else {
+      duration = Math.max(duration, 280);
+    }
   }
 
   return Math.round(duration * transitionSoftness);

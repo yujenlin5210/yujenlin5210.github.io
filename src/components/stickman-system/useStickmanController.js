@@ -1,5 +1,11 @@
 import { startTransition, useEffect, useMemo, useRef, useState } from 'react';
-import { blendChannels, evaluateStickmanClip, getTransitionDurationMs } from './clips';
+import {
+  applyHeadsetTransitionChannels,
+  blendChannels,
+  buildHeadsetPropTransition,
+  evaluateStickmanClip,
+  getTransitionDurationMs,
+} from './clips';
 import { evaluateStickmanRig } from './rig';
 
 function easeInOutCubic(value) {
@@ -142,6 +148,7 @@ export function useStickmanController({
     let fromDriver = null;
     let fromDebug = null;
     let displayChannels = current.channels;
+    let headsetPropTransition = null;
 
     if (transition.fromDriver && transition.duration > 0) {
       blendProgress = Math.min(Math.max((activeClock - transition.startAt) / transition.duration, 0), 1);
@@ -158,7 +165,16 @@ export function useStickmanController({
         });
         fromDebug = previous.debug;
         displayChannels = blendChannels(previous.channels, current.channels, easeInOutCubic(blendProgress));
+        headsetPropTransition = buildHeadsetPropTransition({
+          fromPropId: fromDriver.propId,
+          toPropId: currentDriver.propId,
+          progress: easeInOutCubic(blendProgress),
+        });
       }
+    }
+
+    if (headsetPropTransition) {
+      displayChannels = applyHeadsetTransitionChannels(displayChannels, headsetPropTransition);
     }
 
     return {
@@ -180,6 +196,8 @@ export function useStickmanController({
         previousPropId: fromDriver?.propId || currentDriver.propId,
         currentPropId: currentDriver.propId,
         blendProgress,
+        headsetPropTransition,
+        bodyYaw: displayChannels.bodyYaw,
       },
       activeState: {
         clipId: currentDriver.clipId,

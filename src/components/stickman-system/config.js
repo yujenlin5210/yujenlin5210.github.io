@@ -141,6 +141,13 @@ export const STICKMAN_PROP_OPTIONS = [
   },
 ];
 
+export const STICKMAN_HEADSET_PROP_IDS = [
+  'vr-headset',
+  'vr-headset-wire-dark',
+  'vr-headset-wire-light',
+  'vr-headset-boba',
+];
+
 export const STICKMAN_INITIAL_STATE = {
   phaseId: 'standing',
   clipId: 'standing',
