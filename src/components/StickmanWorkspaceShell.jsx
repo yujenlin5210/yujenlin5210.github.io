@@ -5,17 +5,11 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const FALLBACK_HEADER_HEIGHT_PX = 88;
 const WORKSPACE_TOP_INSET_PX = 20;
 const WORKSPACE_BOTTOM_INSET_PX = 20;
-const SCROLLBAR_PADDING_PX = 24;
-const MIN_THUMB_HEIGHT_PX = 56;
 const SNAP_APPROACH_DISTANCE_PX = 190;
 const SNAP_OVERSHOOT_DISTANCE_PX = 80;
 const SNAP_RELEASE_DISTANCE_PX = 240;
 const MIN_COMFORTABLE_WORKSPACE_HEIGHT_PX = 420;
 const IMMERSIVE_WORKSPACE_ACTIVE_CLASS = 'immersive-stickman-workspace-active';
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
 
 function getHeaderHeight() {
   if (typeof document === 'undefined') {
@@ -42,7 +36,6 @@ function setImmersiveWorkspaceActive(isActive) {
 export default function StickmanWorkspaceShell({ preview, controls }) {
   const sectionRef = useRef(null);
   const contentRef = useRef(null);
-  const thumbRef = useRef(null);
   const lastScrollYRef = useRef(0);
   const didSnapInRef = useRef(false);
   const isAutoScrollingRef = useRef(false);
@@ -53,47 +46,17 @@ export default function StickmanWorkspaceShell({ preview, controls }) {
     stickyTop: WORKSPACE_TOP_INSET_PX,
     workspaceHeight: 0,
     overflow: 0,
-    trackHeight: 0,
-    thumbHeight: 0,
     prefersReducedMotion: false,
   });
 
   const [stickyTop, setStickyTop] = useState(WORKSPACE_TOP_INSET_PX);
   const [workspaceHeight, setWorkspaceHeight] = useState(null);
   const [sectionHeight, setSectionHeight] = useState(null);
-  const [showScrollbar, setShowScrollbar] = useState(false);
 
   const syncScrollPositionRef = useRef(() => {});
 
   syncScrollPositionRef.current = () => {
-    const section = sectionRef.current;
-    const content = contentRef.current;
-    const thumb = thumbRef.current;
-    const { isDesktop, overflow, trackHeight, thumbHeight, stickyTop: currentStickyTop } = layoutRef.current;
-
-    if (!section || !content) {
-      return;
-    }
-
-    if (!isDesktop) {
-      content.style.transform = '';
-
-      if (thumb) {
-        thumb.style.transform = '';
-      }
-
-      return;
-    }
-
-    const offset = clamp(currentStickyTop - section.getBoundingClientRect().top, 0, overflow);
-    const thumbTravel = Math.max(trackHeight - thumbHeight, 0);
-    const thumbOffset = overflow > 0 ? (offset / overflow) * thumbTravel : 0;
-
-    content.style.transform = `translate3d(0, -${offset}px, 0)`;
-
-    if (thumb) {
-      thumb.style.transform = `translate3d(0, ${thumbOffset}px, 0)`;
-    }
+    // No-op: controls now use native overflow-y-auto scroll
   };
 
   useLayoutEffect(() => {
@@ -228,15 +191,12 @@ export default function StickmanWorkspaceShell({ preview, controls }) {
           stickyTop: nextStickyTop,
           workspaceHeight: 0,
           overflow: 0,
-          trackHeight: 0,
-          thumbHeight: 0,
           prefersReducedMotion,
         };
 
         setStickyTop(nextStickyTop);
         setWorkspaceHeight(null);
         setSectionHeight(null);
-        setShowScrollbar(false);
         syncScrollPositionRef.current();
         syncWorkspaceChrome();
         return;
@@ -246,29 +206,19 @@ export default function StickmanWorkspaceShell({ preview, controls }) {
         window.innerHeight - nextStickyTop - WORKSPACE_BOTTOM_INSET_PX,
         MIN_COMFORTABLE_WORKSPACE_HEIGHT_PX
       );
-      const contentHeight = content.scrollHeight;
-      const overflow = Math.max(contentHeight - nextWorkspaceHeight, 0);
-      const trackHeight = Math.max(nextWorkspaceHeight - SCROLLBAR_PADDING_PX * 2, 0);
-      const thumbHeight =
-        overflow > 0 && contentHeight > 0
-          ? Math.max((nextWorkspaceHeight / contentHeight) * trackHeight, MIN_THUMB_HEIGHT_PX)
-          : trackHeight;
 
       layoutRef.current = {
         isDesktop: true,
         headerHeight: nextHeaderHeight,
         stickyTop: nextStickyTop,
         workspaceHeight: nextWorkspaceHeight,
-        overflow,
-        trackHeight,
-        thumbHeight,
+        overflow: 0,
         prefersReducedMotion,
       };
 
       setStickyTop(nextStickyTop);
       setWorkspaceHeight(nextWorkspaceHeight);
-      setSectionHeight(nextWorkspaceHeight + overflow);
-      setShowScrollbar(overflow > 0);
+      setSectionHeight(nextWorkspaceHeight);
       syncScrollPositionRef.current();
       syncWorkspaceChrome();
     };
@@ -317,7 +267,7 @@ export default function StickmanWorkspaceShell({ preview, controls }) {
       }}
     >
       <div
-        className="space-y-6 lg:sticky lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,420px)] lg:items-stretch lg:gap-6 lg:space-y-0 xl:gap-8"
+        className="stickman-workspace-sticky space-y-6 lg:sticky lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,420px)] lg:items-stretch lg:gap-6 lg:space-y-0 xl:gap-8"
         style={{
           top: `${stickyTop}px`,
           ...(workspaceHeight ? { height: `${workspaceHeight}px` } : {}),
@@ -326,22 +276,11 @@ export default function StickmanWorkspaceShell({ preview, controls }) {
         <div className="min-h-0 lg:h-full">{preview}</div>
 
         <div className="relative min-h-0 lg:h-full">
-          <div className="relative min-h-0 lg:h-full lg:overflow-hidden">
-            <div ref={contentRef} className="space-y-6 lg:pr-8" style={{ willChange: 'transform' }}>
+          <div className="relative min-h-0 lg:h-full lg:overflow-y-auto">
+            <div ref={contentRef} className="space-y-6 lg:pr-8">
               {controls}
             </div>
           </div>
-
-          {showScrollbar && (
-            <div className="pointer-events-none absolute bottom-6 right-1 top-6 hidden w-3 lg:block">
-              <div className="absolute inset-y-0 left-1/2 w-px -translate-x-1/2 bg-slate-300/80 dark:bg-slate-700/80" />
-              <div
-                ref={thumbRef}
-                className="absolute left-1/2 w-3 -translate-x-1/2 rounded-full border border-white/70 bg-gradient-to-b from-indigo-500 via-sky-500 to-cyan-400 shadow-[0_10px_24px_-12px_rgba(79,70,229,0.9)] dark:border-slate-950/70"
-                style={{ height: `${layoutRef.current.thumbHeight}px` }}
-              />
-            </div>
-          )}
         </div>
       </div>
     </section>
