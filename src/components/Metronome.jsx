@@ -22,6 +22,8 @@ const HIDDEN_LOOKAHEAD_MS = 250;
 const SCHEDULE_AHEAD_TIME = 0.1;
 const HIDDEN_SCHEDULE_AHEAD_TIME = 1.5;
 const MAX_QUEUED_VISUAL_NOTES = 128;
+const TAP_TEMPO_RESET_MS = 2000;
+const MAX_TAP_HISTORY = 6;
 const SILENT_AUDIO_SRC =
   'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
 
@@ -176,6 +178,7 @@ export default function Metronome() {
   const [shortcuts, setShortcuts] = useState(loadInitialBpmShortcuts);
   const [tsShortcuts, setTsShortcuts] = useState(loadInitialTsShortcuts);
   const [visualBeat, setVisualBeat] = useState(-1);
+  const [tapTempoCount, setTapTempoCount] = useState(0);
 
   const { requestWakeLock, releaseWakeLock } = useWakeLock();
 
@@ -195,6 +198,8 @@ export default function Metronome() {
   const scheduledNotesRef = useRef(new Set());
   const isMobileDeviceRef = useRef(false);
   const useSilentAudioWorkaroundRef = useRef(false);
+  const tapTempoTimesRef = useRef([]);
+  const tapTempoResetTimerRef = useRef(null);
 
   const bpmRef = useRef(bpm);
   const beatsPerBarRef = useRef(beatsPerBar);
@@ -246,6 +251,16 @@ export default function Metronome() {
   useEffect(() => {
     writeLocalStorage('metronome-ts-shortcuts', JSON.stringify(tsShortcuts));
   }, [tsShortcuts]);
+
+  const resetTapTempo = useCallback(() => {
+    tapTempoTimesRef.current = [];
+    setTapTempoCount(0);
+
+    if (tapTempoResetTimerRef.current !== null) {
+      window.clearTimeout(tapTempoResetTimerRef.current);
+      tapTempoResetTimerRef.current = null;
+    }
+  }, []);
 
   const flushVisualQueue = useCallback(() => {
     noteQueueRef.current = [];
@@ -737,6 +752,11 @@ export default function Metronome() {
       if (context && context.state !== 'closed') {
         void context.close().catch(() => {});
       }
+
+      if (tapTempoResetTimerRef.current !== null) {
+        window.clearTimeout(tapTempoResetTimerRef.current);
+        tapTempoResetTimerRef.current = null;
+      }
     };
   }, [clearAnimationLoop, ensureAudioEngine, resetVisualizer, startDrawLoop, stopTransport, teardownSilentAudio]);
 
@@ -770,6 +790,31 @@ export default function Metronome() {
     }
 
     setBpm(nextValue);
+  };
+
+  const handleTapTempo = () => {
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const recentTaps = tapTempoTimesRef.current.filter(time => now - time <= TAP_TEMPO_RESET_MS);
+    const nextTaps = [...recentTaps, now].slice(-MAX_TAP_HISTORY);
+    tapTempoTimesRef.current = nextTaps;
+    setTapTempoCount(nextTaps.length);
+
+    if (tapTempoResetTimerRef.current !== null) {
+      window.clearTimeout(tapTempoResetTimerRef.current);
+    }
+
+    tapTempoResetTimerRef.current = window.setTimeout(() => {
+      resetTapTempo();
+    }, TAP_TEMPO_RESET_MS);
+
+    if (nextTaps.length < 2) {
+      return;
+    }
+
+    const intervals = nextTaps.slice(1).map((time, index) => time - nextTaps[index]);
+    const averageInterval = intervals.reduce((sum, interval) => sum + interval, 0) / intervals.length;
+    const nextBpm = clamp(Math.round(60000 / averageInterval), MIN_BPM, MAX_BPM);
+    setBpm(nextBpm);
   };
 
   const handleBeatsPerBarChange = (event) => {
@@ -961,6 +1006,19 @@ export default function Metronome() {
               className="w-full max-w-md h-3 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500 mt-2"
               aria-label="Adjust BPM"
             />
+
+            <div className="flex flex-col items-center gap-2">
+              <button
+                onClick={handleTapTempo}
+                className="rounded-xl border border-zinc-700 bg-zinc-800 px-5 py-2.5 text-sm font-bold uppercase tracking-wider text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-white active:bg-zinc-600"
+                aria-label="Tap tempo"
+              >
+                Tap Tempo
+              </button>
+              <span className="text-xs text-zinc-500">
+                {tapTempoCount > 1 ? `Listening to ${tapTempoCount} taps` : 'Tap at least twice to set BPM'}
+              </span>
+            </div>
           </div>
         </div>
 
