@@ -129,6 +129,7 @@ export default function StickmanRigLab({
   const [patrolFacingId, setPatrolFacingId] = useState('left');
   const [patrolX, setPatrolX] = useState(0);
   const [patrolRange, setPatrolRange] = useState(60);
+  const [customYaw, setCustomYaw] = useState(null);
   const [showGizmos, setShowGizmos] = useState(false);
 
   const activeFacing = STICKMAN_FACING_OPTIONS.find((option) => option.id === facingId) || STICKMAN_FACING_OPTIONS[1];
@@ -166,6 +167,7 @@ export default function StickmanRigLab({
   const effectiveClipId = patrolMode ? 'walk' : clipId;
   const effectiveFacingId = patrolMode ? patrolFacingId : facingId;
   const effectiveFacing = STICKMAN_FACING_OPTIONS.find((o) => o.id === effectiveFacingId) || activeFacing;
+  const effectiveBodyYaw = patrolMode || customYaw === null ? effectiveFacing.yaw : customYaw;
 
   const {
     projected,
@@ -177,7 +179,7 @@ export default function StickmanRigLab({
   } = useStickmanController({
     clipId: effectiveClipId,
     facingId: effectiveFacingId,
-    bodyYaw: effectiveFacing.yaw,
+    bodyYaw: effectiveBodyYaw,
     propId,
     tempo,
     intensity,
@@ -295,7 +297,7 @@ export default function StickmanRigLab({
             {projected.headingLabel}
           </div>
           <div className="rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400">
-            Facing {effectiveFacing.label}
+            Yaw {Math.round(effectiveBodyYaw)}°
           </div>
           <div className="rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-400">
             Prop {activeProp.label}
@@ -321,12 +323,54 @@ export default function StickmanRigLab({
       </section>
 
       <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <OptionCardGroup
-          title="Facing preset"
-          value={effectiveFacingId}
-          options={STICKMAN_FACING_OPTIONS}
-          onSelect={(id) => { setPatrolMode(false); setFacingId(id); }}
-        />
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500 dark:text-slate-400">
+            Facing
+          </p>
+          {customYaw !== null && !patrolMode && (
+            <span className="rounded-full bg-white px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-indigo-500 dark:bg-slate-950 dark:text-indigo-400">
+              Custom
+            </span>
+          )}
+        </div>
+        <div className="mb-5 grid grid-cols-4 gap-2">
+          {STICKMAN_FACING_OPTIONS.filter((o) => o.id !== 'quarter').map((option) => {
+            const isActive = effectiveFacingId === option.id && customYaw === null && !patrolMode;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => {
+                  setPatrolMode(false);
+                  setCustomYaw(null);
+                  setFacingId(option.id);
+                }}
+                className={`rounded-xl border py-2 text-center text-xs font-semibold transition-colors ${
+                  isActive
+                    ? 'border-indigo-500 bg-indigo-600 text-white'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:text-indigo-300'
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mb-5">
+          <RangeField
+            id="stickman-rig-yaw"
+            label="Rotation"
+            value={effectiveBodyYaw}
+            min={-180}
+            max={180}
+            step={1}
+            formatter={(val) => `${Math.round(val)}°`}
+            onChange={(val) => {
+              setPatrolMode(false);
+              setCustomYaw(val);
+            }}
+          />
+        </div>
         <button
           type="button"
           onClick={() => setPatrolMode((v) => !v)}
