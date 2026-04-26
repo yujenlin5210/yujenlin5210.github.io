@@ -9,6 +9,14 @@ import { STICKMAN_DEFAULT_STYLE, STICKMAN_HEADSET_PROP_IDS } from './config';
 
 const RENDER_TRANSITION = { duration: 0 };
 
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function lerp(start, end, amount) {
+  return start + (end - start) * amount;
+}
+
 function getLimbStyle(depth) {
   if (depth < -6) {
     return {
@@ -111,18 +119,23 @@ function getPropOpacity(propId, attachments, role, fallbackOpacity) {
 
 function getHeadsetMetrics(pose) {
   const yawRad = (pose.yaw * Math.PI) / 180;
-  const profileAmount = Math.abs(Math.sin(yawRad));
+  const signedProfile = Math.sin(yawRad);
+  const profileAmount = Math.abs(signedProfile);
   const absYaw = Math.abs(pose.yaw);
+  const profileBias = clamp((profileAmount - 0.58) / 0.42, 0, 1);
 
   return {
     yawRad,
+    signedProfile,
     profileAmount,
-    forwardShift: -Math.sin(yawRad) * 6,
+    profileBias,
+    lookDirection: Math.abs(signedProfile) < 0.001 ? 0 : -Math.sign(signedProfile),
+    forwardShift: -signedProfile * lerp(6, 8.5, profileBias),
     visorOpacity: absYaw < 100 ? 1 : Math.max(0, 1 - (absYaw - 100) / 30),
   };
 }
 
-function buildBobaVisorPath(centerX, centerY, width, height, profileAmount) {
+function buildBobaFrontPath(centerX, centerY, width, height, profileAmount) {
   const halfWidth = width / 2;
   const halfHeight = height / 2;
   const left = centerX - halfWidth;
@@ -159,6 +172,33 @@ function buildBobaVisorPath(centerX, centerY, width, height, profileAmount) {
   ].join(' ');
 }
 
+function buildProfileHeadsetPath(centerX, centerY, width, height, direction) {
+  const frontDirection = direction === 0 ? 1 : direction;
+  const insetShift = width * 0.06 + 1.15;
+  const profileCenterX = centerX - frontDirection * insetShift;
+  const top = centerY - height * 0.485;
+  const bottom = centerY + height * 0.485;
+  const frontExtent = width * 0.44 + 1.1;
+  const rearExtent = width * 0.16 + 1.4;
+  const frontX = profileCenterX + frontDirection * frontExtent;
+  const rearX = profileCenterX - frontDirection * rearExtent;
+  const frontBridgeX = profileCenterX + frontDirection * (width * 0.3 + 0.7);
+  const rearBridgeX = profileCenterX - frontDirection * (width * 0.05 + 0.3);
+  const corner = Math.min(4.8, height * 0.25);
+
+  return [
+    `M ${rearX},${top + corner}`,
+    `Q ${rearX - frontDirection * 0.2},${top + 0.7} ${rearBridgeX},${top}`,
+    `L ${frontBridgeX},${top}`,
+    `Q ${frontX + frontDirection * 0.35},${top + 0.8} ${frontX},${top + corner}`,
+    `L ${frontX},${bottom - corner}`,
+    `Q ${frontX + frontDirection * 0.2},${bottom - 0.7} ${frontBridgeX},${bottom}`,
+    `L ${rearBridgeX},${bottom}`,
+    `Q ${rearX + frontDirection * 0.45},${bottom - 0.15} ${rearX},${bottom - corner}`,
+    'Z',
+  ].join(' ');
+}
+
 function HeadsetBand({ pose, strokeClassName, strokeWidth = 3 }) {
   const bandY = pose.slots.face.y;
 
@@ -189,7 +229,7 @@ function HeadsetMotionGroup({ opacity, presentation, children }) {
 }
 
 function VRHeadsetSolidProp({ pose, opacity, presentation }) {
-  const boxWidth = 40;
+  const boxWidth = 43;
   const boxDepth = 24;
   const boxHeight = 19;
   const { profileAmount, forwardShift, visorOpacity } = getHeadsetMetrics(pose);
@@ -215,7 +255,7 @@ function VRHeadsetSolidProp({ pose, opacity, presentation }) {
 }
 
 function VRHeadsetWireProp({ pose, opacity, presentation, fill, fillClassName, strokeClassName }) {
-  const boxWidth = 40;
+  const boxWidth = 43;
   const boxDepth = 24;
   const boxHeight = 19;
   const { profileAmount, forwardShift, visorOpacity } = getHeadsetMetrics(pose);
@@ -258,29 +298,46 @@ function VRHeadsetBobaProp({ pose, opacity, presentation }) {
   const shellWidthFront = 44;
   const shellWidthProfile = 30;
   const shellHeight = 20;
-  const { profileAmount, forwardShift, visorOpacity } = getHeadsetMetrics(pose);
+  const { profileAmount, profileBias, lookDirection, forwardShift, visorOpacity } = getHeadsetMetrics(pose);
   const visorWidth = shellWidthFront * (1 - profileAmount) + shellWidthProfile * profileAmount;
   const centerX = pose.slots.face.x + forwardShift;
   const centerY = pose.slots.face.y;
-  const shellPath = buildBobaVisorPath(centerX, centerY, visorWidth, shellHeight, profileAmount);
+  const frontPath = buildBobaFrontPath(centerX, centerY, visorWidth, shellHeight, profileAmount);
+  const profilePath = buildProfileHeadsetPath(centerX, centerY, visorWidth, shellHeight, lookDirection);
+  const frontOpacity = Math.min(1, visorOpacity * (1 - profileBias));
+  const profileOpacity = Math.min(1, visorOpacity * profileBias);
   return (
     <HeadsetMotionGroup opacity={opacity} presentation={presentation}>
       <HeadsetBand pose={pose} strokeClassName="text-slate-800 dark:text-slate-300" strokeWidth={3.1} />
       {visorOpacity > 0.01 && (
         <>
           <path
-            d={shellPath}
+            d={frontPath}
             fill="currentColor"
             className="text-slate-900 dark:text-slate-950"
-            opacity={Math.min(1, visorOpacity)}
+            opacity={frontOpacity}
           />
           <path
-            d={shellPath}
+            d={frontPath}
             fill="none"
             stroke="currentColor"
             strokeWidth="2.2"
             className="text-slate-200 dark:text-slate-100"
-            opacity={Math.min(1, visorOpacity)}
+            opacity={frontOpacity}
+          />
+          <path
+            d={profilePath}
+            fill="currentColor"
+            className="text-slate-900 dark:text-slate-950"
+            opacity={profileOpacity}
+          />
+          <path
+            d={profilePath}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            className="text-slate-200 dark:text-slate-100"
+            opacity={profileOpacity}
           />
         </>
       )}
@@ -359,6 +416,10 @@ export default function StickmanFigure({ pose, attachments, showGizmos }) {
     attachments,
     'current'
   );
+  const shouldHideEyes =
+    (isHeadsetPropId(attachments.previousPropId) && previousPropOpacity > 0.01) ||
+    (isHeadsetPropId(attachments.currentPropId) && currentPropOpacity > 0.01);
+  const headForRender = shouldHideEyes ? { ...pose.head, eyes: [] } : pose.head;
 
   return (
     <g>
@@ -388,7 +449,7 @@ export default function StickmanFigure({ pose, attachments, showGizmos }) {
 
       <StickmanHeadRenderer
         styleId={STICKMAN_DEFAULT_STYLE.headStyle}
-        head={pose.head}
+        head={headForRender}
         transition={RENDER_TRANSITION}
       />
 

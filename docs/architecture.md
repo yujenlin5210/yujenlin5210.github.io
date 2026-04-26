@@ -47,6 +47,7 @@ Public-facing tags should always be filtered through `src/utils/filterTags.ts` s
 - `Stickman` is treated as decorative and is disabled entirely for reduced-motion users.
 - `StickmanPreview` falls back to a static illustration instead of an animated preview when reduced motion is enabled.
 - `StickmanRigLab` is the canonical 2.5D rig sandbox for clip blending, facing checks, and prop validation, including the current VR headset variant set and staged headset don/doff motion.
+- `src/components/stickman-system/StickmanFigure.jsx` owns the headset prop silhouettes. The Boba headset keeps its custom front read, eases into a conventional profile block at side view, and suppresses the eye dots whenever a headset is visible so rotation does not flash facial features through the visor.
 - `TimeArt`, `Metronome`, and `DodgeGame` have explicit lifecycle cleanup for timers, animation loops, and audio resources.
 
 ## Shared Utilities And State
