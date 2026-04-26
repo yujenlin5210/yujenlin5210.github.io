@@ -59,9 +59,6 @@ function OptionCardGroup({ title, value, options, onSelect, disabledIds = [] }) 
               <span className="block font-mono text-[11px] uppercase tracking-[0.24em] opacity-70">
                 {option.label}
               </span>
-              <span className="mt-2 block text-xs font-medium leading-relaxed opacity-80">
-                {option.description}
-              </span>
               {'status' in option && option.status === 'planned' && (
                 <span className="mt-3 inline-flex rounded-full border border-current/20 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em] opacity-70">
                   Planned
