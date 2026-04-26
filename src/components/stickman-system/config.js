@@ -112,7 +112,22 @@ export const STICKMAN_PROP_OPTIONS = [
   {
     id: 'vr-headset',
     label: 'VR Headset',
-    description: 'A face-mounted prop that proves the head and face slots stay stable in motion.',
+    description: 'The current solid visor block used to validate face-mounted prop stability in motion.',
+  },
+  {
+    id: 'vr-headset-wire-dark',
+    label: 'VR Wire Dark',
+    description: 'The same visor block with a dark outline and a white fill for a wireframe read.',
+  },
+  {
+    id: 'vr-headset-wire-light',
+    label: 'VR Wire Light',
+    description: 'An inverted wireframe version with a white outline and a black fill.',
+  },
+  {
+    id: 'vr-headset-boba',
+    label: 'Boba Headset',
+    description: 'A wider rounded headset inspired by the Boba project silhouette, including the nose cut.',
   },
   {
     id: 'racing-cap',

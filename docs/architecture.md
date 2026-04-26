@@ -46,6 +46,7 @@ Public-facing tags should always be filtered through `src/utils/filterTags.ts` s
 - `CinematicProject`, `LabRegistry`, `TiltCard`, and `FadeIn` degrade their motion behavior when `prefers-reduced-motion` is active.
 - `Stickman` is treated as decorative and is disabled entirely for reduced-motion users.
 - `StickmanPreview` falls back to a static illustration instead of an animated preview when reduced motion is enabled.
+- `StickmanRigLab` is the canonical 2.5D rig sandbox for clip blending, facing checks, and prop validation, including the current VR headset variant set.
 - `TimeArt`, `Metronome`, and `DodgeGame` have explicit lifecycle cleanup for timers, animation loops, and audio resources.
 
 ## Shared Utilities And State

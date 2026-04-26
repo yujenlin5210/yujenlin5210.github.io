@@ -48,41 +48,89 @@ function getEndpointGizmoStyle(type, depth, showGizmos) {
   };
 }
 
-function VRHeadsetProp({ pose, opacity }) {
-  const boxWidth = 40;   // front-facing width
-  const boxDepth = 24;   // side-facing depth
-  const boxHeight = 19;
+function getHeadsetMetrics(pose) {
   const yawRad = (pose.yaw * Math.PI) / 180;
   const profileAmount = Math.abs(Math.sin(yawRad));
-  const visorWidth = boxWidth * (1 - profileAmount) + boxDepth * profileAmount;
-  const visorHeight = boxHeight;
-  // Shift visor forward (away from face) so it doesn't sit flat on the head
-  const forwardShift = -Math.sin(yawRad) * 6;
   const absYaw = Math.abs(pose.yaw);
-  // Visor visible from front, quarter, and profile; fades out toward back
-  const visorOpacity = absYaw < 100 ? 1 : Math.max(0, 1 - (absYaw - 100) / 30);
+
+  return {
+    yawRad,
+    profileAmount,
+    forwardShift: -Math.sin(yawRad) * 6,
+    visorOpacity: absYaw < 100 ? 1 : Math.max(0, 1 - (absYaw - 100) / 30),
+  };
+}
+
+function buildBobaVisorPath(centerX, centerY, width, height, profileAmount) {
+  const halfWidth = width / 2;
+  const halfHeight = height / 2;
+  const left = centerX - halfWidth;
+  const right = centerX + halfWidth;
+  const top = centerY - halfHeight;
+  const bottom = centerY + halfHeight * 0.98;
+  const topInset = 6.8 - profileAmount * 2.1;
+  const sideShoulderY = top + height * 0.18;
+  const sideMidY = centerY + height * 0.08;
+  const topArch = 1.8 - profileAmount * 0.45;
+  const sideBulge = 1.4 + (1 - profileAmount) * 1.2;
+  const lowerRound = 2.2 + (1 - profileAmount) * 1.1;
+  const bottomInset = 7.8 - profileAmount * 1.7;
+  const noseWidth = width * (0.135 + (1 - profileAmount) * 0.055);
+  const noseDepth = 5.6 - profileAmount * 2.4;
+  const noseArchWidth = noseWidth * 0.52;
+  const noseShoulderY = bottom - noseDepth * 0.34;
+  const nosePeakY = bottom - noseDepth;
+
+  return [
+    `M ${left + topInset},${top}`,
+    `Q ${centerX},${top - topArch} ${right - topInset},${top}`,
+    `Q ${right + sideBulge},${sideShoulderY} ${right - 0.2},${sideMidY}`,
+    `Q ${right - 0.9},${bottom - lowerRound} ${right - bottomInset},${bottom}`,
+    `L ${centerX + noseWidth},${bottom}`,
+    `Q ${centerX + noseWidth * 0.68},${bottom} ${centerX + noseArchWidth},${noseShoulderY}`,
+    `Q ${centerX + noseArchWidth * 0.32},${nosePeakY} ${centerX},${nosePeakY}`,
+    `Q ${centerX - noseArchWidth * 0.32},${nosePeakY} ${centerX - noseArchWidth},${noseShoulderY}`,
+    `Q ${centerX - noseWidth * 0.68},${bottom} ${centerX - noseWidth},${bottom}`,
+    `L ${left + bottomInset},${bottom}`,
+    `Q ${left + 0.9},${bottom - lowerRound} ${left + 0.2},${sideMidY}`,
+    `Q ${left - sideBulge},${sideShoulderY} ${left + topInset},${top}`,
+    'Z',
+  ].join(' ');
+}
+
+function HeadsetBand({ pose, strokeClassName, strokeWidth = 3 }) {
   const bandY = pose.slots.face.y;
 
   return (
+    <line
+      x1={pose.head.x - pose.head.rx - 1}
+      y1={bandY}
+      x2={pose.head.x + pose.head.rx + 1}
+      y2={bandY}
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      className={strokeClassName}
+    />
+  );
+}
+
+function VRHeadsetSolidProp({ pose, opacity }) {
+  const boxWidth = 40;
+  const boxDepth = 24;
+  const boxHeight = 19;
+  const { profileAmount, forwardShift, visorOpacity } = getHeadsetMetrics(pose);
+  const visorWidth = boxWidth * (1 - profileAmount) + boxDepth * profileAmount;
+
+  return (
     <motion.g initial={false} animate={{ opacity }} transition={RENDER_TRANSITION}>
-      {/* Headband strap — wraps around the head, visible from all angles */}
-      <line
-        x1={pose.head.x - pose.head.rx - 1}
-        y1={bandY}
-        x2={pose.head.x + pose.head.rx + 1}
-        y2={bandY}
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        className="text-slate-700 dark:text-slate-300"
-      />
-      {/* Visor box — only visible when facing forward */}
+      <HeadsetBand pose={pose} strokeClassName="text-slate-700 dark:text-slate-300" />
       {visorOpacity > 0.01 && (
         <rect
           x={pose.slots.face.x + forwardShift - visorWidth / 2}
-          y={pose.slots.face.y - visorHeight / 2}
+          y={pose.slots.face.y - boxHeight / 2}
           width={visorWidth}
-          height={visorHeight}
+          height={boxHeight}
           rx={3}
           fill="currentColor"
           className="text-slate-900 dark:text-slate-100"
@@ -93,13 +141,117 @@ function VRHeadsetProp({ pose, opacity }) {
   );
 }
 
+function VRHeadsetWireProp({ pose, opacity, fill, fillClassName, strokeClassName }) {
+  const boxWidth = 40;
+  const boxDepth = 24;
+  const boxHeight = 19;
+  const { profileAmount, forwardShift, visorOpacity } = getHeadsetMetrics(pose);
+  const visorWidth = boxWidth * (1 - profileAmount) + boxDepth * profileAmount;
+
+  return (
+    <motion.g initial={false} animate={{ opacity }} transition={RENDER_TRANSITION}>
+      <HeadsetBand pose={pose} strokeClassName={strokeClassName} strokeWidth={2.8} />
+      {visorOpacity > 0.01 && (
+        <>
+          <rect
+            x={pose.slots.face.x + forwardShift - visorWidth / 2}
+            y={pose.slots.face.y - boxHeight / 2}
+            width={visorWidth}
+            height={boxHeight}
+            rx={3}
+            fill={fill}
+            className={fillClassName}
+            opacity={Math.min(1, visorOpacity)}
+          />
+          <rect
+            x={pose.slots.face.x + forwardShift - visorWidth / 2}
+            y={pose.slots.face.y - boxHeight / 2}
+            width={visorWidth}
+            height={boxHeight}
+            rx={3}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.3"
+            className={strokeClassName}
+            opacity={Math.min(1, visorOpacity)}
+          />
+        </>
+      )}
+    </motion.g>
+  );
+}
+
+function VRHeadsetBobaProp({ pose, opacity }) {
+  const shellWidthFront = 44;
+  const shellWidthProfile = 30;
+  const shellHeight = 20;
+  const { profileAmount, forwardShift, visorOpacity } = getHeadsetMetrics(pose);
+  const visorWidth = shellWidthFront * (1 - profileAmount) + shellWidthProfile * profileAmount;
+  const centerX = pose.slots.face.x + forwardShift;
+  const centerY = pose.slots.face.y;
+  const shellPath = buildBobaVisorPath(centerX, centerY, visorWidth, shellHeight, profileAmount);
+  return (
+    <motion.g initial={false} animate={{ opacity }} transition={RENDER_TRANSITION}>
+      <HeadsetBand pose={pose} strokeClassName="text-slate-800 dark:text-slate-300" strokeWidth={3.1} />
+      {visorOpacity > 0.01 && (
+        <>
+          <path
+            d={shellPath}
+            fill="currentColor"
+            className="text-slate-900 dark:text-slate-950"
+            opacity={Math.min(1, visorOpacity)}
+          />
+          <path
+            d={shellPath}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            className="text-slate-200 dark:text-slate-100"
+            opacity={Math.min(1, visorOpacity)}
+          />
+        </>
+      )}
+    </motion.g>
+  );
+}
+
 function renderProp(propId, pose, opacity, layer) {
   if (!propId || propId === 'none' || opacity <= 0.01) {
     return null;
   }
 
-  if (propId === 'vr-headset' && layer === 'head') {
-    return <VRHeadsetProp pose={pose} opacity={opacity} />;
+  if (layer === 'head') {
+    if (propId === 'vr-headset') {
+      return <VRHeadsetSolidProp pose={pose} opacity={opacity} />;
+    }
+
+    if (propId === 'vr-headset-wire-dark') {
+      return (
+        <VRHeadsetWireProp
+          pose={pose}
+          opacity={opacity}
+          fill="white"
+          fillClassName=""
+          strokeClassName="text-slate-900 dark:text-slate-100"
+        />
+      );
+    }
+
+    if (propId === 'vr-headset-wire-light') {
+      return (
+        <VRHeadsetWireProp
+          pose={pose}
+          opacity={opacity}
+          fill="currentColor"
+          fillClassName="text-slate-900 dark:text-slate-950"
+          strokeClassName="text-white dark:text-slate-100"
+        />
+      );
+    }
+
+    if (propId === 'vr-headset-boba') {
+      return <VRHeadsetBobaProp pose={pose} opacity={opacity} />;
+    }
   }
 
   return null;
