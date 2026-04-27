@@ -332,32 +332,8 @@ export function getHeadsetTransitionMotion(transition, bodyYaw = 0) {
 
   const progress = clamp(transition.progress, 0, 1);
   const yawRadians = degToRad(bodyYaw);
-  const frontBias = clamp((Math.cos(yawRadians) - 0.84) / 0.16, 0, 1);
-  const profileBias = clamp((Math.abs(Math.sin(yawRadians)) - 0.9) / 0.1, 0, 1);
-  const stagedBias = Math.max(frontBias, profileBias);
-
-  if (stagedBias <= 0.001) {
-    return {
-      kind: transition.kind,
-      progress,
-      frontBias,
-      profileBias,
-      armBlend: Math.sin(progress * Math.PI),
-      headsetY:
-        transition.kind === 'donning'
-          ? -28 * (1 - progress)
-          : -28 * progress,
-      currentOpacity:
-        transition.kind === 'donning'
-          ? progress
-          : 0,
-      previousOpacity:
-        transition.kind === 'doffing'
-          ? 1 - progress
-          : 0,
-      holdAmount: 0,
-    };
-  }
+  const frontBias = Math.abs(Math.cos(yawRadians));
+  const profileBias = Math.abs(Math.sin(yawRadians));
 
   if (transition.kind === 'donning') {
     const settleEnd = 0.3;
