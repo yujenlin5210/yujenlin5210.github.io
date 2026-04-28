@@ -19,6 +19,7 @@
   "dependencies": {
     "@astrojs/mdx": "^5.0.3",
     "@astrojs/react": "^5.0.3",
+    "@codesandbox/sandpack-react": "^2.20.0",
     "@nanostores/react": "^1.1.0",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.5.0",
