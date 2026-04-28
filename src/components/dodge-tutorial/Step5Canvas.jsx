@@ -63,7 +63,7 @@ const updateAndDrawDots = (ctx, dots, p, canvasWidth, canvasHeight) => {
     if (dot.x < 0) dot.x = canvasWidth;
     if (dot.x > canvasWidth) dot.x = 0;
     if (dot.y < 0) dot.y = canvasHeight;
-    if (dot.y > canvasHeight) p.y = 0;
+    if (dot.y > canvasHeight) dot.y = 0;
 
     ctx.beginPath();
     ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);

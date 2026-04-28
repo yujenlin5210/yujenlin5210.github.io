@@ -579,7 +579,7 @@ import Step5Canvas from '../../components/dodge-tutorial/Step5Canvas.jsx';
 
     When a crash occurs, we set a `gameState` variable (like `'PLAYING'` or `'GAMEOVER'`). If we crash, we stop calling `requestAnimationFrame`, halting the game loop entirely. We conditionally render a crash screen overlay in React, and add logic to restart the game state when the user hits SPACE.
     
-    *Note on Game Architecture:* As our game loop logic grew over the previous chapters, putting everything into one massive `loop()` function became messy. In this final chapter, we've refactored the code to extract `updatePlayer`, `drawPlayer`, and `updateAndDrawDots` into external helper functions. This makes the core game loop incredibly easy to read and manage!
+    *Note on Game Architecture:* The game stays inside one React component, but the important behavior is split into small helper functions like `updatePlayer`, `drawPlayer`, and `updateAndDrawDots`. That keeps the main loop readable without implying we moved everything out into separate modules.
 
     With that, the core mechanics of Dodge are complete! You can enhance the game further by adding a score timer, high score tracking, particle explosion effects when you crash, or mobile touch controls.
   </div>
