@@ -60,3 +60,26 @@ body.immersive-stickman-workspace-active > header {
 .prose figcaption a {
   @apply text-indigo-500 dark:text-indigo-400 no-underline hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors border-b border-indigo-500/30 hover:border-indigo-500;
 }
+
+.lab-article.prose :where(code):not(:where(pre code)),
+.lab-article .prose :where(code):not(:where(pre code)) {
+  @apply rounded-md border border-slate-200 bg-slate-100 px-1.5 py-0.5 font-mono text-[0.88em] font-semibold text-slate-800 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100;
+}
+
+.lab-article.prose :where(code):not(:where(pre code))::before,
+.lab-article.prose :where(code):not(:where(pre code))::after,
+.lab-article .prose :where(code):not(:where(pre code))::before,
+.lab-article .prose :where(code):not(:where(pre code))::after {
+  content: none;
+}
+
+.lab-article.prose :where(pre),
+.lab-article .prose :where(pre) {
+  @apply rounded-xl border border-slate-800 bg-slate-950 shadow-xl;
+  background-color: #020617 !important;
+}
+
+.lab-article.prose :where(pre code),
+.lab-article .prose :where(pre code) {
+  @apply bg-transparent p-0 text-sm font-normal;
+}

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 
 const updatePlayer = (p, k, canvasWidth, canvasHeight) => {
   if (k['ArrowUp'] || k['KeyW']) p.vy -= 0.3;
@@ -50,8 +50,12 @@ export default function Step2Canvas() {
       keysRef.current[e.code] = true; 
     };
     const handleKeyUp = (e) => { keysRef.current[e.code] = false; };
+    const clearKeys = () => {
+      keysRef.current = {};
+    };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', clearKeys);
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -71,6 +75,7 @@ export default function Step2Canvas() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', clearKeys);
       cancelAnimationFrame(requestRef.current);
     };
   }, []);

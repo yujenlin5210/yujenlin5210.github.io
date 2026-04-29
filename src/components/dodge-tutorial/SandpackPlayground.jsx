@@ -1,4 +1,3 @@
-import React from 'react';
 import { Sandpack } from '@codesandbox/sandpack-react';
 
 export default function SandpackPlayground({ files, mainFile = '/App.js' }) {

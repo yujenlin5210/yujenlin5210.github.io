@@ -14,14 +14,18 @@ import SandpackPlayground from '../../components/dodge-tutorial/SandpackPlaygrou
 <div class="prose dark:prose-invert prose-indigo max-w-4xl mx-auto mb-20 text-center">
   Welcome to the interactive Dodge tutorial. Here, you'll learn how to build the classic Dodge game step-by-step. In this guide, we will use **React** to handle state and the **HTML5 `<canvas>` API** for high-performance rendering.
 
+  This tutorial is a companion to the [Dodge lab post](/lab/2026-04-14-dodge/), which shows the finished restoration and gives the project context. Read that first if you want to see the completed game before building it from scratch here.
+
   Let's dive in.
 </div>
 
 <TutorialChapter title="1. The Canvas Setup">
   <div slot="text">
-    Every great game starts with a blank canvas. 
+    Every game starts with two pieces: a surface to draw on, and a loop that redraws that surface as the world changes. In this first chapter, we only draw one static frame so the Canvas basics are clear before movement gets involved.
     
-    In React, we need a way to reference the underlying DOM element to draw on it. We use the `useRef` hook to grab the `<canvas>` element once it mounts.
+    A `<canvas>` is a DOM element, but the drawing API lives on its rendering context. React renders the element; the Canvas API draws pixels inside it. That is why we use `useRef`: it gives us access to the actual canvas node after React mounts it. Inside `useEffect`, `canvasRef.current` is available, so we can ask for the 2D drawing context with `getContext('2d')`.
+
+    Canvas is an immediate-mode API. When you call `fillRect`, pixels are painted right away. Canvas does not remember a rectangle object for you the way the DOM remembers a `<div>`. If you want the frame to change later, you clear or repaint the canvas yourself.
 
     ```javascript
     import { useRef, useEffect } from 'react';
@@ -42,7 +46,11 @@ import SandpackPlayground from '../../components/dodge-tutorial/SandpackPlaygrou
     }
     ```
 
-    Next, we draw the "Ship". To draw a triangle in Canvas, we move the pen to a starting point using `moveTo`, draw lines to the base corners with `lineTo`, and fill or stroke the path.
+    Next, we draw the ship. A Canvas path is like moving a pen around the canvas: `beginPath` starts a new shape, `moveTo` lifts the pen to the first point, `lineTo` draws edges, and `closePath` connects the last point back to the first.
+
+    The transform calls are the part that usually feels mysterious at first. We draw the triangle around `(0, 0)` as if the ship's local origin is its center. The tip is at `(20, 0)`, so before rotation the triangle points along the positive x-axis. `ctx.translate(canvas.width / 2, canvas.height / 2)` moves that local origin to the center of the canvas. `ctx.rotate(-Math.PI / 2)` rotates the local coordinate system so the triangle points upward.
+
+    `ctx.save()` and `ctx.restore()` protect the rest of the drawing code. `translate`, `rotate`, `strokeStyle`, and `lineWidth` all belong to Canvas's current drawing state. Saving before the ship and restoring afterward means future shapes will not accidentally inherit the ship's position, rotation, or style.
 
     ```javascript
     // 2. Draw the Ship
@@ -62,6 +70,8 @@ import SandpackPlayground from '../../components/dodge-tutorial/SandpackPlaygrou
     
     ctx.restore();
     ```
+
+    **Checkpoint:** You should be able to explain that React creates the canvas element, `useRef` gives us the DOM node, `getContext('2d')` gives us drawing commands, and the ship is drawn in its own translated and rotated coordinate system.
   </div>
 
   <div slot="canvas">
@@ -105,7 +115,7 @@ export default function Game() {
   }, []);
 
   return (
-    <canvas ref={canvasRef} width={400} height={400} />
+    <canvas ref={canvasRef} width={800} height={800} />
   );
 }
 `
@@ -118,13 +128,15 @@ import Step2Canvas from '../../components/dodge-tutorial/Step2Canvas.jsx';
 
 <TutorialChapter title="2. Player Controls">
   <div slot="text">
-    To make our ship move, we need to track keyboard input and update the ship's position. In React, we use a `useRef` to store the player's position and velocity. We don't use `useState` because we update these values 60 times a second inside `requestAnimationFrame`, and `useState` would trigger too many expensive React re-renders.
+    To make the ship move, we need input, state, and a loop. The input comes from the keyboard. The state is the ship's position, velocity, and angle. The loop reads the input, updates the state, clears the canvas, and draws the next frame.
+
+    In React, game state that changes every frame should usually live in a `useRef`, not `useState`. `useState` is for values that should trigger a React render. The ship's `x`, `y`, `vx`, and `vy` values change around 60 times per second, but React does not need to re-render the component for each tiny movement. The canvas redraw already handles the visual update.
 
     We attach event listeners to track the `keydown` and `keyup` events. To prevent the browser page from scrolling when you press the arrow keys or space, we call `e.preventDefault()`:
 
     ```javascript
     const playerRef = useRef({ 
-      x: 200, y: 200, 
+      x: 400, y: 400,
       vx: 0, vy: 0, 
       angle: -Math.PI / 2 
     });
@@ -138,16 +150,56 @@ import Step2Canvas from '../../components/dodge-tutorial/Step2Canvas.jsx';
         keysRef.current[e.code] = true;
       };
       const up = (e) => keysRef.current[e.code] = false;
+      const clearKeys = () => {
+        keysRef.current = {};
+      };
       
       window.addEventListener('keydown', down);
       window.addEventListener('keyup', up);
-      // cleanup...
+      window.addEventListener('blur', clearKeys);
+
+      return () => {
+        window.removeEventListener('keydown', down);
+        window.removeEventListener('keyup', up);
+        window.removeEventListener('blur', clearKeys);
+      };
     }, []);
     ```
 
-    Inside the game loop, we apply acceleration to our velocity (`vx` and `vy`) based on the active keys. Instead of directly changing `x` and `y`, using velocity allows us to apply a bit of friction (`vx *= 0.95`) so the ship slides smoothly to a stop, giving it a cool, slippery asteroid-style feel. 
+    The `keysRef` object stores which keys are currently held down. On `keydown`, we mark that key as `true`; on `keyup`, we mark it as `false`. We also clear the map on `blur`, because a browser can miss `keyup` if the player tabs away while holding a key. The cleanup function removes the listeners when the component unmounts, which matters because the page can navigate away and back without a full browser refresh.
+
+    Inside the game loop, key input changes velocity, not position directly. Pressing right adds to `vx`; pressing up subtracts from `vy`. Then position is updated from velocity with `p.x += p.vx` and `p.y += p.vy`. This two-step model gives the ship inertia: the controls apply thrust, and friction gradually slows it down when the player lets go.
+
+    ```javascript
+    const updatePlayer = (p, keys, width, height) => {
+      // Keyboard input changes velocity, not position.
+      if (keys['ArrowUp'] || keys['KeyW']) p.vy -= 0.3;
+      if (keys['ArrowDown'] || keys['KeyS']) p.vy += 0.3;
+      if (keys['ArrowLeft'] || keys['KeyA']) p.vx -= 0.3;
+      if (keys['ArrowRight'] || keys['KeyD']) p.vx += 0.3;
+
+      // Friction keeps the ship from sliding forever.
+      p.vx *= 0.95;
+      p.vy *= 0.95;
+
+      // Velocity becomes movement.
+      p.x += p.vx;
+      p.y += p.vy;
+
+      if (p.x < 0) p.x = width;
+      if (p.x > width) p.x = 0;
+      if (p.y < 0) p.y = height;
+      if (p.y > height) p.y = 0;
+
+      if (Math.abs(p.vx) > 0.1 || Math.abs(p.vy) > 0.1) {
+        p.angle = Math.atan2(p.vy, p.vx);
+      }
+    };
+    ```
     
-    Finally, we rotate the ship to face its direction of movement using `Math.atan2(vy, vx)`.
+    Edge wrapping keeps the ship inside the playfield without a hard wall. If the ship moves past the right edge, it appears at `x = 0`; if it moves above the top edge, it appears at the bottom. Finally, `Math.atan2(vy, vx)` converts the velocity direction into an angle, so the triangle points where it is moving.
+
+    **Checkpoint:** You should be able to trace one frame: read held keys, adjust velocity, apply friction, move the ship, wrap at edges, rotate toward movement, and draw the ship again.
   </div>
 
   <div slot="canvas">
@@ -203,7 +255,7 @@ const drawPlayer = (ctx, p) => {
 
 export default function Game() {
   const canvasRef = useRef(null);
-  const pRef = useRef({ x: 200, y: 200, vx: 0, vy: 0, a: 0 });
+  const pRef = useRef({ x: 400, y: 400, vx: 0, vy: 0, a: 0 });
   const kRef = useRef({});
 
   useEffect(() => {
@@ -212,8 +264,12 @@ export default function Game() {
       kRef.current[e.code] = true;
     };
     const up = (e) => kRef.current[e.code] = false;
+    const clearKeys = () => {
+      kRef.current = {};
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
+    window.addEventListener('blur', clearKeys);
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -230,11 +286,16 @@ export default function Game() {
     };
     raf = requestAnimationFrame(loop);
 
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', clearKeys);
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (
-    <canvas ref={canvasRef} width={400} height={400} tabIndex={0} />
+    <canvas ref={canvasRef} width={800} height={800} tabIndex={0} />
   );
 }
 `
@@ -247,9 +308,9 @@ import Step3Canvas from '../../components/dodge-tutorial/Step3Canvas.jsx';
 
 <TutorialChapter title="3. Enemies & Movement">
   <div slot="text">
-    A dodge game needs something to dodge. Let's create a swarm of enemies.
+    A dodge game needs something to dodge. In this chapter, each enemy is just a small object with position, velocity, radius, and color. That is enough data to update it and draw it every frame.
     
-    We store our dots in an array inside a `useRef`. In a real game, you might spawn them outside the screen and move them inwards, but for now we'll just scatter them randomly across the canvas with a random starting velocity.
+    We store the dots in an array inside a `useRef` for the same reason we stored the player in a ref: the array changes inside the animation loop, and we do not want React to re-render for every dot movement. Each dot starts at a random location and gets a random velocity. `Math.random() - 0.5` gives a value between `-0.5` and `0.5`, so multiplying by `2` gives motion in either direction.
 
     ```javascript
     const dotsRef = useRef([]);
@@ -257,8 +318,8 @@ import Step3Canvas from '../../components/dodge-tutorial/Step3Canvas.jsx';
     // Initialize 20 dots
     for (let i = 0; i < 20; i++) {
       dotsRef.current.push({
-        x: Math.random() * 400,
-        y: Math.random() * 400,
+        x: Math.random() * 800,
+        y: Math.random() * 800,
         vx: (Math.random() - 0.5) * 2,
         vy: (Math.random() - 0.5) * 2,
         radius: 3,
@@ -267,9 +328,11 @@ import Step3Canvas from '../../components/dodge-tutorial/Step3Canvas.jsx';
     }
     ```
 
-    Inside the `requestAnimationFrame` loop, we iterate through the `dotsRef.current` array. For each dot, we update its position by adding its velocity (`x += vx`). Then, we render it as a small circle using the Canvas `arc()` path method. 
+    Inside the `requestAnimationFrame` loop, we iterate through `dotsRef.current`. For each dot, we update its position by adding velocity (`x += vx`, `y += vy`). Then we render it as a circle with `ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2)`. The last two arguments describe a full circle in radians: from angle `0` to `2 * PI`.
     
     If a dot moves off the edge of the screen, we don't delete it. Instead, we simply wrap its coordinates to the opposite side of the canvas. This is an old arcade trick that keeps the screen permanently populated without having to run an expensive spawning/despawning loop.
+
+    **Checkpoint:** You should be able to describe a dot as data, explain why the dots live in a ref, and follow the update order: move dot, wrap dot, draw dot, then draw the player on top.
   </div>
 
   <div slot="canvas">
@@ -290,6 +353,11 @@ const updatePlayer = (p, k, width, height) => {
 
   p.vx *= 0.95; p.vy *= 0.95;
   p.x += p.vx; p.y += p.vy;
+
+  if (p.x < 0) p.x = width;
+  if (p.x > width) p.x = 0;
+  if (p.y < 0) p.y = height;
+  if (p.y > height) p.y = 0;
 
   if (Math.abs(p.vx) > 0.1 || Math.abs(p.vy) > 0.1) p.a = Math.atan2(p.vy, p.vx);
 };
@@ -324,14 +392,14 @@ const updateAndDrawDots = (ctx, dots, width, height) => {
 
     // 3. Draw the dot
     ctx.beginPath();
-    ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI * 2);
+    ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);
     ctx.fill();
   });
 };
 
 export default function Game() {
   const canvasRef = useRef(null);
-  const pRef = useRef({ x: 200, y: 200, vx: 0, vy: 0, a: 0 });
+  const pRef = useRef({ x: 400, y: 400, vx: 0, vy: 0, a: 0 });
   const dotsRef = useRef([]);
   const kRef = useRef({});
 
@@ -341,8 +409,12 @@ export default function Game() {
       kRef.current[e.code] = true;
     };
     const up = (e) => kRef.current[e.code] = false;
+    const clearKeys = () => {
+      kRef.current = {};
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
+    window.addEventListener('blur', clearKeys);
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -354,7 +426,7 @@ export default function Game() {
         y: Math.random() * canvas.height,
         vx: (Math.random() - 0.5) * 2,
         vy: (Math.random() - 0.5) * 2,
-        r: 3
+        radius: 3
       });
     }
 
@@ -370,11 +442,16 @@ export default function Game() {
     };
     raf = requestAnimationFrame(loop);
 
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', clearKeys);
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (
-    <canvas ref={canvasRef} width={400} height={400} tabIndex={0} />
+    <canvas ref={canvasRef} width={800} height={800} tabIndex={0} />
   );
 }
 `
@@ -387,12 +464,14 @@ import Step4Canvas from '../../components/dodge-tutorial/Step4Canvas.jsx';
 
 <TutorialChapter title="4. Gravity & Physics">
   <div slot="text">
-    The unique mechanic of Dodge is that the player acts like a magnet. The closer an enemy gets to the ship, the stronger the pull. We achieve this by calculating the distance between the player and each dot using the Pythagorean theorem (`a² + b² = c²`).
+    The unique mechanic of Dodge is that the player acts like a magnet. The ship does not directly pull dots by magic; each dot calculates a direction vector pointing from itself to the ship, then adds a small amount of that direction to its velocity.
 
-    If the distance is within our `GRAVITY_RADIUS`, we calculate an inverse-square-style force: the smaller the distance, the greater the force. 
+    The vector starts with two differences: `dx = player.x - dot.x` and `dy = player.y - dot.y`. Together, those describe the offset from the dot to the ship. The distance is the length of that offset, which we calculate with the Pythagorean theorem: `sqrt(dx * dx + dy * dy)`.
+
+    If the distance is within our `GRAVITY_RADIUS`, we calculate a linear falloff force: the closer the dot is, the stronger the pull. This is not physically accurate gravity, but it gives us a controllable game-feel version of attraction.
 
     ```javascript
-    const GRAVITY_RADIUS = 150;
+    const GRAVITY_RADIUS = 180;
     const GRAVITY_STRENGTH = 0.045;
 
     dots.forEach(dot => {
@@ -400,8 +479,8 @@ import Step4Canvas from '../../components/dodge-tutorial/Step4Canvas.jsx';
       const dy = player.y - dot.y;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
-      if (dist < GRAVITY_RADIUS) {
-        // Calculate an inverse force (0 to 1 scale)
+      if (dist > 0 && dist < GRAVITY_RADIUS) {
+        // Calculate linear falloff: closer means stronger pull
         const force = ((GRAVITY_RADIUS - dist) / GRAVITY_RADIUS) * GRAVITY_STRENGTH;
         
         // Apply force along the normalized directional vector
@@ -418,9 +497,13 @@ import Step4Canvas from '../../components/dodge-tutorial/Step4Canvas.jsx';
     });
     ```
 
-    Notice how we divide `dx` and `dy` by `dist`. This normalizes the vector so it points exactly at the player with a length of 1, allowing us to safely multiply it by our `force`.
+    Notice how we divide `dx` and `dy` by `dist`. That normalizes the vector: it keeps the direction but changes the length to `1`. Once the direction has length `1`, we can multiply it by `force` and add it to the dot's velocity. We also check `dist > 0` first, because dividing by zero would create invalid velocity values.
     
     This creates a slingshot effect. If you stand still, enemies will cluster and crash into you. If you keep moving, you can whip them behind you in an orbit!
+
+    The tether line is not part of the physics. It is feedback for the player. It makes the invisible force visible, and its opacity uses the same falloff idea: stronger pull means a more visible line.
+
+    **Checkpoint:** You should be able to explain `dx`, `dy`, `dist`, why we normalize by dividing by `dist`, why `dist > 0` matters, and how adding force to velocity creates attraction over time.
   </div>
 
   <div slot="canvas">
@@ -432,6 +515,9 @@ import Step4Canvas from '../../components/dodge-tutorial/Step4Canvas.jsx';
       client:load 
       files={{
         "/App.js": `import React, { useRef, useEffect } from 'react';
+
+const GRAVITY_RADIUS = 180;
+const GRAVITY_STRENGTH = 0.045;
 
 const updatePlayer = (p, k, width, height) => {
   if (k['ArrowUp'] || k['KeyW']) p.vy -= 0.3;
@@ -473,10 +559,10 @@ const updateAndDrawDots = (ctx, dots, p, width, height) => {
     const dy = p.y - dot.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
     
-    // [NEW] If the enemy is within the Gravity Radius (150px)
-    if (dist < 150) {
-      // 1. Calculate inverse force: Closer = stronger pull
-      const force = ((150 - dist) / 150) * 0.045;
+    // [NEW] If the enemy is within the gravity radius
+    if (dist > 0 && dist < GRAVITY_RADIUS) {
+      // 1. Calculate linear falloff: closer = stronger pull
+      const force = ((GRAVITY_RADIUS - dist) / GRAVITY_RADIUS) * GRAVITY_STRENGTH;
       
       // 2. Apply the normalized directional vector to the dot's velocity
       dot.vx += (dx / dist) * force;
@@ -486,7 +572,7 @@ const updateAndDrawDots = (ctx, dots, p, width, height) => {
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
       ctx.lineTo(dot.x, dot.y);
-      ctx.strokeStyle = "rgba(99,102,241," + (0.6 * (150-dist)/150) + ")";
+      ctx.strokeStyle = "rgba(99,102,241," + (0.6 * (GRAVITY_RADIUS-dist)/GRAVITY_RADIUS) + ")";
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -499,14 +585,14 @@ const updateAndDrawDots = (ctx, dots, p, width, height) => {
     if (dot.y > height) dot.y = 0;
 
     ctx.beginPath();
-    ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI * 2);
+    ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);
     ctx.fill();
   });
 };
 
 export default function Game() {
   const canvasRef = useRef(null);
-  const pRef = useRef({ x: 200, y: 200, vx: 0, vy: 0, a: 0 });
+  const pRef = useRef({ x: 400, y: 400, vx: 0, vy: 0, a: 0 });
   const dotsRef = useRef([]);
   const kRef = useRef({});
 
@@ -516,8 +602,12 @@ export default function Game() {
       kRef.current[e.code] = true;
     };
     const up = (e) => kRef.current[e.code] = false;
+    const clearKeys = () => {
+      kRef.current = {};
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
+    window.addEventListener('blur', clearKeys);
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -529,7 +619,7 @@ export default function Game() {
         y: Math.random() * canvas.height,
         vx: (Math.random() - 0.5) * 2,
         vy: (Math.random() - 0.5) * 2,
-        r: 3
+        radius: 3
       });
     }
 
@@ -545,11 +635,16 @@ export default function Game() {
     };
     raf = requestAnimationFrame(loop);
 
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', clearKeys);
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
   return (
-    <canvas ref={canvasRef} width={400} height={400} tabIndex={0} />
+    <canvas ref={canvasRef} width={800} height={800} tabIndex={0} />
   );
 }
 `
@@ -562,26 +657,131 @@ import Step5Canvas from '../../components/dodge-tutorial/Step5Canvas.jsx';
 
 <TutorialChapter title="5. Collision & Polish">
   <div slot="text">
-    To make it a real game, we need collision detection. 
+    By this point, the tutorial already has the main helper-function shape: `updatePlayer` moves the ship, `drawPlayer` renders it, and `updateAndDrawDots` owns enemy behavior. Chapter 5 does not introduce a new architecture. It adds a game lifecycle on top of the loop we already built.
 
-    Because our ship and the enemy dots are essentially circles from a hit-box perspective, we can use simple circle-circle collision. We already calculate the distance between the ship and each dot for gravity. All we have to do is check if that distance is less than the sum of their radii!
+    There are two new jobs:
+
+    1. Detect when a dot hits the ship.
+    2. Use game state to decide whether we are showing the start screen, running the loop, or showing game over.
+
+    The game state has three values:
 
     ```javascript
-    // Inside the dots loop
-    const hitRadius = 12; // approximate radius of our ship
-
-    if (dist < hitRadius + dot.radius) {
-      // Collision detected!
-      setGameState('GAMEOVER');
-      crashed = true;
-    }
+    const [gameState, setGameState] = useState('START');
+    const statusRef = useRef('START');
+    const rafRef = useRef(null);
     ```
 
-    When a crash occurs, we set a `gameState` variable (like `'PLAYING'` or `'GAMEOVER'`). If we crash, we stop calling `requestAnimationFrame`, halting the game loop entirely. We conditionally render a crash screen overlay in React, and add logic to restart the game state when the user hits SPACE.
-    
-    *Note on Game Architecture:* The game stays inside one React component, but the important behavior is split into small helper functions like `updatePlayer`, `drawPlayer`, and `updateAndDrawDots`. That keeps the main loop readable without implying we moved everything out into separate modules.
+    `gameState` is React state. We use it for UI because changing it should re-render the overlay. `statusRef` stores the same lifecycle value for the animation loop and keyboard handler. Those functions run outside React's render cycle, so a ref gives them the latest value immediately. `rafRef` stores the current animation-frame id so we can cancel an old loop before starting a new one.
 
-    With that, the core mechanics of Dodge are complete! You can enhance the game further by adding a score timer, high score tracking, particle explosion effects when you crash, or mobile touch controls.
+    The ship is drawn as a triangle, but for collision we use an approximate circle around it. That is a common game-development tradeoff: the collision shape does not have to match the artwork perfectly as long as it feels fair. Each dot already has a radius, and we already calculate `dist` in the gravity step. If the distance between centers is smaller than `shipRadius + dot.radius`, the two hit circles overlap.
+
+    ```javascript
+    const updateAndDrawDots = (ctx, dots, player, width, height) => {
+      let crashed = false;
+
+      dots.forEach((dot) => {
+        const dx = player.x - dot.x;
+        const dy = player.y - dot.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        // Gravity, movement, wrapping, and drawing stay here too.
+
+        if (dist < 12 + dot.radius) {
+          crashed = true;
+        }
+      });
+
+      return crashed;
+    };
+    ```
+
+    Notice that `updateAndDrawDots` does not call `setGameState` directly. It only reports what happened during this frame by returning `true` or `false`. That keeps the helper focused: it updates and draws dots, then tells the main loop whether the player crashed.
+
+    The main loop is the right place to decide what the crash means. If there is no crash, schedule the next frame. If there is a crash, change both lifecycle values to `'GAMEOVER'` and do not schedule another frame. That freezes the canvas on the crash moment.
+
+    ```javascript
+    const loop = () => {
+      if (statusRef.current !== 'PLAYING') return;
+
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      updatePlayer(pRef.current, kRef.current, canvas.width, canvas.height);
+      const crashed = updateAndDrawDots(
+        ctx,
+        dotsRef.current,
+        pRef.current,
+        canvas.width,
+        canvas.height
+      );
+      drawPlayer(ctx, pRef.current);
+
+      if (crashed) {
+        statusRef.current = 'GAMEOVER';
+        setGameState('GAMEOVER');
+      } else {
+        rafRef.current = requestAnimationFrame(loop);
+      }
+    };
+    ```
+
+    Starting or restarting the game resets the simulation. We clear any held-key state, center the player, create a fresh dot array, mark the lifecycle as `'PLAYING'`, and then start the loop. Clearing the key map matters because browsers can miss a `keyup` event if the iframe or tab loses focus while a key is held.
+
+    ```javascript
+    const startGame = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      kRef.current = {};
+      pRef.current = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        vx: 0,
+        vy: 0,
+        a: 0
+      };
+
+      dotsRef.current = Array.from({ length: 25 }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 2,
+        vy: (Math.random() - 0.5) * 2,
+        radius: 3
+      }));
+
+      statusRef.current = 'PLAYING';
+      setGameState('PLAYING');
+
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    ```
+
+    The keyboard handler uses the lifecycle too. Space should start from the title screen or restart from the crash screen, but it should not restart the game while the player is already playing.
+
+    ```javascript
+    const down = (e) => {
+      if (e.code === 'Space' && statusRef.current !== 'PLAYING') {
+        startGame();
+      }
+    };
+    ```
+
+    Finally, React uses `gameState` to render the overlay. When the game is `'PLAYING'`, the overlay is hidden. When the game is `'START'`, the overlay says "DODGE". When the game is `'GAMEOVER'`, the same overlay changes to "CRASHED".
+
+    ```jsx
+    {gameState !== 'PLAYING' && (
+      <div style={overlayStyle}>
+        <h2>{gameState === 'START' ? 'DODGE' : 'CRASHED'}</h2>
+        <p>Press SPACE to {gameState === 'START' ? 'Start' : 'Retry'}</p>
+      </div>
+    )}
+    ```
+
+    With that, the core mechanics of Dodge are complete. You can enhance the game further by adding a score timer, high score tracking, particle explosion effects when you crash, or mobile touch controls.
+
+    **Checkpoint:** You should be able to explain why collision can reuse `dist`, why the dot helper returns `crashed`, how `'START'`, `'PLAYING'`, and `'GAMEOVER'` control the game, and why `gameState` and `statusRef` serve different parts of the app.
   </div>
 
   <div slot="canvas">
@@ -593,6 +793,9 @@ import Step5Canvas from '../../components/dodge-tutorial/Step5Canvas.jsx';
       client:load 
       files={{
         "/App.js": `import React, { useRef, useEffect, useState } from 'react';
+
+const GRAVITY_RADIUS = 180;
+const GRAVITY_STRENGTH = 0.045;
 
 const updatePlayer = (p, k, width, height) => {
   if (k['ArrowUp'] || k['KeyW']) p.vy -= 0.3;
@@ -636,15 +839,15 @@ const updateAndDrawDots = (ctx, dots, p, width, height) => {
     const dy = p.y - dot.y;
     const dist = Math.sqrt(dx*dx + dy*dy);
     
-    if (dist < 150) {
-      const force = ((150 - dist) / 150) * 0.045;
+    if (dist > 0 && dist < GRAVITY_RADIUS) {
+      const force = ((GRAVITY_RADIUS - dist) / GRAVITY_RADIUS) * GRAVITY_STRENGTH;
       dot.vx += (dx / dist) * force;
       dot.vy += (dy / dist) * force;
       
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
       ctx.lineTo(dot.x, dot.y);
-      ctx.strokeStyle = "rgba(99,102,241," + (0.6 * (150-dist)/150) + ")";
+      ctx.strokeStyle = "rgba(99,102,241," + (0.6 * (GRAVITY_RADIUS-dist)/GRAVITY_RADIUS) + ")";
       ctx.lineWidth = 1;
       ctx.stroke();
     }
@@ -657,11 +860,11 @@ const updateAndDrawDots = (ctx, dots, p, width, height) => {
     if (dot.y > height) dot.y = 0;
 
     ctx.beginPath();
-    ctx.arc(dot.x, dot.y, dot.r, 0, Math.PI * 2);
+    ctx.arc(dot.x, dot.y, dot.radius, 0, Math.PI * 2);
     ctx.fill();
 
     // [NEW] Check if the distance is less than the ship radius (12) + dot radius
-    if (dist < 12 + dot.r) crashed = true;
+    if (dist < 12 + dot.radius) crashed = true;
   });
   
   // [NEW] Return the collision state back to the main loop
@@ -672,7 +875,7 @@ export default function Game() {
   const canvasRef = useRef(null);
   const [gameState, setGameState] = useState('START');
   
-  const pRef = useRef({ x: 200, y: 200, vx: 0, vy: 0, a: 0 });
+  const pRef = useRef({ x: 400, y: 400, vx: 0, vy: 0, a: 0 });
   const dotsRef = useRef([]);
   const kRef = useRef({});
   const rafRef = useRef(null);
@@ -687,12 +890,17 @@ export default function Game() {
       }
     };
     const up = (e) => kRef.current[e.code] = false;
+    const clearKeys = () => {
+      kRef.current = {};
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
+    window.addEventListener('blur', clearKeys);
 
     return () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', clearKeys);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
@@ -701,13 +909,14 @@ export default function Game() {
     const canvas = canvasRef.current;
     if(!canvas) return;
 
+    kRef.current = {};
     pRef.current = { x: canvas.width/2, y: canvas.height/2, vx: 0, vy: 0, a: 0 };
     dotsRef.current = Array.from({length: 25}, () => ({
       x: Math.random() * canvas.width,
       y: Math.random() * canvas.height,
       vx: (Math.random() - 0.5) * 2,
       vy: (Math.random() - 0.5) * 2,
-      r: 3
+      radius: 3
     }));
 
     statusRef.current = 'PLAYING';
@@ -740,7 +949,7 @@ export default function Game() {
 
   return (
     <>
-      <canvas ref={canvasRef} width={400} height={400} tabIndex={0} />
+      <canvas ref={canvasRef} width={800} height={800} tabIndex={0} />
       {gameState !== 'PLAYING' && (
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,

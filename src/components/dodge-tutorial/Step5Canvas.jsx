@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState } from 'react';
 
 const GRAVITY_RADIUS = 180;
 const GRAVITY_STRENGTH = 0.045;
@@ -44,7 +44,7 @@ const updateAndDrawDots = (ctx, dots, p, canvasWidth, canvasHeight) => {
     const dy = p.y - dot.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist < GRAVITY_RADIUS) {
+    if (dist > 0 && dist < GRAVITY_RADIUS) {
       const force = ((GRAVITY_RADIUS - dist) / GRAVITY_RADIUS) * GRAVITY_STRENGTH;
       dot.vx += (dx / dist) * force;
       dot.vy += (dy / dist) * force;
@@ -87,40 +87,8 @@ export default function Step5Canvas() {
   const statusRef = useRef('PLAYING');
 
   useEffect(() => {
-    const down = (e) => {
-      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
-        e.preventDefault();
-      }
-      keysRef.current[e.code] = true;
-      if (e.code === 'Space' && statusRef.current === 'GAMEOVER') {
-        startGame();
-      }
-    };
-    const up = (e) => keysRef.current[e.code] = false;
-    window.addEventListener('keydown', down);
-    window.addEventListener('keyup', up);
-
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-
-    const startGame = () => {
-      pRef.current = { x: canvas.width / 2, y: canvas.height / 2, vx: 0, vy: 0, angle: -Math.PI / 2 };
-      dotsRef.current = [];
-      for (let i = 0; i < 30; i++) {
-        dotsRef.current.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          vx: (Math.random() - 0.5) * 2.5,
-          vy: (Math.random() - 0.5) * 2.5,
-          radius: 3.5,
-          color: '#ffffff'
-        });
-      }
-      statusRef.current = 'PLAYING';
-      setGameState('PLAYING');
-      if (requestRef.current) cancelAnimationFrame(requestRef.current);
-      requestRef.current = requestAnimationFrame(loop);
-    };
 
     const loop = () => {
       if (statusRef.current !== 'PLAYING') return;
@@ -140,11 +108,49 @@ export default function Step5Canvas() {
       }
     };
 
+    const startGame = () => {
+      keysRef.current = {};
+      pRef.current = { x: canvas.width / 2, y: canvas.height / 2, vx: 0, vy: 0, angle: -Math.PI / 2 };
+      dotsRef.current = [];
+      for (let i = 0; i < 30; i++) {
+        dotsRef.current.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          vx: (Math.random() - 0.5) * 2.5,
+          vy: (Math.random() - 0.5) * 2.5,
+          radius: 3.5,
+          color: '#ffffff'
+        });
+      }
+      statusRef.current = 'PLAYING';
+      setGameState('PLAYING');
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+      requestRef.current = requestAnimationFrame(loop);
+    };
+
+    const down = (e) => {
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+        e.preventDefault();
+      }
+      keysRef.current[e.code] = true;
+      if (e.code === 'Space' && statusRef.current === 'GAMEOVER') {
+        startGame();
+      }
+    };
+    const up = (e) => keysRef.current[e.code] = false;
+    const clearKeys = () => {
+      keysRef.current = {};
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    window.addEventListener('blur', clearKeys);
+
     startGame();
 
     return () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', clearKeys);
       cancelAnimationFrame(requestRef.current);
     };
   }, []);

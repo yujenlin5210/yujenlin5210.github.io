@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import { useRef, useEffect } from 'react';
 
 const GRAVITY_RADIUS = 180;
 const GRAVITY_STRENGTH = 0.045;
@@ -43,7 +43,7 @@ const updateAndDrawDots = (ctx, dots, p, canvasWidth, canvasHeight) => {
     const dy = p.y - dot.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist < GRAVITY_RADIUS) {
+    if (dist > 0 && dist < GRAVITY_RADIUS) {
       const force = ((GRAVITY_RADIUS - dist) / GRAVITY_RADIUS) * GRAVITY_STRENGTH;
       dot.vx += (dx / dist) * force;
       dot.vy += (dy / dist) * force;
@@ -87,8 +87,12 @@ export default function Step4Canvas() {
       keysRef.current[e.code] = true;
     };
     const up = (e) => keysRef.current[e.code] = false;
+    const clearKeys = () => {
+      keysRef.current = {};
+    };
     window.addEventListener('keydown', down);
     window.addEventListener('keyup', up);
+    window.addEventListener('blur', clearKeys);
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
@@ -119,6 +123,7 @@ export default function Step4Canvas() {
     return () => {
       window.removeEventListener('keydown', down);
       window.removeEventListener('keyup', up);
+      window.removeEventListener('blur', clearKeys);
       cancelAnimationFrame(requestRef.current);
     };
   }, []);
