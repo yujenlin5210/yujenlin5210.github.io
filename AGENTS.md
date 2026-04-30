@@ -34,6 +34,7 @@ Current stack:
 - `src/content/lab`: lab posts, experiments, and technical writeups.
 - `src/layouts`: top-level layout wrappers.
 - `docs/architecture.md`: human-facing architecture overview for the current site.
+- `docs/tutorial-authoring.md`: required standard for building textbook-style lab tutorials.
 - `src/utils/content.ts`: shared validated date helpers. Use this instead of ad hoc `new Date(id.slice(...))` logic.
 - `src/utils/filterTags.ts`: removes internal taxonomy tags before public rendering.
 - `src/utils/browserAudio.js`: shared helpers for browser audio capability checks.
@@ -67,6 +68,7 @@ Run from the repo root:
 - If adding inline scripts to Astro pages, make them idempotent across `ClientRouter` navigations and ensure they render inside the document, not after `</html>`.
 - Prefer lighter hydration where possible. `client:visible` is preferred over `client:load` when eager hydration is not required.
 - Honor reduced-motion preferences on motion-heavy surfaces. Reuse `src/hooks/usePrefersReducedMotion.js` instead of reimplementing media-query listeners.
+- For textbook-style lab tutorials, follow `docs/tutorial-authoring.md`. Use the Dodge tutorial layout as the canonical pattern unless explicitly instructed otherwise.
 
 ## Architecture Notes
 

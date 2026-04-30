@@ -1,0 +1,893 @@
+---
+title: "Building Time as Splitting Squares: A React + SVG Tutorial"
+categories: lab
+description: A textbook-style tutorial for rebuilding the Time art piece with React, SVG, browser-native animation, and Web Audio.
+folder: time
+cover: cover.png
+tags: [Javascript, Creative-Coding, React, SVG, Web-Audio, Tutorial]
+---
+
+import TimeTutorialChapter from '../../components/dodge-tutorial/TutorialChapter.astro';
+import TimeStepPreview from '../../components/time-tutorial/TimeStepPreview.jsx';
+import TimeSandpackPlayground from '../../components/time-tutorial/TimeSandpackPlayground.jsx';
+
+<div class="prose dark:prose-invert prose-indigo max-w-4xl mx-auto mb-20 text-center">
+  This tutorial is a companion to the [Time art restoration post](/lab/2026-04-16-time-art/), which covers the project context and the original Flash-era reference. Here, we focus on how to build the interaction.
+
+  I will assume you already read the [Dodge tutorial](/lab/2026-04-27-dodge-tutorial/), so we will not re-teach basic React hooks, event cleanup, or why interactive state often belongs in `useRef`. Instead, this tutorial focuses on the new concepts: SVG geometry, recursive splitting, animation handoff, reverse merge, generated sound, and lifecycle cleanup.
+
+  The target experience is simple to describe: one square splits into smaller fragments, the fragments drift outward, then the process reverses until the square becomes whole again.
+</div>
+
+<TimeTutorialChapter title="1. Model The Square Before Animating It">
+  <div slot="text">
+    Start with data, not animation. The artwork may look visual and organic, but the system is easier to understand if every visible rectangle is just a plain object.
+
+    A fragment needs two groups of fields:
+
+    ```ts
+    type Piece = {
+      id: string;
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+      startX: number;
+      startY: number;
+      targetX: number;
+      targetY: number;
+    };
+    ```
+
+    `x`, `y`, `w`, and `h` describe the rectangle itself. `startX`, `startY`, `targetX`, and `targetY` describe motion. We keep those separate because the rectangle's actual SVG geometry can stay stable while the browser animates it with a transform.
+
+    SVG is a better fit than Canvas for this tutorial step. In Dodge, Canvas was useful because we redrew the whole game scene every frame. Here, the scene is made from many persistent rectangles. SVG lets React render those rectangles as actual elements, and each element can animate independently.
+
+    The `viewBox` is the drawing coordinate system. It is similar to the Canvas width and height from Dodge, except SVG scales the coordinate system to whatever size the browser gives it.
+
+    ```tsx
+    <svg viewBox="0 0 1200 750">
+      {pieces.map((piece) => (
+        <rect
+          key={piece.id}
+          x={piece.x}
+          y={piece.y}
+          width={piece.w}
+          height={piece.h}
+        />
+      ))}
+    </svg>
+    ```
+
+    **Checkpoint:** You should be able to explain why the square is data first, why SVG is a good fit for persistent fragments, and why the motion fields are separate from the rectangle geometry.
+  </div>
+
+  <div slot="canvas" class="w-full h-full">
+    <TimeStepPreview client:load mode="data" depth={0} />
+  </div>
+
+  <div slot="playground">
+    <TimeSandpackPlayground
+      client:load
+      files={{
+        "/App.js": `import React from 'react';
+import './styles.css';
+
+const STAGE = { w: 1200, h: 750 };
+const ROOT_SIZE = 280;
+
+function makeRootPiece() {
+  const x = (STAGE.w - ROOT_SIZE) / 2;
+  const y = (STAGE.h - ROOT_SIZE) / 2;
+
+  return {
+    id: 'root',
+    x,
+    y,
+    w: ROOT_SIZE,
+    h: ROOT_SIZE,
+    startX: x,
+    startY: y,
+    targetX: x,
+    targetY: y,
+  };
+}
+
+function Piece({ piece }) {
+  return (
+    <rect
+      x={piece.x}
+      y={piece.y}
+      width={piece.w}
+      height={piece.h}
+      fill="rgba(129, 140, 248, 0.35)"
+    />
+  );
+}
+
+export default function App() {
+  const pieces = [makeRootPiece()];
+
+  return (
+    <main className = "app">
+      <div className = "stage">
+        <svg viewBox={'0 0 ' + STAGE.w + ' ' + STAGE.h}>
+          {pieces.map((piece) => (
+            <Piece key={piece.id} piece={piece} />
+          ))}
+        </svg>
+        <div className = "toolbar">
+          <span className = "count">{pieces.length} piece</span>
+        </div>
+      </div>
+    </main>
+  );
+}
+`
+      }}
+    />
+  </div>
+</TimeTutorialChapter>
+
+<TimeTutorialChapter title="2. Split One Parent Into Two Children">
+  <div slot="text">
+    Recursion is easier if the smallest operation is clear. Before splitting a whole tree, split one rectangle.
+
+    Each split chooses a direction. A vertical split creates a left child and a right child. A horizontal split creates a top child and a bottom child.
+
+    ```ts
+    const ratio = 0.2 + Math.random() * 0.6;
+    ```
+
+    The ratio is clamped to the range `20%` to `80%`. That matters for readability. If the ratio were allowed to be `1%`, a child could become a nearly invisible sliver. The artwork feels random, but the randomness is constrained.
+
+    Each child starts from the parent's current visual position:
+
+    ```ts
+    startX: parent.targetX,
+    startY: parent.targetY,
+    ```
+
+    That is the key handoff rule. If a child starts from the wrong coordinate, it will appear to pop into existence before moving. The parent should disappear at the same moment its children appear exactly where the parent was.
+
+    For a vertical split, the first child moves left and the second child moves right:
+
+    ```ts
+    targetX: parent.targetX - force
+    targetX: parent.targetX + childWidth + force
+    ```
+
+    The preview shows one split only. Keep pressing the button and watch how the child sizes and directions change, but the visual rule stays the same: parent out, children in.
+
+    **Checkpoint:** You should be able to explain what `ratio` controls, why the children inherit the parent target position, and why replacing the parent atomically avoids visual jumps.
+  </div>
+
+  <div slot="canvas" class="w-full h-full">
+    <TimeStepPreview client:load mode="split" depth={1} />
+  </div>
+
+  <div slot="playground">
+    <TimeSandpackPlayground
+      client:load
+      files={{
+        "/App.js": `import React, { useState } from 'react';
+import './styles.css';
+
+const STAGE = { w: 1200, h: 750 };
+const ROOT_SIZE = 280;
+
+function makeRootPiece() {
+  const x = (STAGE.w - ROOT_SIZE) / 2;
+  const y = (STAGE.h - ROOT_SIZE) / 2;
+  return { id: 'root', x, y, w: ROOT_SIZE, h: ROOT_SIZE, startX: x, startY: y, targetX: x, targetY: y };
+}
+
+function splitPiece(parent) {
+  const ratio = 0.2 + Math.random() * 0.6;
+  const force = 15 + Math.random() * 55;
+  const vertical = Math.random() > 0.5;
+
+  if (vertical) {
+    const w1 = parent.w * ratio;
+    const w2 = parent.w - w1;
+
+    return [
+      {
+        id: parent.id + '-1',
+        x: parent.targetX,
+        y: parent.targetY,
+        w: w1,
+        h: parent.h,
+        startX: parent.targetX,
+        startY: parent.targetY,
+        targetX: parent.targetX - force,
+        targetY: parent.targetY,
+      },
+      {
+        id: parent.id + '-2',
+        x: parent.targetX + w1,
+        y: parent.targetY,
+        w: w2,
+        h: parent.h,
+        startX: parent.targetX + w1,
+        startY: parent.targetY,
+        targetX: parent.targetX + w1 + force,
+        targetY: parent.targetY,
+      },
+    ];
+  }
+
+  const h1 = parent.h * ratio;
+  const h2 = parent.h - h1;
+
+  return [
+    {
+      id: parent.id + '-1',
+      x: parent.targetX,
+      y: parent.targetY,
+      w: parent.w,
+      h: h1,
+      startX: parent.targetX,
+      startY: parent.targetY,
+      targetX: parent.targetX,
+      targetY: parent.targetY - force,
+    },
+    {
+      id: parent.id + '-2',
+      x: parent.targetX,
+      y: parent.targetY + h1,
+      w: parent.w,
+      h: h2,
+      startX: parent.targetX,
+      startY: parent.targetY + h1,
+      targetX: parent.targetX,
+      targetY: parent.targetY + h1 + force,
+    },
+  ];
+}
+
+function Piece({ piece }) {
+  const transform = 'translate(' + (piece.targetX - piece.x) + 'px, ' + (piece.targetY - piece.y) + 'px)';
+
+  return (
+    <g style={{ transform, transformBox: 'fill-box', transformOrigin: '0 0' }}>
+      <rect
+        x={piece.x}
+        y={piece.y}
+        width={piece.w}
+        height={piece.h}
+        fill="rgba(129, 140, 248, 0.35)"
+      />
+    </g>
+  );
+}
+
+export default function App() {
+  const [pieces, setPieces] = useState(() => splitPiece(makeRootPiece()));
+
+  return (
+    <main className = "app">
+      <div className = "stage">
+        <svg viewBox={'0 0 ' + STAGE.w + ' ' + STAGE.h}>
+          {pieces.map((piece) => (
+            <Piece key={piece.id} piece={piece} />
+          ))}
+        </svg>
+        <div className = "toolbar">
+          <span className = "count">{pieces.length} pieces</span>
+          <button className = "button" onClick={() => setPieces(splitPiece(makeRootPiece()))}>
+            Regenerate
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
+`
+      }}
+    />
+  </div>
+</TimeTutorialChapter>
+
+<TimeTutorialChapter title="3. Save The Recursive History">
+  <div slot="text">
+    Now scale the one-split rule into a tree.
+
+    If the depth is `1`, there are `2` pieces. If the depth is `2`, there are `4` pieces. If the depth is `5`, there are `32` pieces. In general, the final count is `2 ** depth`.
+
+    The important structure is `history`:
+
+    ```txt
+    history[0] = root
+    history[1] = two children
+    history[2] = four grandchildren
+    history[3] = eight fragments
+    ```
+
+    `pieces` is only what the user sees right now. `history` remembers how we got there. That difference matters later because merging is not a separate geometry problem. Merging is just walking the saved history backward.
+
+    Use the preview slider to scrub through `history[0]`, `history[1]`, `history[2]`, and so on. This should match the Sandpack exercise below: the level number changes, and the visible piece count doubles at each step.
+
+    The recursive build loop is short because `splitPiece` already owns the local geometry:
+
+    ```ts
+    const history = [[root]];
+
+    for (let step = 0; step < depth; step += 1) {
+      const previousLevel = history[step];
+      const nextLevel = previousLevel.flatMap((piece) => splitPiece(piece, step));
+      history.push(nextLevel);
+    }
+    ```
+
+    Notice that the force gets smaller as `step` increases:
+
+    ```ts
+    const force = baseForce * Math.pow(0.85, step);
+    ```
+
+    Deep fragments are smaller, so they should not drift as far as the original square. This is one of the details that makes the result feel physical instead of random.
+
+    **Checkpoint:** You should be able to explain the difference between the visible `pieces` array and the saved `history` array, and why the history is required for a clean merge.
+  </div>
+
+  <div slot="canvas" class="w-full h-full">
+    <TimeStepPreview client:load mode="recursive" depth={4} />
+  </div>
+
+  <div slot="playground">
+    <TimeSandpackPlayground
+      client:load
+      files={{
+        "/App.js": `import React, { useMemo, useState } from 'react';
+import './styles.css';
+
+const STAGE = { w: 1200, h: 750 };
+const ROOT_SIZE = 280;
+
+function makeRootPiece() {
+  const x = (STAGE.w - ROOT_SIZE) / 2;
+  const y = (STAGE.h - ROOT_SIZE) / 2;
+  return { id: 'root', x, y, w: ROOT_SIZE, h: ROOT_SIZE, startX: x, startY: y, targetX: x, targetY: y };
+}
+
+function splitPiece(parent, step) {
+  const ratio = 0.2 + Math.random() * 0.6;
+  const force = (15 + Math.random() * 55) * Math.pow(0.85, step);
+  const vertical = Math.random() > 0.5;
+
+  if (vertical) {
+    const w1 = parent.w * ratio;
+    const w2 = parent.w - w1;
+    return [
+      { id: parent.id + '-1', x: parent.targetX, y: parent.targetY, w: w1, h: parent.h, startX: parent.targetX, startY: parent.targetY, targetX: parent.targetX - force, targetY: parent.targetY },
+      { id: parent.id + '-2', x: parent.targetX + w1, y: parent.targetY, w: w2, h: parent.h, startX: parent.targetX + w1, startY: parent.targetY, targetX: parent.targetX + w1 + force, targetY: parent.targetY },
+    ];
+  }
+
+  const h1 = parent.h * ratio;
+  const h2 = parent.h - h1;
+  return [
+    { id: parent.id + '-1', x: parent.targetX, y: parent.targetY, w: parent.w, h: h1, startX: parent.targetX, startY: parent.targetY, targetX: parent.targetX, targetY: parent.targetY - force },
+    { id: parent.id + '-2', x: parent.targetX, y: parent.targetY + h1, w: parent.w, h: h2, startX: parent.targetX, startY: parent.targetY + h1, targetX: parent.targetX, targetY: parent.targetY + h1 + force },
+  ];
+}
+
+function buildHistory(depth) {
+  const history = [[makeRootPiece()]];
+
+  for (let step = 0; step < depth; step += 1) {
+    const previousLevel = history[step];
+    const nextLevel = previousLevel.flatMap((piece) => splitPiece(piece, step));
+    history.push(nextLevel);
+  }
+
+  return history;
+}
+
+function Piece({ piece }) {
+  const transform = 'translate(' + (piece.targetX - piece.x) + 'px, ' + (piece.targetY - piece.y) + 'px)';
+  return (
+    <g style={{ transform, transformBox: 'fill-box', transformOrigin: '0 0' }}>
+      <rect x={piece.x} y={piece.y} width={piece.w} height={piece.h} fill="rgba(129, 140, 248, 0.35)" />
+    </g>
+  );
+}
+
+export default function App() {
+  const [depth, setDepth] = useState(4);
+  const [version, setVersion] = useState(0);
+  const history = useMemo(() => buildHistory(depth), [depth, version]);
+  const pieces = history[history.length - 1];
+
+  return (
+    <main className = "app">
+      <div className = "stage">
+        <svg viewBox={'0 0 ' + STAGE.w + ' ' + STAGE.h}>
+          {pieces.map((piece) => <Piece key={piece.id} piece={piece} />)}
+        </svg>
+        <div className = "toolbar">
+          <span className = "count">Depth {depth} / {pieces.length} pieces</span>
+          <button className = "button" onClick={() => setVersion((value) => value + 1)}>
+            Regenerate
+          </button>
+        </div>
+      </div>
+      <input
+        aria-label="Depth"
+        min="1"
+        max="7"
+        type="range"
+        value={depth}
+        onChange={(event) => setDepth(Number(event.target.value))}
+        style={{ marginTop: 20, width: 'min(90vw, 720px)' }}
+      />
+    </main>
+  );
+}
+`
+      }}
+    />
+  </div>
+</TimeTutorialChapter>
+
+<TimeTutorialChapter title="4. Animate The Handoff">
+  <div slot="text">
+    At this point, the geometry works, but the result still feels like a static diagram. The next step is motion.
+
+    The tempting approach is to update every piece's `x` and `y` in React on every frame. Avoid that. At high depth, the piece count can reach hundreds or thousands. React should decide which pieces exist; the browser should handle frame-by-frame movement.
+
+    Each fragment becomes an SVG group with a rectangle inside it. The rectangle keeps its base geometry, and the group receives a transform:
+
+    ```ts
+    const from = `translate(${piece.startX - piece.x}px, ${piece.startY - piece.y}px)`;
+    const to = `translate(${piece.targetX - piece.x}px, ${piece.targetY - piece.y}px)`;
+    ```
+
+    The subtraction is important. The rectangle is drawn at `piece.x`, but visually it should begin at `piece.startX`. The transform bridges that difference.
+
+    We use the Web Animations API:
+
+    ```ts
+    element.animate(
+      [{ transform: from }, { transform: to }],
+      {
+        duration: 2200,
+        easing: 'cubic-bezier(0.05, 0.9, 0.1, 1)',
+        fill: 'forwards',
+      }
+    );
+    ```
+
+    `fill: 'forwards'` keeps the element at the final transform after the animation finishes. The easing curve gives the piece a fast initial push and a slow glide, closer to ice sliding than normal UI movement.
+
+    This chapter is the main bridge from "algorithm" to "art." The same data model now feels continuous because the children start where the parent was and glide toward their targets.
+
+    **Checkpoint:** You should be able to explain why the rectangle geometry does not change every frame, why transform animation is cheaper, and how `startX`, `x`, and `targetX` work together.
+  </div>
+
+  <div slot="canvas" class="w-full h-full">
+    <TimeStepPreview client:load mode="animate" depth={3} />
+  </div>
+
+  <div slot="playground">
+    <TimeSandpackPlayground
+      client:load
+      files={{
+        "/App.js": `import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import './styles.css';
+
+const STAGE = { w: 1200, h: 750 };
+const ROOT_SIZE = 280;
+const EASING = 'cubic-bezier(0.05, 0.9, 0.1, 1)';
+
+function makeRootPiece() {
+  const x = (STAGE.w - ROOT_SIZE) / 2;
+  const y = (STAGE.h - ROOT_SIZE) / 2;
+  return { id: 'root', x, y, w: ROOT_SIZE, h: ROOT_SIZE, startX: x, startY: y, targetX: x, targetY: y };
+}
+
+function splitPiece(parent, step) {
+  const ratio = 0.2 + Math.random() * 0.6;
+  const baseForce = (15 + Math.random() * 55) * Math.pow(0.85, step);
+  const f1 = baseForce * (0.8 + Math.random() * 0.4);
+  const f2 = baseForce * (0.8 + Math.random() * 0.4);
+  const horizontal = Math.random() > 0.5;
+
+  if (horizontal) {
+    const h1 = parent.h * ratio;
+    const h2 = parent.h - h1;
+
+    return [
+      { id: parent.id + '-1', x: parent.targetX, y: parent.targetY, w: parent.w, h: h1, startX: parent.targetX, startY: parent.targetY, targetX: parent.targetX, targetY: parent.targetY - f1 },
+      { id: parent.id + '-2', x: parent.targetX, y: parent.targetY + h1, w: parent.w, h: h2, startX: parent.targetX, startY: parent.targetY + h1, targetX: parent.targetX, targetY: parent.targetY + h1 + f2 },
+    ];
+  }
+
+  const w1 = parent.w * ratio;
+  const w2 = parent.w - w1;
+  return [
+    { id: parent.id + '-1', x: parent.targetX, y: parent.targetY, w: w1, h: parent.h, startX: parent.targetX, startY: parent.targetY, targetX: parent.targetX - f1, targetY: parent.targetY },
+    { id: parent.id + '-2', x: parent.targetX + w1, y: parent.targetY, w: w2, h: parent.h, startX: parent.targetX + w1, startY: parent.targetY, targetX: parent.targetX + w1 + f2, targetY: parent.targetY },
+  ];
+}
+
+function buildSplitPlan(depth) {
+  const history = [[makeRootPiece()]];
+  const tasksByStep = [];
+
+  for (let step = 0; step < depth; step += 1) {
+    const tasks = history[step].map((piece) => ({
+      parentId: piece.id,
+      children: splitPiece(piece, step),
+    }));
+    tasksByStep.push([...tasks].sort(() => Math.random() - 0.5));
+    history.push(tasks.flatMap((task) => task.children));
+  }
+
+  return { history, tasksByStep };
+}
+
+function AnimatedPiece({ piece }) {
+  const ref = useRef(null);
+  const from = 'translate(' + (piece.startX - piece.x) + 'px, ' + (piece.startY - piece.y) + 'px)';
+  const to = 'translate(' + (piece.targetX - piece.x) + 'px, ' + (piece.targetY - piece.y) + 'px)';
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    element.style.transform = from;
+    const animation = element.animate(
+      [{ transform: from }, { transform: to }],
+      { duration: 2200, easing: EASING, fill: 'forwards' }
+    );
+    element.style.transform = to;
+
+    return () => animation.cancel();
+  }, [from, to]);
+
+  return (
+    <g ref={ref} style={{ transformBox: 'fill-box', transformOrigin: '0 0', willChange: 'transform' }}>
+      <rect x={piece.x} y={piece.y} width={piece.w} height={piece.h} fill="rgba(129, 140, 248, 0.35)" />
+    </g>
+  );
+}
+
+export default function App() {
+  const timersRef = useRef([]);
+  const [pieces, setPieces] = useState([makeRootPiece()]);
+  const [running, setRunning] = useState(false);
+
+  const clearTimers = () => {
+    timersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+    timersRef.current = [];
+  };
+
+  const schedule = (callback, delay) => {
+    const timerId = window.setTimeout(callback, delay);
+    timersRef.current.push(timerId);
+  };
+
+  const run = () => {
+    clearTimers();
+    setRunning(true);
+
+    const { history, tasksByStep } = buildSplitPlan(3);
+    let delay = 160;
+
+    setPieces(history[0]);
+    tasksByStep.forEach((tasks) => {
+      tasks.forEach((task) => {
+        schedule(() => {
+          setPieces((current) => {
+            const filtered = current.filter((piece) => piece.id !== task.parentId);
+            return [...filtered, ...task.children];
+          });
+        }, delay);
+        delay += 70;
+      });
+      delay += 1200;
+    });
+    schedule(() => setRunning(false), delay + 2200);
+  };
+
+  useEffect(() => clearTimers, []);
+
+  return (
+    <main className = "app">
+      <div className = "stage">
+        <svg viewBox={'0 0 ' + STAGE.w + ' ' + STAGE.h}>
+          {pieces.map((piece) => <AnimatedPiece key={piece.id} piece={piece} />)}
+        </svg>
+        <div className = "toolbar">
+          <span className = "count">{pieces.length} pieces</span>
+          <button className = "button" disabled={running} onClick={run}>
+            {running ? 'Running' : 'Run Split'}
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
+`
+      }}
+    />
+  </div>
+</TimeTutorialChapter>
+
+<TimeTutorialChapter title="5. Reverse The Tree, Then Clean Up">
+  <div slot="text">
+    The final interaction has two phases: split forward, then merge backward.
+
+    Because Chapter 3 saved `history`, the reverse phase can walk through it from deepest level to root. The important detail is that merge does **not** replace a whole level immediately:
+
+    ```ts
+    for (let step = depth - 1; step >= 0; step -= 1) {
+      moveChildrenBackToTheirLocalOrigins(history[step]);
+      await wait(2200);
+      replaceChildrenWithRestoredParents(history[step]);
+    }
+    ```
+
+    During the merge phase, each child first animates back toward its own local starting position, meaning `targetX` becomes `x` and `targetY` becomes `y`. Only after that 2.2 second glide finishes do we remove those children and restore the parent rectangles. That delayed handoff is the part that prevents overlap, snapping, and the incorrect "whole level swap" behavior.
+
+    The full piece also adds sound. Each split plays a small generated bell:
+
+    ```ts
+    const baseFreq = 180 + Math.random() * 330;
+    playTone(baseFreq, 0.1, 2.5);
+    playTone(baseFreq * 1.5, 0.05, 2.0);
+    playTone(baseFreq * 2.01, 0.03, 1.5);
+    ```
+
+    The non-integer harmonic `2.01` keeps the bell slightly unstable instead of perfectly clean. During merge, the envelope reverses so the sound swells inward instead of attacking outward.
+
+    Cleanup matters here because the interaction is asynchronous. It uses timers, animations, and audio nodes. If the user navigates away or switches tabs, those should stop.
+
+    ```ts
+    return () => {
+      clearPendingWaits();
+      stopActiveNotes();
+      closeAudioContext();
+    };
+    ```
+
+    The final system is not just "recursion plus rectangles." It is a sequence of handoffs: parent to children, visible state to history, JavaScript state to browser animation, split sound to merge sound, and active interaction to cleanup.
+
+    **Checkpoint:** You should be able to explain why the merge is the saved history in reverse, why audio follows the same split/merge structure, and why long-running creative code needs explicit cleanup.
+  </div>
+
+  <div slot="canvas" class="w-full h-full">
+    <TimeStepPreview client:load mode="merge" depth={3} />
+  </div>
+
+  <div slot="playground">
+    <TimeSandpackPlayground
+      client:load
+      files={{
+        "/App.js": `import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import './styles.css';
+
+const STAGE = { w: 1200, h: 750 };
+const ROOT_SIZE = 280;
+const EASING = 'cubic-bezier(0.05, 0.9, 0.1, 1)';
+
+function makeRootPiece() {
+  const x = (STAGE.w - ROOT_SIZE) / 2;
+  const y = (STAGE.h - ROOT_SIZE) / 2;
+  return { id: 'root', x, y, w: ROOT_SIZE, h: ROOT_SIZE, startX: x, startY: y, targetX: x, targetY: y };
+}
+
+function splitPiece(parent, step) {
+  const ratio = 0.2 + Math.random() * 0.6;
+  const baseForce = (15 + Math.random() * 55) * Math.pow(0.85, step);
+  const f1 = baseForce * (0.8 + Math.random() * 0.4);
+  const f2 = baseForce * (0.8 + Math.random() * 0.4);
+  const horizontal = Math.random() > 0.5;
+
+  if (horizontal) {
+    const h1 = parent.h * ratio;
+    const h2 = parent.h - h1;
+    return [
+      { id: parent.id + '-1', x: parent.targetX, y: parent.targetY, w: parent.w, h: h1, startX: parent.targetX, startY: parent.targetY, targetX: parent.targetX, targetY: parent.targetY - f1 },
+      { id: parent.id + '-2', x: parent.targetX, y: parent.targetY + h1, w: parent.w, h: h2, startX: parent.targetX, startY: parent.targetY + h1, targetX: parent.targetX, targetY: parent.targetY + h1 + f2 },
+    ];
+  }
+
+  const w1 = parent.w * ratio;
+  const w2 = parent.w - w1;
+  return [
+    { id: parent.id + '-1', x: parent.targetX, y: parent.targetY, w: w1, h: parent.h, startX: parent.targetX, startY: parent.targetY, targetX: parent.targetX - f1, targetY: parent.targetY },
+    { id: parent.id + '-2', x: parent.targetX + w1, y: parent.targetY, w: w2, h: parent.h, startX: parent.targetX + w1, startY: parent.targetY, targetX: parent.targetX + w1 + f2, targetY: parent.targetY },
+  ];
+}
+
+function buildSplitPlan(depth) {
+  const history = [[makeRootPiece()]];
+  const tasksByStep = [];
+  const mergeParentOrders = [];
+
+  for (let step = 0; step < depth; step += 1) {
+    const tasks = history[step].map((piece) => ({
+      parentId: piece.id,
+      children: splitPiece(piece, step),
+    }));
+
+    tasksByStep.push([...tasks].sort(() => Math.random() - 0.5));
+    mergeParentOrders.push([...history[step].map((piece) => piece.id)].sort(() => Math.random() - 0.5));
+    history.push(tasks.flatMap((task) => task.children));
+  }
+
+  return { history, tasksByStep, mergeParentOrders };
+}
+
+function AnimatedPiece({ piece }) {
+  const ref = useRef(null);
+  const from = 'translate(' + (piece.startX - piece.x) + 'px, ' + (piece.startY - piece.y) + 'px)';
+  const to = 'translate(' + (piece.targetX - piece.x) + 'px, ' + (piece.targetY - piece.y) + 'px)';
+
+  useLayoutEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    element.style.transform = from;
+    const animation = element.animate(
+      [{ transform: from }, { transform: to }],
+      { duration: 2200, easing: EASING, fill: 'forwards' }
+    );
+    element.style.transform = to;
+
+    return () => animation.cancel();
+  }, [from, to]);
+
+  return (
+    <g ref={ref} style={{ transformBox: 'fill-box', transformOrigin: '0 0', willChange: 'transform' }}>
+      <rect x={piece.x} y={piece.y} width={piece.w} height={piece.h} fill="rgba(129, 140, 248, 0.35)" />
+    </g>
+  );
+}
+
+function playBell(isReverse) {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) return;
+
+  const ctx = new AudioContext();
+  const baseFreq = 180 + Math.random() * 330;
+
+  [baseFreq, baseFreq * 1.5, baseFreq * 2.01].forEach((freq, index) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const duration = 0.9 + index * 0.25;
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+
+    if (isReverse) {
+      gain.gain.setValueAtTime(0.001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + duration - 0.1);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
+    } else {
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.08, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    }
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  });
+
+  window.setTimeout(() => ctx.close(), 1600);
+}
+
+export default function App() {
+  const timersRef = useRef([]);
+  const [pieces, setPieces] = useState([makeRootPiece()]);
+  const [running, setRunning] = useState(false);
+
+  const clearTimers = () => {
+    timersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+    timersRef.current = [];
+  };
+
+  const schedule = (callback, delay) => {
+    const timerId = window.setTimeout(callback, delay);
+    timersRef.current.push(timerId);
+  };
+
+  const run = () => {
+    clearTimers();
+    setRunning(true);
+
+    const depth = 3;
+    const { history, tasksByStep, mergeParentOrders } = buildSplitPlan(depth);
+    let delay = 180;
+
+    setPieces(history[0]);
+
+    tasksByStep.forEach((tasks) => {
+      tasks.forEach((task) => {
+        schedule(() => {
+          setPieces((current) => {
+            const filtered = current.filter((piece) => piece.id !== task.parentId);
+            return [...filtered, ...task.children];
+          });
+          playBell(false);
+        }, delay);
+        delay += 70;
+      });
+      delay += 1200;
+    });
+
+    delay += 1600;
+
+    for (let step = depth - 1; step >= 0; step -= 1) {
+      const parentLevel = history[step];
+      const currentLevelIds = new Set(history[step + 1].map((piece) => piece.id));
+
+      mergeParentOrders[step].forEach((parentId) => {
+        schedule(() => {
+          setPieces((current) => current.map((piece) => {
+            if (!piece.id.startsWith(parentId + '-')) {
+              return piece;
+            }
+
+            return {
+              ...piece,
+              startX: piece.targetX,
+              startY: piece.targetY,
+              targetX: piece.x,
+              targetY: piece.y,
+            };
+          }));
+          playBell(true);
+        }, delay);
+        delay += 65;
+      });
+
+      delay += 2200;
+
+      schedule(() => {
+        setPieces((current) => {
+          const filtered = current.filter((piece) => !currentLevelIds.has(piece.id));
+          const restoredParents = parentLevel.map((piece) => ({
+            ...piece,
+            startX: piece.targetX,
+            startY: piece.targetY,
+          }));
+
+          return [...filtered, ...restoredParents];
+        });
+      }, delay);
+
+      delay += 200;
+    }
+
+    schedule(() => setRunning(false), delay);
+  };
+
+  useEffect(() => clearTimers, []);
+
+  return (
+    <main className = "app">
+      <div className = "stage">
+        <svg viewBox={'0 0 ' + STAGE.w + ' ' + STAGE.h}>
+          {pieces.map((piece) => <AnimatedPiece key={piece.id} piece={piece} />)}
+        </svg>
+        <div className = "toolbar">
+          <span className = "count">{pieces.length} pieces</span>
+          <button className = "button" disabled={running} onClick={run}>
+            {running ? 'Running' : 'Split + Merge'}
+          </button>
+        </div>
+      </div>
+    </main>
+  );
+}
+`
+      }}
+    />
+  </div>
+</TimeTutorialChapter>

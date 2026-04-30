@@ -1,6 +1,7 @@
 import { memo, startTransition, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAudioContextConstructor, isIOSPlaybackDevice } from '../utils/browserAudio';
+import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 
 const SILENT_AUDIO_SRC =
   'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
@@ -89,6 +90,7 @@ const AnimatedPiece = memo(function AnimatedPiece({ piece, duration }) {
 });
 
 const TimeArt = () => {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [n, setN] = useState(5);
   const [isAnimating, setIsAnimating] = useState(false);
   const [pieces, setPieces] = useState([]);
@@ -105,7 +107,13 @@ const TimeArt = () => {
   const activeNotesRef = useRef(new Set());
   const useSilentAudioWorkaroundRef = useRef(false);
   
-  const ANIM_DURATION = 2.2;
+  const ANIM_DURATION = prefersReducedMotion ? 0.25 : 2.2;
+  const STEP_SETTLE_MS = prefersReducedMotion ? 120 : 1200;
+  const HOLD_MS = prefersReducedMotion ? 200 : 2000;
+  const MERGE_SETTLE_MS = prefersReducedMotion ? 80 : 200;
+  const randomStagger = (base, range) => (
+    prefersReducedMotion ? Math.min(20, base) : base + Math.random() * range
+  );
 
   const setPiecesDeferred = (value) => {
     startTransition(() => {
@@ -420,14 +428,14 @@ const TimeArt = () => {
           return [...filtered, ...task.children];
         });
         playBell(false);
-        if (!(await wait(40 + Math.random() * 120, runId))) return;
+        if (!(await wait(randomStagger(40, 120), runId))) return;
       }
 
       history.push(splitTasks.flatMap(t => t.children));
-      if (!(await wait(1200, runId))) return;
+      if (!(await wait(STEP_SETTLE_MS, runId))) return;
     }
 
-    if (!(await wait(2000, runId))) return;
+    if (!(await wait(HOLD_MS, runId))) return;
 
     // Reverse Merge Phase
     for (let step = n - 1; step >= 0; step--) {
@@ -450,7 +458,7 @@ const TimeArt = () => {
           return p;
         }));
         playBell(true);
-        if (!(await wait(40 + Math.random() * 100, runId))) return;
+        if (!(await wait(randomStagger(40, 100), runId))) return;
       }
 
       if (!(await wait(ANIM_DURATION * 1000, runId))) return;
@@ -465,7 +473,7 @@ const TimeArt = () => {
         return [...filtered, ...restoredParents];
       });
       
-      if (!(await wait(200, runId))) return;
+      if (!(await wait(MERGE_SETTLE_MS, runId))) return;
     }
 
     if (isInteractionActive(runId)) {
@@ -491,6 +499,15 @@ const TimeArt = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
+
+  const handleStartKeyDown = (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+
+    event.preventDefault();
+    void startInteraction();
+  };
 
   return (
     <div className="not-prose relative w-full aspect-[4/5] md:aspect-[16/10] bg-slate-50 dark:bg-slate-900 rounded-[2rem] md:rounded-[2.5rem] overflow-hidden shadow-2xl border border-slate-200 dark:border-white/5 font-sans mb-12 flex flex-col items-center justify-center group transition-all duration-500">
@@ -550,8 +567,12 @@ const TimeArt = () => {
               stroke="rgba(129, 140, 248, 0.6)"
               strokeWidth="2"
               className="cursor-pointer"
-              whileHover={{ scale: 1.01, fill: "rgba(129, 140, 248, 0.35)" }}
-              onClick={startInteraction}
+              role="button"
+              tabIndex={0}
+              aria-label={`Start time fragmentation animation at complexity ${n}`}
+              whileHover={prefersReducedMotion ? undefined : { scale: 1.01, fill: "rgba(129, 140, 248, 0.35)" }}
+              onClick={() => { void startInteraction(); }}
+              onKeyDown={handleStartKeyDown}
             />
           ) : (
             pieces.map((p) => (
@@ -566,7 +587,7 @@ const TimeArt = () => {
 
         {!isAnimating && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-center px-6">
-            <span className="text-indigo-900/10 dark:text-white/10 font-black tracking-[0.4em] md:tracking-[0.8em] text-[10px] md:text-xs uppercase animate-pulse">
+            <span className="text-indigo-900/10 dark:text-white/10 font-black tracking-[0.4em] md:tracking-[0.8em] text-[10px] md:text-xs uppercase motion-safe:animate-pulse">
               {isTouch ? 'Tap to Fragment' : 'Click to Fragment'}
             </span>
           </div>
