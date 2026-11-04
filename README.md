@@ -11,13 +11,6 @@ For a human-readable technical overview of the current app structure, see [docs/
 - `npm run dev`
 - `npm run check`
 
-## Canonical Agent Doc
+## Agent Docs
 
-Use [AGENTS.md](AGENTS.md) for:
-
-- project architecture
-- repo layout
-- validation commands
-- current migration status
-- completed cleanup history
-- working expectations for AI agents
+[AGENTS.md](AGENTS.md) is the single source of agent instructions. `CLAUDE.md` and `GEMINI.md` just import it.

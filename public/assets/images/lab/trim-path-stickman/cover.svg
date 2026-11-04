@@ -1,0 +1,29 @@
+<svg width="800" height="600" viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="trim-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#1e293b" stroke-width="0.5" />
+    </pattern>
+    <radialGradient id="trim-glow" cx="50%" cy="55%" r="55%">
+      <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.25" />
+      <stop offset="100%" stop-color="#4f46e5" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="200" height="150" fill="#020617" />
+  <rect width="200" height="150" fill="url(#trim-grid)" />
+  <rect width="200" height="150" fill="url(#trim-glow)" />
+  <text x="18" y="24" fill="#94a3b8" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="5.5" font-weight="700" letter-spacing="0.22em">TRIM_PATHS</text>
+  <text x="18" y="34" fill="#475569" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="4.2" letter-spacing="0.16em">3D_RIG_ON_2D</text>
+  <ellipse cx="100" cy="128" rx="22" ry="4" fill="#94a3b8" opacity="0.15" />
+  <g fill="none" stroke="#e2e8f0" stroke-linecap="round" stroke-width="2.5">
+    <path d="M96,104 Q95,116 92,128" />
+    <path d="M104,104 Q107,116 110,128" stroke-dasharray="14 40" />
+    <path d="M100,98 L100,77" stroke-width="26.5" />
+    <path d="M100,98 L100,77" stroke="#020617" stroke-width="21.5" />
+    <circle cx="100" cy="53" r="16" fill="#020617" />
+    <path d="M91,81 Q84,92 82,104" />
+    <path d="M109,81 Q122,72 126,56" stroke-dasharray="22 40" stroke="#818cf8" />
+  </g>
+  <circle cx="94" cy="51" r="1.7" fill="#e2e8f0" />
+  <circle cx="106" cy="51" r="1.7" fill="#e2e8f0" />
+  <circle cx="126" cy="56" r="2.2" fill="#818cf8" />
+</svg>
