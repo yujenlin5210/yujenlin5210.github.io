@@ -40,6 +40,10 @@ The `/projects` page has a small character at the bottom of the screen. Each pro
   - In the picker: Classic, Bean, Rubber hose, Sketch (an SVG turbulence filter reseeded at 8 fps for line boil), Block bot, Critter.
   - Archived (`archived: true`, still renderable, hidden from the picker): pictogram, wireframe, one-line skeleton, constellation, manga kid, designer, contour line art. The detailed characters were judged too complicated; the preference is simple shapes with character.
 - Scenes so far: walk, wave, VR headset, kart, dog walk.
+- Props are 3D too. `pushExtrude` pushes a 2D profile along an axis and draws the convex hull of both caps plus the cap that faces the camera. Headsets are selected per sim (`setHeadset`, `HEADSETS`). Swapping while one is worn erases the old one and draws the new one on.
+  - `standard`: a visor box with a strap ring.
+  - `boba3`: traced from reference photos. The front cover (top edge arching up to the centre, rounder lower lobes, a moderate nose arch) is dark glass. The silver chrome is the cover's side wall (its thickness, a gradient fill), flared slightly so a thin edge shows head-on. A dark body sits behind it. Everything wraps gently around the face. The bands are drawn with `bandPath` (a union of the quads between two outlines, outlined by a fat stroke under the fill), not a convex hull, so they follow the nose arch. Dark-mode fills are lighter so it reads as solid against the dark background. Extra detail (cameras, band, forehead cover/hood, knobs) and a flat chrome frame were tried and rejected.
+  - Next: tiramisu, varifocal and retina (Butterscotch) headsets for the other project animations.
 
 ### Conventions
 

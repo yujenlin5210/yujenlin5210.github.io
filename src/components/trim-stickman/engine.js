@@ -114,7 +114,7 @@ function walkPose(phi, t) {
   const s = Math.sin(phi);
   const c = Math.cos(phi);
   return pose({
-    lean: 5,
+    lean: 1.5, // just a hint of forward motion; more reads as a stoop
     twist: 9 * s,
     hp: 2 * Math.sin(phi * 2),
     hy: 4 * Math.sin(t * 0.7),
@@ -251,6 +251,13 @@ export const SCENES = {
 };
 
 export const SCENE_IDS = Object.keys(SCENES);
+
+/** VR headset variants for the `headset` prop (project = frontmatter animation id). */
+export const HEADSETS = {
+  standard: { label: 'Standard', note: 'Plain visor block with a strap.' },
+  boba3: { label: 'Boba 3', note: 'Arched dark glass front with a nose arch, silver chrome side band, dark body.', project: 'boba3' },
+};
+export const HEADSET_IDS = Object.keys(HEADSETS);
 
 // ---------------------------------------------------------------------------
 // Skeleton solve
@@ -702,7 +709,7 @@ export function buildFigure(skel, frame, cam, trim, opts = {}) {
   if (st.outfit) pushOutfit(items, { ...ctx, outfit: st.outfit, trim: torsoTrim });
   if (st.hair) pushHair(items, { ...ctx, hair: st.hair, trim: headTrim });
   if (st.face && !opts.hideEyes) pushFace(items, { ...ctx, face: st.face, trim: faceTrim });
-  if (st.critter) pushCritterBits(items, skel, frame, cam, tr('face'), st, opts.time || 0);
+  if (st.critter) pushCritterBits(items, skel, frame, cam, tr('face'), st, opts.time || 0, opts.hideEyes);
 
   for (const key of ['R', 'L']) {
     pushLimb(`arm${key}`, skel.arms[key], st.limbW, (c, depth, t) => {
@@ -886,7 +893,7 @@ function buildConstellation(skel, frame, cam, trim) {
 }
 
 /** Critter extras: ears, tail, nose and whiskers on the bean body. */
-function pushCritterBits(items, skel, frame, cam, trim, st, time) {
+function pushCritterBits(items, skel, frame, cam, trim, st, time, hideFace = false) {
   const R = skel.rig;
   const P = (l) => cam.project(toWorld(l, frame));
   const rot = skel.headRot;
@@ -910,7 +917,7 @@ function pushCritterBits(items, skel, frame, cam, trim, st, time) {
   const fwd = headRotate([0, -0.12, 1], rot);
   const facing = cam.facing(rotY(norm(fwd), frame.yaw));
   const vis = smooth((facing - 0.05) / 0.3);
-  if (vis > 0.01) {
+  if (vis > 0.01 && !hideFace) {
     const n = P(onHead([0, -0.12, 1]));
     items.push({ key: 'nose', type: 'dot', x: n.x, y: n.y, r: 2.1 * n.k * smooth(trim[1]), opacity: vis, depth: bodyDepth + 2, layer: 1 });
     [-1, 1].forEach((side) => {
@@ -1497,6 +1504,182 @@ function buildHeadset(skel, frame, cam, trim) {
   return items;
 }
 
+// --- Extrusion helpers -------------------------------------------------------
+//
+// A 2D profile pushed along an axis. Its visible outline is the convex hull of
+// both caps, which is exact for convex profiles at any angle; the cap facing
+// the camera is drawn on top so concave details (a nose cut) still read.
+
+function convexHull(points) {
+  const pts = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+  if (pts.length < 3) return pts;
+  const crossZ = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  const lower = [];
+  for (const p of pts) {
+    while (lower.length >= 2 && crossZ(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+    lower.push(p);
+  }
+  const upper = [];
+  for (let i = pts.length - 1; i >= 0; i -= 1) {
+    const p = pts[i];
+    while (upper.length >= 2 && crossZ(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+    upper.push(p);
+  }
+  upper.pop();
+  lower.pop();
+  return lower.concat(upper);
+}
+
+/** Rounded-rect profile, optionally with a nose notch cut into the bottom edge. */
+function goggleProfile(halfW, halfH, radius, notch = null, n = 10) {
+  const pts = [];
+  const corners = [
+    [halfW - radius, halfH - radius, 0],
+    [-halfW + radius, halfH - radius, Math.PI / 2],
+    [-halfW + radius, -halfH + radius, Math.PI],
+    [halfW - radius, -halfH + radius, Math.PI * 1.5],
+  ];
+  for (const [cx, cy, a0] of corners) {
+    for (let i = 0; i <= n; i += 1) {
+      const a = a0 + (i / n) * (Math.PI / 2);
+      pts.push([cx + Math.cos(a) * radius, cy + Math.sin(a) * radius]);
+    }
+    if (notch && a0 === Math.PI) {
+      // bottom edge, left to right: carve the nose arch
+      for (let i = 1; i < 12; i += 1) {
+        const x = -halfW + radius + ((2 * (halfW - radius)) * i) / 12;
+        const lift = notch.depth * Math.exp(-((x / notch.width) ** 2) * 2.2);
+        pts.push([x, -halfH + lift]);
+      }
+    }
+  }
+  return pts;
+}
+
+/**
+ * Pushes an extruded solid. `map` turns local [u, v, w] (profile u/v, axis w)
+ * into world points; `capN` is the local +w direction for cap visibility.
+ */
+function pushExtrude(items, { key, profile, w0, w1, map, capN, cam, trim, depth, fillClass, capFillClass, ink = false, line = 2, k = 1, showCap = true }) {
+  const back = profile.map(([u, v]) => cam.project(map([u, v, w0])));
+  const front = profile.map(([u, v]) => cam.project(map([u, v, w1])));
+  const hull = convexHull([...back, ...front]);
+  const tHull = stagger(trim, 0, 2, 0.4);
+  const tCap = stagger(trim, 1, 2, 0.4);
+  items.push({
+    key: `${key}-hull`, type: 'shape', d: linePath(hull, true), w: line * k, depth, layer: 1,
+    trim: tHull, fill: smooth((tHull[1] - 0.5) / 0.5), ink, fillClass, join: 'round',
+  });
+  if (!showCap) return;
+  const facing = cam.facing(capN);
+  const cap = facing >= 0 ? front : back;
+  items.push({
+    key: `${key}-cap`, type: 'shape', d: linePath(cap, true), w: line * 0.8 * k, depth: depth + 0.001, layer: 1,
+    trim: tCap, fill: capFillClass ? smooth((tCap[1] - 0.5) / 0.5) * smooth(Math.abs(facing) * 4) : 0, fillClass: capFillClass, join: 'round',
+  });
+}
+
+// --- Boba 3 headset ----------------------------------------------------------
+//
+// Traced from reference photos (top edge arches up to the centre). The front
+// cover is dark glass; the silver
+// chrome is the cover's *side wall* (its thickness), flaring very slightly
+// toward the back so a thin silver edge shows even head-on. Behind the chrome
+// band, a dark body runs back to the face. Everything wraps slightly around
+// the head.
+
+// Right half, top centre -> clockwise -> bottom centre (nose arch). Mirrored.
+const BOBA_HALF = [
+  [0, 1], [0.35, 0.97], [0.62, 0.89], [0.84, 0.74], [0.97, 0.5], [1, 0.18], [0.98, -0.2],
+  [0.9, -0.66], [0.72, -0.94], [0.48, -1], [0.28, -0.9], [0.14, -0.62], [0, -0.52],
+];
+const BOBA_OUTLINE = [
+  ...BOBA_HALF,
+  ...BOBA_HALF.slice(1, -1).reverse().map(([x, y]) => [-x, y]),
+];
+
+/**
+ * The surface between two matching closed outlines (a loft band), as one path
+ * of small quads, each wound the same way so nonzero fill gives their union.
+ * Unlike a convex hull, this follows concave details such as a nose arch.
+ */
+function quadUnionPath(quads) {
+  let d = '';
+  for (const quad of quads) {
+    const area = quad.reduce((s, p, m) => {
+      const r = quad[(m + 1) % quad.length];
+      return s + (p.x * r.y - r.x * p.y);
+    }, 0);
+    d += linePath(area < 0 ? [...quad].reverse() : quad, true);
+  }
+  return d;
+}
+
+function bandPath(a, b) {
+  const n = a.length;
+  const quads = [];
+  for (let i = 0; i < n; i += 1) {
+    const j = (i + 1) % n;
+    quads.push([a[i], a[j], b[j], b[i]]);
+  }
+  return quadUnionPath(quads);
+}
+
+function buildHeadsetBoba(skel, frame, cam, trim) {
+  const R = skel.rig.headR;
+  const rot = skel.headRot;
+  const hc = cam.project(toWorld(skel.headC, frame));
+  const k = hc.k;
+  const map = (p) => toWorld(add(skel.headC, headRotate(p, rot)), frame);
+  const faceFacing = cam.facing(rotY(headRotate([0, 0, 1], rot), frame.yaw));
+  const depth = hc.d + (faceFacing > -0.35 ? 1.5 : -1.5);
+
+  const halfW = 1.04 * R;
+  const halfH = 0.52 * R;
+  const cy = -0.06 * R;
+  const wrapR = 1.9 * R; // gentle curve around the face
+  const zFront = (skel.rig.visorZ ?? 0.62) * R + 0.85 * R; // well forward of the face
+  const chrome = 0.22 * R; // thickness of the silver band
+  const zBack = (skel.rig.visorZ ?? 0.62) * R - 0.05 * R;
+  // A point on the wrapped surface at depth z, with the outline scaled.
+  const onSurface = ([u, v], z, sx = 1, sy = 1) => {
+    const a = (u * halfW * sx) / wrapR;
+    return cam.project(map([Math.sin(a) * wrapR, v * halfH * sy + cy, z - wrapR * (1 - Math.cos(a))]));
+  };
+  const front = BOBA_OUTLINE.map((p) => onSurface(p, zFront));
+  const chromeBack = BOBA_OUTLINE.map((p) => onSurface(p, zFront - chrome, 1.05, 1.07));
+  const faceSide = BOBA_OUTLINE.map((p) => onSurface(p, zBack, 0.94, 0.9));
+  const tr = (i) => stagger(trim, i, 3, 0.45);
+  const fillOf = (t) => smooth((t[1] - 0.5) / 0.5);
+  const items = [];
+
+  // Dark body from the chrome band back to the face.
+  const tBody = tr(0);
+  items.push({
+    key: 'boba-body', type: 'solid', d: bandPath(chromeBack, faceSide), w: 2 * k,
+    depth, layer: 1, fill: fillOf(tBody), fillClass: 'fill-slate-800 dark:fill-slate-600',
+  });
+
+  // Chrome band: the front cover's side wall.
+  const tChrome = tr(1);
+  items.push({
+    key: 'boba-chrome', type: 'solid', d: bandPath(front, chromeBack), w: 1.6 * k,
+    depth: depth + 0.01, layer: 1, fill: fillOf(tChrome), fillUrl: 'chrome',
+  });
+
+  // Dark glass front, when it faces us.
+  const frontVis = smooth((faceFacing + 0.1) / 0.3);
+  if (frontVis > 0.01) {
+    const tGlass = tr(2);
+    items.push({
+      key: 'boba-glass', type: 'shape', d: smoothPath(front, true), w: 1.2 * k,
+      depth: depth + 0.02, layer: 1, trim: tGlass, fill: fillOf(tGlass) * frontVis,
+      fillClass: 'fill-slate-900 dark:fill-slate-800', opacity: frontVis,
+    });
+  }
+  return items;
+}
+
 const KART = {
   tub: { x: [-17, 17], y: [5, 17], z: [-26, 30] },
   hood: { x: [-12, 12], y: [16, 22], z: [12, 42] },
@@ -1799,6 +1982,8 @@ export class TrimStickmanSim {
   constructor({ scene = 'walk', yaw = WALK_YAW, present = true, style = 'classic' } = {}) {
     this.time = 0;
     this.style = style;
+    this.headset = 'standard';
+    this.swapAt = {};
     this.scene = scene;
     this.sceneT = 2; // start already "settled"
     this.pose = SCENES[scene].clip(this.sceneT, 0);
@@ -1839,10 +2024,13 @@ export class TrimStickmanSim {
     const old = SCENES[this.scene];
     for (const prop of old.props) {
       const end = smooth((this.sceneT - prop.on[0]) / (prop.on[1] - prop.on[0]));
-      if (end > 0.001) this.outgoing.push({ id: prop.id, t: 0, end });
+      const start = Math.max(prop.on[0], this.swapAt[prop.id] ?? -Infinity);
+      const shown = smooth((this.sceneT - start) / (prop.on[1] - prop.on[0]));
+      if (shown > 0.001) this.outgoing.push({ id: prop.id, variant: this.variantOf(prop.id), t: 0, end: shown });
     }
     this.blendFrom = this.pose;
     this.blendT = 0;
+    this.swapAt = {};
     this.scene = id;
     this.sceneT = 0;
     const next = SCENES[id];
@@ -1925,16 +2113,36 @@ export class TrimStickmanSim {
     this.outgoing = this.outgoing.filter((o) => o.t < PROP_EXIT);
   }
 
+  variantOf(propId) {
+    return propId === 'headset' ? this.headset : null;
+  }
+
+  /** Swap the headset model; if one is being worn, it erases and the new one draws on. */
+  setHeadset(id) {
+    if (!HEADSETS[id] || id === this.headset) return;
+    const worn = SCENES[this.scene].props.find((p) => p.id === 'headset');
+    if (worn) {
+      const start = Math.max(worn.on[0], this.swapAt.headset ?? -Infinity);
+      const shown = smooth((this.sceneT - start) / (worn.on[1] - worn.on[0]));
+      if (shown > 0.001) {
+        this.outgoing.push({ id: 'headset', variant: this.headset, t: 0, end: shown });
+        this.swapAt.headset = Math.max(this.sceneT, worn.on[0]);
+      }
+    }
+    this.headset = id;
+  }
+
   /** Active + outgoing props with their trims. */
   propTrims() {
     const list = [];
     for (const prop of SCENES[this.scene].props) {
-      const end = smooth((this.sceneT - prop.on[0]) / (prop.on[1] - prop.on[0]));
-      if (end > 0.001) list.push({ id: prop.id, trim: [0, end] });
+      const start = Math.max(prop.on[0], this.swapAt[prop.id] ?? -Infinity);
+      const end = smooth((this.sceneT - start) / (prop.on[1] - prop.on[0]));
+      if (end > 0.001) list.push({ id: prop.id, variant: this.variantOf(prop.id), trim: [0, end] });
     }
     for (const o of this.outgoing) {
-      if (list.some((p) => p.id === o.id)) continue;
-      list.push({ id: o.id, trim: [easeInOut(o.t / PROP_EXIT) * o.end, o.end] });
+      if (list.some((p) => p.id === o.id && p.variant === o.variant)) continue;
+      list.push({ id: o.id, variant: o.variant, trim: [easeInOut(o.t / PROP_EXIT) * o.end, o.end] });
     }
     return list;
   }
@@ -1972,7 +2180,9 @@ export class TrimStickmanSim {
     }
 
     for (const prop of props) {
-      if (prop.id === 'headset') items.push(...buildHeadset(skel, frame, cam, prop.trim));
+      if (prop.id === 'headset') {
+        items.push(...(prop.variant === 'boba3' ? buildHeadsetBoba(skel, frame, cam, prop.trim) : buildHeadset(skel, frame, cam, prop.trim)));
+      }
       if (prop.id === 'kart') {
         items.push(buildShadow(frame, cam, 34, 0.1 * prop.trim[1]));
         items.push(...buildKart(skel, frame, cam, prop.trim, this.spin));

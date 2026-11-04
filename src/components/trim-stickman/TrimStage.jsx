@@ -5,17 +5,20 @@ const INK = 'text-slate-700 dark:text-slate-300';
 const PAPER = 'fill-white dark:fill-slate-950';
 // Flat-shading tones for faces: lit, mid, shadow.
 const TONES = [PAPER, 'fill-slate-200 dark:fill-slate-800', 'fill-slate-400 dark:fill-slate-700'];
+// A hairline stroke in the fill colour hides anti-aliasing seams between quads.
+const STROKE_MATCH = { 'fill-slate-800 dark:fill-slate-600': 'stroke-slate-800 dark:stroke-slate-600' };
 
 /** Trim a pathLength=1 path to [start, end]. */
-function trimProps(trim) {
+function trimProps(trim, dash = false) {
   const [s, e] = trim;
-  if (s <= 0.0005 && e >= 0.9995) return {};
+  // A fully drawn "dash" stroke shows its texture (e.g. a vent grille).
+  if (s <= 0.0005 && e >= 0.9995) return dash ? { strokeDasharray: '0.012 0.02', strokeLinecap: 'butt' } : {};
   return { strokeDasharray: `${Math.max(e - s, 0)} 2`, strokeDashoffset: -s };
 }
 
 const isHidden = (trim) => trim && trim[1] - trim[0] < 0.002;
 
-function Item({ item }) {
+function Item({ item, ids }) {
   const fadeOpacity = item.fade ? 1 - item.fade * 0.55 : 1;
   switch (item.type) {
     case 'shadow':
@@ -26,8 +29,8 @@ function Item({ item }) {
           cx={item.x}
           cy={item.y}
           r={item.r}
-          fill={item.paper ? undefined : 'currentColor'}
-          className={item.paper ? PAPER : undefined}
+          fill={item.paper || item.fillClass ? undefined : 'currentColor'}
+          className={item.fillClass || (item.paper ? PAPER : undefined)}
           opacity={item.opacity}
         />
       ) : null;
@@ -37,7 +40,7 @@ function Item({ item }) {
       return (
         <g>
           <path d={item.d} pathLength={1} fill="none" stroke="currentColor" strokeWidth={item.w + item.line} strokeLinecap="round" {...t} />
-          <path d={item.d} pathLength={1} fill="none" className="stroke-white dark:stroke-slate-950" strokeWidth={Math.max(item.w - item.line, 0)} strokeLinecap="round" {...t} />
+          <path d={item.d} pathLength={1} fill="none" className={item.innerClass || 'stroke-white dark:stroke-slate-950'} strokeWidth={Math.max(item.w - item.line, 0)} strokeLinecap="round" {...t} />
         </g>
       );
     }
@@ -48,8 +51,8 @@ function Item({ item }) {
           {item.fill > 0.001 && (
             <path
               d={item.d}
-              className={item.ink ? undefined : TONES[item.tone || 0]}
-              fill={item.ink ? 'currentColor' : undefined}
+              className={item.ink || item.fillUrl ? undefined : item.fillClass || TONES[item.tone || 0]}
+              fill={item.ink ? 'currentColor' : item.fillUrl ? `url(#${ids[item.fillUrl]})` : undefined}
               stroke="none"
               opacity={item.fill}
             />
@@ -63,9 +66,29 @@ function Item({ item }) {
               strokeWidth={item.w}
               strokeLinecap="round"
               strokeLinejoin={item.join || 'round'}
+              opacity={item.opacity}
               {...trimProps(item.trim)}
             />
           )}
+        </g>
+      );
+    }
+    case 'solid': {
+      // Union shapes made of many sub-paths: a fat stroke underneath, then the
+      // fill on top, leaves only the outer silhouette outlined.
+      if (!(item.fill > 0.001)) return null;
+      return (
+        <g opacity={item.fill}>
+          <path d={item.d} fill="none" stroke="currentColor" strokeWidth={item.w * 2} strokeLinejoin="round" />
+          <path
+            d={item.d}
+            className={item.fillUrl ? undefined : item.fillClass}
+            fill={item.fillUrl ? `url(#${ids[item.fillUrl]})` : undefined}
+            stroke={item.fillUrl ? `url(#${ids[item.fillUrl]})` : 'currentColor'}
+            strokeWidth={0.6}
+            strokeLinejoin="round"
+            {...(item.fillUrl ? {} : { className: `${item.fillClass} ${STROKE_MATCH[item.fillClass] || ''}` })}
+          />
         </g>
       );
     }
@@ -82,7 +105,8 @@ function Item({ item }) {
           strokeLinecap="round"
           strokeLinejoin={item.join || 'round'}
           opacity={item.opacity ?? fadeOpacity}
-          {...trimProps(item.trim)}
+          className={item.strokeClass}
+          {...trimProps(item.trim, item.dash)}
         />
       );
   }
@@ -119,6 +143,7 @@ function RigOverlay({ chains }) {
 export default function TrimStage({
   scene = 'walk',
   styleId = 'classic',
+  headsetId = 'standard',
   scale = 1,
   groundRatio = 0.8,
   roam = true,
@@ -134,7 +159,9 @@ export default function TrimStage({
   ariaLabel = 'Animated stickman',
 }) {
   const wrapRef = useRef(null);
-  const filterId = `trim-sketch-${useId().replace(/:/g, '')}`;
+  const uid = useId().replace(/:/g, '');
+  const filterId = `trim-sketch-${uid}`;
+  const ids = { chrome: `trim-chrome-${uid}` };
   const simInstance = useRef(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [frame, setFrame] = useState(null);
@@ -151,6 +178,10 @@ export default function TrimStage({
   useEffect(() => {
     simInstance.current.setStyle(styleId);
   }, [styleId]);
+
+  useEffect(() => {
+    simInstance.current.setHeadset(headsetId);
+  }, [headsetId]);
 
   useEffect(() => {
     simInstance.current.setPresent(present);
@@ -214,6 +245,16 @@ export default function TrimStage({
           role="img"
           aria-label={ariaLabel}
         >
+          <defs>
+            {/* Silver chrome: bright highlight band between cool greys. */}
+            <linearGradient id={ids.chrome} x1="0" y1="0" x2="0.35" y2="1">
+              <stop offset="0" stopColor="#f8fafc" />
+              <stop offset="0.35" stopColor="#cbd5e1" />
+              <stop offset="0.55" stopColor="#f1f5f9" />
+              <stop offset="0.8" stopColor="#94a3b8" />
+              <stop offset="1" stopColor="#e2e8f0" />
+            </linearGradient>
+          </defs>
           {frame?.look?.filter === 'sketch' && (
             <defs>
               <filter id={filterId} x="-10%" y="-10%" width="120%" height="120%">
@@ -224,7 +265,7 @@ export default function TrimStage({
           )}
           <g filter={frame?.look?.filter === 'sketch' ? `url(#${filterId})` : undefined}>
             {frame?.items.map((item) => (
-              <Item key={item.key} item={item} />
+              <Item key={item.key} item={item} ids={ids} />
             ))}
           </g>
           {frame?.rig && <RigOverlay chains={frame.rig} />}

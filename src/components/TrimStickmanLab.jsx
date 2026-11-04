@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import TrimStage from './trim-stickman/TrimStage';
-import { SCENES, SCENE_IDS, STYLES, STYLE_IDS } from './trim-stickman/engine';
+import { HEADSETS, HEADSET_IDS, SCENES, SCENE_IDS, STYLES, STYLE_IDS } from './trim-stickman/engine';
 import { usePrefersReducedMotion } from '../hooks/usePrefersReducedMotion';
 
 const SECTIONS = [
@@ -61,7 +61,7 @@ function Toggle({ label, checked, onChange }) {
   );
 }
 
-function Inspector({ styleId, onStyle }) {
+function Inspector({ styleId, onStyle, headsetId, onHeadset }) {
   const [scene, setScene] = useState('walk');
   const [manual, setManual] = useState(false);
   const [yaw, setYaw] = useState(30);
@@ -97,6 +97,7 @@ function Inspector({ styleId, onStyle }) {
           className="h-[340px] sm:h-[420px]"
           scene={scene}
           styleId={styleId}
+          headsetId={headsetId}
           scale={2.4}
           groundRatio={0.84}
           roam={roam && !manual}
@@ -159,6 +160,28 @@ function Inspector({ styleId, onStyle }) {
         >
           ↻ Redraw
         </button>
+      </div>
+
+      <p className="mb-2 mt-4 font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">VR headset</p>
+      <div className="flex flex-wrap gap-2">
+        {HEADSET_IDS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => {
+              onHeadset(id);
+              setScene('vr');
+            }}
+            title={HEADSETS[id].note}
+            className={`rounded-full border px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] transition-colors ${
+              headsetId === id
+                ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200'
+                : 'border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:text-indigo-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300'
+            }`}
+          >
+            {HEADSETS[id].label}
+          </button>
+        ))}
       </div>
 
       <div className="mt-5 grid gap-4 sm:grid-cols-[1fr_1fr]">
@@ -236,6 +259,7 @@ export default function TrimStickmanLab() {
   const storyInView = useInView(storyRef);
   const activeScene = SECTIONS[active]?.scene ?? 'walk';
   const [styleId, setStyleId] = useState('classic');
+  const [headsetId, setHeadsetId] = useState('boba3');
   // The MDX wrapper is transformed, which would trap position:fixed, so the
   // roaming band is portalled to <body> after mount.
   const [mounted, setMounted] = useState(false);
@@ -243,7 +267,7 @@ export default function TrimStickmanLab() {
 
   return (
     <div className="not-prose">
-      <Inspector styleId={styleId} onStyle={setStyleId} />
+      <Inspector styleId={styleId} onStyle={setStyleId} headsetId={headsetId} onHeadset={setHeadsetId} />
 
       <div className="mx-auto mt-20 max-w-3xl">
         <p className="font-mono text-xs font-bold uppercase tracking-[0.24em] text-indigo-500">Scroll test</p>
@@ -285,6 +309,7 @@ export default function TrimStickmanLab() {
             className="h-40 w-full"
             scene={activeScene}
             styleId={styleId}
+            headsetId={headsetId}
             scale={1}
             groundRatio={0.84}
             roam
