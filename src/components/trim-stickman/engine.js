@@ -323,9 +323,12 @@ export function makeCamera({ cx, cy, scale, tilt = 11, focal = 900 }) {
   const st = Math.sin(tilt * D2R);
   const project = (p) => {
     const y2 = p[1] * ct - p[2] * st;
-    const d = p[1] * st + p[2] * ct;
-    const k = focal / (focal - d);
-    return { x: cx + p[0] * k * scale, y: cy - y2 * k * scale, d, k: k * scale };
+    const viewDepth = p[1] * st + p[2] * ct;
+    const k = focal / (focal - viewDepth);
+    // `d` is the layering depth: horizontal distance toward the viewer only.
+    // Including the tilt (y * sin) would make higher parts count as "closer",
+    // e.g. the head painting over the near arm in profile.
+    return { x: cx + p[0] * k * scale, y: cy - y2 * k * scale, d: p[2], k: k * scale };
   };
   /** Depth component of a direction (positive = facing the camera). */
   const facing = (n) => n[1] * st + n[2] * ct;
@@ -412,7 +415,7 @@ function attachedDepth({ key, yaw, cam, chain, bodyD }) {
   const towardUs = cam.facing(rotY([0, 0, 1], yaw)) > 0.15;
   const inFront = sideFacing > 0.2 || (towardUs && reach > 0.62);
   // Small side-proportional term keeps the near arm above the near leg, etc.
-  return bodyD + (inFront ? 2 : -2) + sideFacing * 0.5;
+  return bodyD + (inFront ? 4 : -4) + sideFacing * 0.5;
 }
 
 // ---------------------------------------------------------------------------
@@ -592,6 +595,12 @@ export function buildFigure(skel, frame, cam, trim, opts = {}) {
   const P = (local) => cam.project(toWorld(local, frame));
   const bodyCenter = P(mix(skel.pelvis, skel.chest, 0.5));
   const farness = (d) => clamp((bodyCenter.d - d - 2) / 10);
+  // The torso always layers just under the head (cartoon convention: the head
+  // sits on the body). From behind, a forward lean would otherwise put the
+  // torso on top, and in profile the two tie and flicker. Limbs layer relative
+  // to this adjusted torso so the side-based limb rule still holds.
+  const headSortD = P(skel.headC).d;
+  const torsoSortD = st.head === 'none' ? bodyCenter.d : Math.min(bodyCenter.d, headSortD - 1);
 
   const parts = ['legR', 'legL', 'torso', 'head', 'armR', 'armL', 'face'];
   const tr = (name) => stagger(trim, parts.indexOf(name), parts.length, 0.55);
@@ -600,7 +609,7 @@ export function buildFigure(skel, frame, cam, trim, opts = {}) {
 
   const pushLimb = (key, chain, width, extra) => {
     const [a, b, c] = chain.map(P);
-    const depth = attachedDepth({ key, yaw: frame.yaw, cam, chain, bodyD: bodyCenter.d });
+    const depth = attachedDepth({ key, yaw: frame.yaw, cam, chain, bodyD: torsoSortD });
     const t = tr(key);
     const d = quadThrough(a, b, c);
     if (st.limbs === 'tube') {
@@ -634,7 +643,7 @@ export function buildFigure(skel, frame, cam, trim, opts = {}) {
   const torsoTrim = tr('torso');
   const torsoD = `M${f(p0.x)},${f(p0.y)}L${f(p1.x)},${f(p1.y)}`;
   const torsoK = (p0.k + p1.k) / 2;
-  const torsoDepth = (p0.d + p1.d) / 2;
+  const torsoDepth = torsoSortD;
   if (st.torso === 'capsule') {
     items.push({ key: 'torso', type: 'capsule', d: torsoD, w: R.torsoW * torsoK, line: st.outline * torsoK, depth: torsoDepth, layer: 1, trim: torsoTrim });
   } else if (st.torso === 'solid') {
@@ -781,9 +790,12 @@ function buildBlocky(skel, frame, cam, trim, st) {
 
   const torsoToW = (p) => toWorld(add(skel.pelvis, rotY(rotX(p, skel.lean), skel.twist)), frame);
   const torsoN = (n) => rotY(rotY(rotX(n, skel.lean), skel.twist), frame.yaw);
+  // Same convention as buildFigure: the body box layers just under the head.
+  const midD = P(mix(skel.pelvis, skel.chest, 0.5)).d;
+  const torsoBias = Math.min(0, P(skel.headC).d - 1 - midD);
   const torsoDepth = pushBox(items, {
     key: 'torso', x: [-11, 11], y: [-7, R.torso + 7], z: [-7.5, 7.5],
-    toW: torsoToW, rotN: torsoN, cam, trim: tr('torso'), line: st.outline, shade: true, solid: true,
+    toW: torsoToW, rotN: torsoN, cam, trim: tr('torso'), line: st.outline, shade: true, solid: true, bias: torsoBias,
   });
 
   const rot = skel.headRot;
@@ -1287,7 +1299,7 @@ function pushOutfit(items, ctx) {
   const torsoNormal = (n) => rotY(rotY(n, skel.twist), frame.yaw);
   const show = smooth((trim[1] - 0.3) / 0.7);
   const rw = R.torsoW / 2;
-  const torsoDepth = (P(skel.pelvis).d + P(skel.chest).d) / 2;
+  const torsoDepth = Math.min((P(skel.pelvis).d + P(skel.chest).d) / 2, P(skel.headC).d - 1);
 
   const frontRing = (key, h, radius, w = 1.8) => {
     const ring = ringPoints([0, 0, 0], radius, 'y', 28).map((p) => rotY(p, skel.twist));

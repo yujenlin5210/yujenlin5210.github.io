@@ -27,6 +27,8 @@ The `/projects` page has a small character at the bottom of the screen. Each pro
 - Turning is real yaw. At screen edges, yaw keeps decreasing by 180°, so the figure turns through the front at one edge and the back at the other, and walks a small oval.
 - Feet are planted by solving the legs first and dropping the pelvis onto the lowest foot.
 - Layering (painter's algorithm) rules, learned the hard way:
+  - Sort depth is horizontal distance to the viewer only (`project().d` is world z). The camera tilt affects perspective and which box faces are visible, but never draw order. Otherwise higher parts count as closer, and the head paints over the near arm in profile.
+  - The head always layers over the torso (the torso's sort depth is capped at head − 1), and limbs layer relative to that adjusted torso. Otherwise a forward lean puts the torso over the head from behind, and in profile the two tie and flicker.
   - Limbs choose front or behind the body from the side they hang from, using facing direction only (`attachedDepth`). Never use the average depth of their joints, which flips a swinging arm through the torso. The exception is a deliberate forward reach (over 62% of limb length, figure facing the camera), such as pointing or steering.
   - Closed convex boxes (`pushBox({ solid: true })`) sort as one object at their centre depth. Decals such as screen eyes sit at that depth plus a small offset. Per-face centre depths let a tilted face cover its own decals.
 - Character **styles** (`STYLES` in `engine.js`) change proportions and drawing language without touching the rig. The character does not need to be a stickman.
