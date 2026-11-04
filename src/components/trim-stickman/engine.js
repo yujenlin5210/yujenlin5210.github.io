@@ -256,6 +256,7 @@ export const SCENE_IDS = Object.keys(SCENES);
 export const HEADSETS = {
   standard: { label: 'Standard', note: 'Plain visor block with a strap.' },
   boba3: { label: 'Boba 3', note: 'Arched dark glass front with a nose arch, silver chrome side band, dark body.', project: 'boba3' },
+  tiramisu: { label: 'Tiramisu', note: 'Chunky matte black rounded box with a small white sensor ring.', project: 'tiramisu' },
 };
 export const HEADSET_IDS = Object.keys(HEADSETS);
 
@@ -1680,6 +1681,74 @@ function buildHeadsetBoba(skel, frame, cam, trim) {
   return items;
 }
 
+// --- Tiramisu headset --------------------------------------------------------
+//
+// From a reference photo: a chunky matte rounded box (a "loaf") well forward
+// of the face, with big soft fillets on the front edges and a nearly flat
+// front, plus one small white sensor ring near the top front corner. Drawn as
+// one solid so only its silhouette is outlined (an inner line on the front
+// made it read as a hollow, see-through box).
+
+function roundRectOutline(n = 48, power = 5) {
+  const pts = [];
+  for (let i = 0; i < n; i += 1) {
+    const t = (i / n) * Math.PI * 2;
+    const c = Math.cos(t);
+    const sn = Math.sin(t);
+    pts.push([Math.sign(c) * Math.abs(c) ** (2 / power), Math.sign(sn) * Math.abs(sn) ** (2 / power)]);
+  }
+  return pts;
+}
+const TIRAMISU_OUTLINE = roundRectOutline();
+
+function buildHeadsetTiramisu(skel, frame, cam, trim) {
+  const R = skel.rig.headR;
+  const rot = skel.headRot;
+  const hc = cam.project(toWorld(skel.headC, frame));
+  const k = hc.k;
+  const map = (p) => toWorld(add(skel.headC, headRotate(p, rot)), frame);
+  const faceFacing = cam.facing(rotY(headRotate([0, 0, 1], rot), frame.yaw));
+  const depth = hc.d + (faceFacing > -0.35 ? 1.5 : -1.5);
+
+  const halfW = 1.05 * R;
+  const halfH = 0.56 * R;
+  const cy = -0.02 * R;
+  const wrapR = 2.6 * R;
+  const zFront = (skel.rig.visorZ ?? 0.62) * R + 1.0 * R;
+  const zFillet = zFront - 0.16 * R;
+  const zBack = (skel.rig.visorZ ?? 0.62) * R - 0.05 * R;
+  const onSurface = ([u, v], z, sx = 1, sy = 1) => {
+    const a = (u * halfW * sx) / wrapR;
+    return cam.project(map([Math.sin(a) * wrapR, v * halfH * sy + cy, z - wrapR * (1 - Math.cos(a))]));
+  };
+  const face = TIRAMISU_OUTLINE.map((p) => onSurface(p, zFront, 0.86, 0.8));
+  const fillet = TIRAMISU_OUTLINE.map((p) => onSurface(p, zFillet));
+  const back = TIRAMISU_OUTLINE.map((p) => onSurface(p, zBack, 0.95, 0.92));
+  const tr = (i) => stagger(trim, i, 2, 0.45);
+  const fillOf = (t) => smooth((t[1] - 0.5) / 0.5);
+  const BODY = 'fill-slate-800 dark:fill-slate-600'; // black, lifted in dark mode to stay solid
+  const items = [];
+
+  // 0. The body: front face + fillet band + sides back to the face, as one solid.
+  const tBody = tr(0);
+  // Every piece wound the same way (quadUnionPath), so nonzero fill is a true union.
+  const bodyD = `${bandPath(face, fillet)}${bandPath(fillet, back)}${quadUnionPath([face])}`;
+  items.push({ key: 'tira-body', type: 'solid', d: bodyD, w: 2 * k, depth, layer: 1, fill: fillOf(tBody), fillClass: BODY });
+
+  // The ring sits near the front edge; only show it once the front faces us.
+  const frontVis = smooth((faceFacing - 0.12) / 0.25);
+
+  // 1. The white sensor ring near the top front corner.
+  if (frontVis > 0.01) {
+    const tRing = tr(1);
+    const c = onSurface([-0.72, 0.5], zFront + 0.01, 0.86, 0.8);
+    const r = 0.12 * R * k;
+    items.push({ key: 'tira-sensor', type: 'shape', d: circlePath(c, r), w: 1.2 * k, depth: depth + 0.02, layer: 1, trim: tRing, fill: fillOf(tRing) * frontVis, fillClass: 'fill-white dark:fill-slate-200', opacity: frontVis });
+    items.push({ key: 'tira-sensor-eye', type: 'dot', x: c.x, y: c.y, r: r * 0.38 * fillOf(tRing), opacity: frontVis, depth: depth + 0.03, layer: 1 });
+  }
+  return items;
+}
+
 const KART = {
   tub: { x: [-17, 17], y: [5, 17], z: [-26, 30] },
   hood: { x: [-12, 12], y: [16, 22], z: [12, 42] },
@@ -2181,7 +2250,8 @@ export class TrimStickmanSim {
 
     for (const prop of props) {
       if (prop.id === 'headset') {
-        items.push(...(prop.variant === 'boba3' ? buildHeadsetBoba(skel, frame, cam, prop.trim) : buildHeadset(skel, frame, cam, prop.trim)));
+        const builder = { boba3: buildHeadsetBoba, tiramisu: buildHeadsetTiramisu }[prop.variant] || buildHeadset;
+        items.push(...builder(skel, frame, cam, prop.trim));
       }
       if (prop.id === 'kart') {
         items.push(buildShadow(frame, cam, 34, 0.1 * prop.trim[1]));

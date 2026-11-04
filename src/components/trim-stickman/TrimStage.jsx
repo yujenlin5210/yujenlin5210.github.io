@@ -6,7 +6,11 @@ const PAPER = 'fill-white dark:fill-slate-950';
 // Flat-shading tones for faces: lit, mid, shadow.
 const TONES = [PAPER, 'fill-slate-200 dark:fill-slate-800', 'fill-slate-400 dark:fill-slate-700'];
 // A hairline stroke in the fill colour hides anti-aliasing seams between quads.
-const STROKE_MATCH = { 'fill-slate-800 dark:fill-slate-600': 'stroke-slate-800 dark:stroke-slate-600' };
+const STROKE_MATCH = {
+  'fill-slate-800 dark:fill-slate-600': 'stroke-slate-800 dark:stroke-slate-600',
+  'fill-slate-600 dark:fill-slate-500': 'stroke-slate-600 dark:stroke-slate-500',
+  'fill-slate-700 dark:fill-slate-600': 'stroke-slate-700 dark:stroke-slate-600',
+};
 
 /** Trim a pathLength=1 path to [start, end]. */
 function trimProps(trim, dash = false) {
@@ -85,7 +89,7 @@ function Item({ item, ids }) {
             className={item.fillUrl ? undefined : item.fillClass}
             fill={item.fillUrl ? `url(#${ids[item.fillUrl]})` : undefined}
             stroke={item.fillUrl ? `url(#${ids[item.fillUrl]})` : 'currentColor'}
-            strokeWidth={0.6}
+            strokeWidth={1.5}
             strokeLinejoin="round"
             {...(item.fillUrl ? {} : { className: `${item.fillClass} ${STROKE_MATCH[item.fillClass] || ''}` })}
           />

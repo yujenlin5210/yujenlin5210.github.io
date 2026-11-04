@@ -43,7 +43,8 @@ The `/projects` page has a small character at the bottom of the screen. Each pro
 - Props are 3D too. `pushExtrude` pushes a 2D profile along an axis and draws the convex hull of both caps plus the cap that faces the camera. Headsets are selected per sim (`setHeadset`, `HEADSETS`). Swapping while one is worn erases the old one and draws the new one on.
   - `standard`: a visor box with a strap ring.
   - `boba3`: traced from reference photos. The front cover (top edge arching up to the centre, rounder lower lobes, a moderate nose arch) is dark glass. The silver chrome is the cover's side wall (its thickness, a gradient fill), flared slightly so a thin edge shows head-on. A dark body sits behind it. Everything wraps gently around the face. The bands are drawn with `bandPath` (a union of the quads between two outlines, outlined by a fat stroke under the fill), not a convex hull, so they follow the nose arch. Dark-mode fills are lighter so it reads as solid against the dark background. Extra detail (cameras, band, forehead cover/hood, knobs) and a flat chrome frame were tried and rejected.
-  - Next: tiramisu, varifocal and retina (Butterscotch) headsets for the other project animations.
+  - `tiramisu` (from a photo): a chunky matte black rounded box (loaf) well forward of the face, with soft front fillets drawn as one solid (no inner front line, which read as see-through), and a small white sensor ring near the top front corner. Side knobs were tried and removed.
+  - Next: varifocal and retina (Butterscotch) headsets.
 
 ### Conventions
 
