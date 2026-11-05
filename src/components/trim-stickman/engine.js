@@ -254,9 +254,10 @@ export const SCENE_IDS = Object.keys(SCENES);
 
 /** VR headset variants for the `headset` prop (project = frontmatter animation id). */
 export const HEADSETS = {
-  standard: { label: 'Standard', note: 'Plain visor block with a strap.' },
+  standard: { label: 'Standard', note: 'Plain visor block.' },
   boba3: { label: 'Boba 3', note: 'Arched dark glass front with a nose arch, silver chrome side band, dark body.', project: 'boba3' },
   tiramisu: { label: 'Tiramisu', note: 'Chunky matte black rounded box with a small white sensor ring.', project: 'tiramisu' },
+  varifocal: { label: 'Varifocal', note: 'Angular black box with bold chamfered corners.', project: 'varifocal' },
 };
 export const HEADSET_IDS = Object.keys(HEADSETS);
 
@@ -1462,34 +1463,13 @@ function ringPoints(center, radius, axis, count = 28) {
 
 // --- Props -----------------------------------------------------------------
 
+/** Standard headset: a plain visor block (no strap; headsets are one silhouette). */
 function buildHeadset(skel, frame, cam, trim) {
   const items = [];
   const rot = skel.headRot;
   const R = skel.rig.headR;
   const toW = (p) => toWorld(add(skel.headC, headRotate(p, rot)), frame);
   const rotN = (n) => rotY(headRotate(n, rot), frame.yaw);
-  const hc = cam.project(toWorld(skel.headC, frame));
-
-  // Strap: a ring around the head, split into arcs so each arc can sit in
-  // front of or behind the head on its own.
-  const strapTrim = stagger(trim, 0, 2, 0.3);
-  const ring = ringPoints([0, 1, 0], R * 1.04, 'y', 32).map((p) => rotX(p, -8));
-  const arcs = 8;
-  for (let i = 0; i < arcs; i += 1) {
-    const seg = [];
-    for (let j = 0; j <= 4; j += 1) seg.push(ring[(i * 4 + j) % ring.length]);
-    const proj = seg.map((p) => cam.project(toW(p)));
-    const depth = proj.reduce((s, p) => s + p.d, 0) / proj.length;
-    items.push({
-      key: `strap-${i}`,
-      type: 'stroke',
-      d: smoothPath(proj),
-      w: 3.2 * hc.k,
-      depth: depth > hc.d ? hc.d + 2 + (depth - hc.d) : depth,
-      layer: 1,
-      trim: stagger(strapTrim, i, arcs, 0),
-    });
-  }
 
   pushBox(items, {
     key: 'visor',
@@ -1499,7 +1479,7 @@ function buildHeadset(skel, frame, cam, trim) {
     toW,
     rotN,
     cam,
-    trim: stagger(trim, 1, 2, 0.3),
+    trim,
     bias: 4,
   });
   return items;
@@ -1745,6 +1725,59 @@ function buildHeadsetTiramisu(skel, frame, cam, trim) {
     const r = 0.12 * R * k;
     items.push({ key: 'tira-sensor', type: 'shape', d: circlePath(c, r), w: 1.2 * k, depth: depth + 0.02, layer: 1, trim: tRing, fill: fillOf(tRing) * frontVis, fillClass: 'fill-white dark:fill-slate-200', opacity: frontVis });
     items.push({ key: 'tira-sensor-eye', type: 'dot', x: c.x, y: c.y, r: r * 0.38 * fillOf(tRing), opacity: frontVis, depth: depth + 0.03, layer: 1 });
+  }
+  return items;
+}
+
+// --- Varifocal (Butterscotch Varifocal) headset ------------------------------
+//
+// From the project photo: an angular black box (flat front, bold chamfered
+// corners, hard edges). The front face is a slightly darker tone than the
+// sides so the hard box reads as solid. No strap: headsets stay one
+// silhouette (the white halo strap was tried and dropped for consistency).
+
+const VARIFOCAL_OUTLINE = (() => {
+  const c = 0.38; // chamfer: the angular corners are its identity
+  return [
+    [1 - c, 1], [1, 1 - c], [1, -(1 - c)], [1 - c, -1],
+    [-(1 - c), -1], [-1, -(1 - c)], [-1, 1 - c], [-(1 - c), 1],
+  ];
+})();
+
+function buildHeadsetVarifocal(skel, frame, cam, trim) {
+  const R = skel.rig.headR;
+  const rot = skel.headRot;
+  const hc = cam.project(toWorld(skel.headC, frame));
+  const k = hc.k;
+  const map = (p) => toWorld(add(skel.headC, headRotate(p, rot)), frame);
+  const faceFacing = cam.facing(rotY(headRotate([0, 0, 1], rot), frame.yaw));
+  const depth = hc.d + (faceFacing > -0.35 ? 1.5 : -1.5);
+
+  const halfW = 1.0 * R;
+  const halfH = 0.6 * R;
+  const cy = -0.02 * R;
+  const zFront = (skel.rig.visorZ ?? 0.62) * R + 0.95 * R;
+  const zBack = (skel.rig.visorZ ?? 0.62) * R - 0.05 * R;
+  const at = ([u, v], z, s = 1) => cam.project(map([u * halfW * s, v * halfH * s + cy, z]));
+  const front = VARIFOCAL_OUTLINE.map((p) => at(p, zFront));
+  const back = VARIFOCAL_OUTLINE.map((p) => at(p, zBack, 0.96));
+  const tr = (i) => stagger(trim, i, 2, 0.45);
+  const fillOf = (t) => smooth((t[1] - 0.5) / 0.5);
+  const items = [];
+
+  // 0. The black box: sides as one solid band, then 1. the darker front face.
+  const tBody = tr(0);
+  items.push({
+    key: 'vf-body', type: 'solid', d: `${bandPath(front, back)}${quadUnionPath([front])}`, w: 2 * k,
+    depth, layer: 1, fill: fillOf(tBody), fillClass: 'fill-slate-800 dark:fill-slate-600',
+  });
+  const frontVis = smooth((faceFacing + 0.05) / 0.25);
+  if (frontVis > 0.01) {
+    const tFace = tr(1);
+    items.push({
+      key: 'vf-face', type: 'shape', d: linePath(front, true), w: 1.4 * k, depth: depth + 0.01, layer: 1,
+      trim: tFace, fill: fillOf(tFace) * frontVis, fillClass: 'fill-slate-900 dark:fill-slate-700', opacity: frontVis, join: 'round',
+    });
   }
   return items;
 }
@@ -2250,7 +2283,7 @@ export class TrimStickmanSim {
 
     for (const prop of props) {
       if (prop.id === 'headset') {
-        const builder = { boba3: buildHeadsetBoba, tiramisu: buildHeadsetTiramisu }[prop.variant] || buildHeadset;
+        const builder = { boba3: buildHeadsetBoba, tiramisu: buildHeadsetTiramisu, varifocal: buildHeadsetVarifocal }[prop.variant] || buildHeadset;
         items.push(...builder(skel, frame, cam, prop.trim));
       }
       if (prop.id === 'kart') {
