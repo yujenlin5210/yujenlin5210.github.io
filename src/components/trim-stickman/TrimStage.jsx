@@ -96,6 +96,23 @@ function Item({ item, ids }) {
         </g>
       );
     }
+    case 'text':
+      return item.opacity > 0.01 ? (
+        <text
+          x={item.x}
+          y={item.y}
+          fontSize={item.size}
+          textAnchor="middle"
+          fontWeight={700}
+          fontFamily="ui-sans-serif, system-ui, sans-serif"
+          letterSpacing={item.size * 0.18}
+          fill={item.fillClass ? undefined : 'currentColor'}
+          className={item.fillClass}
+          opacity={item.opacity}
+        >
+          {item.text}
+        </text>
+      ) : null;
     case 'stroke':
     default:
       if (isHidden(item.trim)) return null;

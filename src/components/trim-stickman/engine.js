@@ -281,6 +281,17 @@ export const SCENES = {
       { id: 'specimens', on: [1.3, 2.1] },
     ],
   },
+  retina: {
+    label: 'Retina resolution',
+    stand: true,
+    faceYaw: 132, // three-quarter back view, facing the TV wall and chart (keep equal to EXAM.faceYaw)
+    speed: () => 0,
+    clip: (t) => eyeExamPose(t),
+    props: [
+      { id: 'headset', variant: 'retina', on: [0.45, 1.15] },
+      { id: 'room', on: [1.0, 2.6] },
+    ],
+  },
 };
 
 export const SCENE_IDS = Object.keys(SCENES);
@@ -3178,6 +3189,205 @@ function f1Model(kit) {
 
 const SPECIMEN_MODELS = { pagoda: pagodaModel, pineapple: pineappleModel, f1: f1Model };
 
+// --- Retina resolution (Butterscotch) demo: the eye exam ----------------------
+//
+// The retina-resolution prototype was validated with a virtual Snellen eye
+// chart: at retinal resolution you can read the 20/20 line (and below) in VR.
+// The figure stands in a living room, three-quarter back to us, facing the TV
+// wall with an eye chart hung next to the TV. It reads the chart row by row:
+// a pointer steps down, the figure points at each row with one hand, nods,
+// and leans in as the letters shrink; then it starts over pointing with the
+// other hand.
+
+const EXAM = { t0: 2.4, rowTime: 0.9, switchTime: 1.3, faceYaw: 132 };
+// The chart (world, relative to the figure's root): on the back wall, right of the TV.
+const CHART = { x: 168, z: -170, w: 40, y0: 22, y1: 122 };
+const CHART_ROWS = [
+  ['E', 18], ['F P', 12.5], ['T O Z', 9.5], ['L P E D', 7.2], ['P E C F D', 5.6],
+  ['E D F C Z P', 4.4], ['F E L O P Z D', 3.4], ['D E F P O T E C', 2.6], ['L E F O D P C T', 2],
+];
+const ROW_2020 = 6; // the 20/20 line (rows below it are sharper than 20/20)
+
+/** Centre height of each chart row (the same layout the chart is drawn with). */
+const CHART_ROW_Y = (() => {
+  let y = CHART.y1 - 6;
+  return CHART_ROWS.map(([, size], i) => {
+    y -= size * 0.5 + (i ? 3.4 : 2);
+    const c = y;
+    y -= size * 0.5;
+    return c;
+  });
+})();
+
+/** Where the exam is: which row is being read, which hand points, and the hand switch. */
+function examState(t) {
+  const L = CHART_ROWS.length * EXAM.rowTime + EXAM.switchTime;
+  const c = (t - EXAM.t0) / L;
+  if (c < 0) return { n: 0, row: -1, rowU: 0, sw: -1, hand: -1 };
+  const n = Math.floor(c);
+  const tt = (c - n) * L;
+  const reading = CHART_ROWS.length * EXAM.rowTime;
+  const hand = n % 2 === 0 ? -1 : 1; // -1: pointing with the right hand, 1: the left
+  if (tt < reading) return { n, row: Math.floor(tt / EXAM.rowTime), rowU: (tt % EXAM.rowTime) / EXAM.rowTime, sw: -1, hand };
+  return { n, row: -1, rowU: 0, sw: (tt - reading) / EXAM.switchTime, hand };
+}
+
+/** The point on the chart a hand points at: just left of row `row` (fractional), figure-local. */
+function chartPointLocal(row) {
+  const i = clamp(row, 0, CHART_ROWS.length - 1);
+  const lo = Math.floor(i);
+  const hi = Math.min(lo + 1, CHART_ROWS.length - 1);
+  const y = lerp(CHART_ROW_Y[lo], CHART_ROW_Y[hi], i - lo);
+  return rotY([CHART.x - CHART.w / 2 - 2, y, CHART.z], -EXAM.faceYaw);
+}
+
+function eyeExamPose(t) {
+  if (t < 0.65) return lerpPose(idlePose(t), VR_REACH, easeInOut(t / 0.65));
+  if (t < 1.25) return VR_REACH;
+  const s = examState(t);
+  const readRow = s.row >= 0 ? s.row : 0;
+  const nod = s.row >= 0 ? Math.sin(Math.min(1, s.rowU / 0.35) * Math.PI) : 0; // a little nod on each new row
+  const body = pose({
+    lean: 2 + 0.55 * readRow, // leans in as the letters get smaller
+    hy: 0,
+    hp: 3 + 3 * nod,
+    hr: (readRow % 2 ? 3 : -3) * smooth(readRow / 3),
+    lRr: 7, lLr: 7, lRk: 9, lLk: 9,
+  });
+  // The pointing arm follows the row being read (gliding down to the next row).
+  const row = s.row >= 0 ? s.row - 1 + smooth(s.rowU / 0.3) : s.sw >= 0 ? CHART_ROWS.length - 1 : 0;
+  const keyOf = (side) => (side < 0 ? 'R' : 'L');
+  const pointArm = (side, r) => {
+    const key = keyOf(side);
+    const aim = aimPose(chartPointLocal(Math.max(0, r)), key);
+    return { [`a${key}p`]: aim[`a${key}p`], [`a${key}r`]: aim[`a${key}r`], [`a${key}bp`]: 6, [`a${key}br`]: 0 };
+  };
+  let wCur = 1;
+  let wNext = 0;
+  if (t < EXAM.t0) wCur = smooth((t - 1.4) / 0.6);
+  else if (s.sw >= 0) {
+    wCur = 1 - smooth(s.sw / 0.45);
+    wNext = smooth((s.sw - 0.5) / 0.45);
+  }
+  let out = { ...body };
+  out = lerpPose(out, { ...out, ...pointArm(s.hand, row) }, wCur);
+  out = lerpPose(out, { ...out, ...pointArm(-s.hand, 0) }, wNext);
+  return lerpPose(VR_REACH, out, easeInOut((t - 1.25) / 0.6));
+}
+
+/** The living room: TV on a console, the eye chart beside it, a lamp, a plant. */
+function buildLivingRoom(frame, cam, trim, t) {
+  const vis = trim[1] - trim[0];
+  if (vis < 0.002) return [];
+  const items = [];
+  const at = (p) => cam.project(add(frame.root, p));
+  const fade = trim[0] > 0 ? 1 - trim[0] : 1;
+  const grow = (a, b) => smooth((trim[1] - a) / (b - a)) * fade;
+  const W = CHART.z; // the back wall plane
+  const k = at([0, 0, W]).k;
+  const fillOf = (g) => smooth((g - 0.5) / 0.5);
+  const rect = (x0, x1, y0, y1, z = W) => [[x0, y0, z], [x1, y0, z], [x1, y1, z], [x0, y1, z]].map(at);
+
+  // Floor line along the wall.
+  const g0 = grow(0, 0.4);
+  const fl = [at([-330, 0, W]), at([330, 0, W])];
+  items.push({ key: 'room-floor', type: 'stroke', d: `M${f(fl[0].x)},${f(fl[0].y)}L${f(fl[1].x)},${f(fl[1].y)}`, w: 1.4 * k, trim: [0.5 - g0 / 2, 0.5 + g0 / 2], opacity: 0.8, depth: -9900, layer: 0 });
+
+  // Media console with drawers, and the TV on the wall above it.
+  const g1 = grow(0.1, 0.55);
+  if (g1 > 0.002) {
+    const cz = W + 14;
+    const front = rect(36, 132, 3, 22, cz);
+    const top = [[36, 22, cz], [132, 22, cz], [132, 22, W + 1], [36, 22, W + 1]].map(at);
+    items.push({ key: 'room-console', type: 'shape', d: linePath(convexHull([...front, ...top]), true), w: 1.5 * k, trim: [0, g1], fill: fillOf(g1), tone: 0, depth: -9500, layer: 0 });
+    items.push({ key: 'room-console-top', type: 'stroke', d: linePath([top[0], top[1]]), w: 1 * k, trim: [0, g1], opacity: 0.7, depth: -9499, layer: 0 });
+    let drawers = '';
+    for (const x of [68, 100]) {
+      const a = at([x, 4, cz]);
+      const b = at([x, 21, cz]);
+      drawers += `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`;
+    }
+    for (const x of [52, 84, 116]) {
+      const a = at([x - 4, 13, cz]);
+      const b = at([x + 4, 13, cz]);
+      drawers += `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`;
+    }
+    items.push({ key: 'room-console-drawers', type: 'stroke', d: drawers, w: 1 * k, trim: [0, g1], opacity: 0.8, depth: -9498, layer: 0 });
+    for (const x of [40, 128]) {
+      const a = at([x, 3, cz]);
+      const b = at([x, 0, cz]);
+      items.push({ key: `room-console-leg${x}`, type: 'stroke', d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`, w: 1.6 * k, trim: [0, g1], depth: -9501, layer: 0 });
+    }
+    const tv = rect(46, 122, 34, 78);
+    items.push({ key: 'room-tv', type: 'shape', d: linePath(tv, true), w: 2.2 * k, trim: [0, g1], fill: fillOf(g1), tone: 2, depth: -9400, layer: 0, join: 'round' });
+    const r0 = at([58, 74, W]);
+    const r1 = at([72, 38, W]);
+    items.push({ key: 'room-tv-shine', type: 'stroke', d: `M${f(r0.x)},${f(r0.y)}L${f(r1.x)},${f(r1.y)}`, w: 1 * k, trim: [0, fillOf(g1)], opacity: 0.35, strokeClass: 'stroke-white dark:stroke-slate-300', depth: -9399, layer: 0 });
+  }
+
+  // The eye chart: a board with rows of letters shrinking down, the 20/20 line
+  // marked, and a pointer on the row being read.
+  const g2 = grow(0.2, 0.7);
+  if (g2 > 0.002) {
+    const { x, w, y0, y1 } = CHART;
+    const board = rect(x - w / 2, x + w / 2, y0, y1);
+    items.push({ key: 'chart-board', type: 'shape', d: linePath(board, true), w: 1.6 * k, trim: [0, g2], fill: fillOf(g2), tone: 0, depth: -9300, layer: 0, join: 'round' });
+    const s = examState(t);
+    let y = y1 - 6;
+    CHART_ROWS.forEach(([text, size], i) => {
+      y -= size * 0.5 + (i ? 3.4 : 2);
+      const p = at([x, y - size * 0.36, W]);
+      const shown = smooth((g2 - 0.4 - i * 0.05) / 0.3);
+      const reading = s.row === i;
+      items.push({ key: `chart-row-${i}`, type: 'text', x: p.x, y: p.y, size: size * p.k, text, opacity: shown * (reading ? 1 : 0.82), depth: -9290 + i * 0.01, layer: 0 });
+      if (i === ROW_2020) {
+        const a = at([x - w / 2 + 3, y - size * 0.62, W]);
+        const b = at([x + w / 2 - 3, y - size * 0.62, W]);
+        items.push({ key: 'chart-2020', type: 'stroke', d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`, w: 0.9 * k, trim: [0, shown], strokeClass: 'stroke-rose-400 dark:stroke-rose-300', depth: -9289, layer: 0 });
+      }
+      if (reading && shown > 0.5) {
+        // Pointer: a small arrow at the left of the row, sliding in.
+        const pIn = smooth(s.rowU / 0.25);
+        const tip = at([x - w / 2 + 2 + 2 * pIn, y, W]);
+        const s2 = Math.max(2.2, size * 0.4) * tip.k;
+        items.push({ key: 'chart-pointer', type: 'shape', d: linePath([{ x: tip.x, y: tip.y }, { x: tip.x - s2 * 1.3, y: tip.y - s2 * 0.7 }, { x: tip.x - s2 * 1.3, y: tip.y + s2 * 0.7 }], true), w: 0.8 * k, trim: [0, 1], fill: pIn, fillClass: 'fill-rose-400 dark:fill-rose-300', depth: -9288, layer: 0 });
+      }
+      y -= size * 0.5;
+    });
+  }
+
+  // A floor lamp on the left and a potted plant on the right.
+  const g3 = grow(0.3, 0.8);
+  if (g3 > 0.002) {
+    const lz = W + 40;
+    const lx = -40;
+    const base = ringPoints([lx, 0, lz], 9, 'y', 18).map(at);
+    items.push({ key: 'lamp-base', type: 'shape', d: smoothPath(base, true), w: 1.3 * k, trim: [0, g3], fill: fillOf(g3), tone: 1, depth: -9200, layer: 0 });
+    const a = at([lx, 0, lz]);
+    const b = at([lx, 92 * g3, lz]);
+    items.push({ key: 'lamp-pole', type: 'stroke', d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`, w: 1.6 * k, trim: [0, 1], depth: -9199, layer: 0 });
+    const shade = [...ringPoints([lx, 90, lz], 15, 'y', 20), ...ringPoints([lx, 110, lz], 9, 'y', 20)].map(at);
+    items.push({ key: 'lamp-shade', type: 'shape', d: linePath(convexHull(shade), true), w: 1.5 * k, trim: [0, g3], fill: fillOf(g3), tone: 0, depth: -9198, layer: 0 });
+
+    const px = 222;
+    const pz = W + 36;
+    const pot = [...ringPoints([px, 0, pz], 8, 'y', 18), ...ringPoints([px, 18, pz], 11, 'y', 18)].map(at);
+    items.push({ key: 'plant-pot', type: 'shape', d: linePath(convexHull(pot), true), w: 1.5 * k, trim: [0, g3], fill: fillOf(g3), tone: 1, depth: -9100, layer: 0 });
+    for (let i = 0; i < 9; i += 1) {
+      const ang = -1.1 + (i / 8) * 2.2;
+      const len = 26 + 14 * Math.cos(ang * 1.2);
+      const sway = 1.2 * Math.sin(t * 1.1 + i);
+      const p0 = at([px, 18, pz]);
+      const p1 = at([px + Math.sin(ang) * len * 0.55 + sway, 18 + Math.cos(ang) * len * 0.75, pz]);
+      const p2 = at([px + Math.sin(ang) * len + sway, 18 + Math.cos(ang) * len * 0.9 - 6, pz]);
+      const s = smooth((g3 - 0.4 - i * 0.03) / 0.4);
+      items.push({ key: `plant-stem-${i}`, type: 'stroke', d: quadThrough(p0, p1, p2), w: 1.1 * k, trim: [0, s], depth: -9099 + i * 0.01, layer: 0 });
+      if (s > 0.6) items.push({ key: `plant-leaf-${i}`, type: 'shape', d: leafPath(p2, 7 * k * s, 3.6 * k * s, Math.atan2(p2.y - p1.y, p2.x - p1.x)), w: 1 * k, trim: [0, 1], fill: 1, tone: i % 3 ? 0 : 1, depth: -9098 + i * 0.01, layer: 0 });
+    }
+  }
+  return items;
+}
+
 const KART = {
   tub: { x: [-17, 17], y: [5, 17], z: [-26, 30] },
   hood: { x: [-12, 12], y: [16, 22], z: [12, 42] },
@@ -3503,6 +3713,7 @@ export class TrimStickmanSim {
     this.dogMoving = 0;
     this.encT = 0; // First Encounters clock; freezes while its props erase
     this.vfT = 0; // Varifocal clock
+    this.examT = 0; // Retina resolution (eye exam) clock
   }
 
   /** Replays the draw-on of the body. */
@@ -3535,8 +3746,9 @@ export class TrimStickmanSim {
     this.sceneT = 0;
     const next = SCENES[id];
     if (next.stand) {
+      // Standing scenes face the viewer, unless the scene sets its own facing.
       const towardViewer = Math.sin(this.yaw * D2R) >= 0 ? 18 : -18;
-      this.yawTarget = nearestEquivalent(towardViewer, this.yaw);
+      this.yawTarget = nearestEquivalent(next.faceYaw ?? towardViewer, this.yaw);
     } else {
       this.resumeHeading();
     }
@@ -3558,6 +3770,7 @@ export class TrimStickmanSim {
     const scene = SCENES[this.scene];
     if (this.scene === 'encounters') this.encT = this.sceneT;
     if (this.scene === 'varifocal') this.vfT = this.sceneT;
+    if (this.scene === 'retina') this.examT = this.sceneT;
 
     // Presence (body draw-on / erase).
     const pRate = 1 / 1.1;
@@ -3702,6 +3915,15 @@ export class TrimStickmanSim {
       if (prop.id === 'table') items.push(...buildTable(frame, cam, prop.trim));
       if (prop.id === 'specimens') items.push(...buildSpecimens(frame, cam, prop.trim, this.vfT));
       if (prop.id === 'ship') items.push(...buildShip(frame, cam, prop.trim, this.encT, this.time));
+      if (prop.id === 'room') {
+        // The room is scenery: faded toward its ends like the gorge, all behind the figure.
+        for (const it of buildLivingRoom(frame, cam, prop.trim, this.examT)) {
+          it.scenery = 'back';
+          items.push(it);
+        }
+        const c = cam.project(add(frame.root, [0, 50, 0]));
+        vignette = { x: c.x, y: c.y, rx: 410 * c.k, ry: 235 * c.k };
+      }
       if (prop.id === 'ravine') {
         // Scenery fades out toward its ends (see TrimStage's vignette), and is
         // split around the figure so it still layers in front of / behind it.

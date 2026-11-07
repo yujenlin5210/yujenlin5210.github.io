@@ -77,6 +77,15 @@ const SECTIONS = [
       'All three sit on a coffee table. The figure leans down, picks one up, turns it all the way round right beside its face, and puts it back. Each model is real 3D line geometry with fine detail: pagoda eaves and a ringed spire, the pineapple’s diamond lattice and spiky crown, and the car’s wheels, wings, and halo.',
     ],
   },
+  {
+    scene: 'retina',
+    kicker: '09 · Retina resolution',
+    title: 'Reading the 20/20 line',
+    body: [
+      'The retina-resolution prototype was proven with a virtual eye chart: at retinal resolution you can read the 20/20 line, and below it, in VR. So the figure takes an eye exam in a living room, with its back to us, facing the TV and the chart beside it.',
+      'It reads down the chart, pointing at each row, nodding, and leaning in as the letters shrink. The letters are real text, so the bottom rows are only a couple of pixels tall: on a sharp enough screen, you can still read them.',
+    ],
+  },
 ];
 
 function Toggle({ label, checked, onChange }) {
