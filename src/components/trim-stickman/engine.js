@@ -256,7 +256,18 @@ export const SCENES = {
     props: [
       { id: 'headset', variant: 'boba3', on: [0.45, 1.15] },
       { id: 'blasters', on: [1.15, 1.6] },
+      { id: 'ship', on: [1.2, 1.75] },
       { id: 'encounters', on: [1.4, 1.8] },
+    ],
+  },
+  tiramisu: {
+    label: 'Tiramisu',
+    stand: true,
+    speed: () => 0,
+    clip: (t) => tiramisuPose(t),
+    props: [
+      { id: 'headset', variant: 'tiramisu', on: [0.45, 1.15] },
+      { id: 'ravine', on: [1.3, 3.6] },
     ],
   },
 };
@@ -1908,8 +1919,87 @@ const ENC = {
   fire: 0.28, // cycle phase: laser leaves the muzzle
   hit: 0.42, // cycle phase: laser reaches the puffian, bubble starts
   retarget: 0.7, // cycle phase: start turning to the next puffian
+  attract: 0.78, // cycle phase: the floating bubble starts getting pulled to the ship
+  arrive: 1.3, // cycle phase: the bubble is sucked into the ship's intake
   r: 8, // puffian radius
 };
+// The capture ship: a hovering pod behind the player's right (figure-local).
+// Its lid is open; caught bubbles stack on the opening. A bubble of a different
+// colour still lands on top, and then the old colour below it is sucked into
+// the ship one by one, bottom first, while the stack slides down a slot each
+// time (the game's colour match).
+const SHIP = { x: -108, z: -50, hoverY: 22, openingY: 37 };
+const STACK = { scale: 0.5, gap: 13.5, suck: 0.2, delay: 0.12 }; // parked scale, slot spacing, per-bubble suck time and start delay (cycles)
+const shipHover = (t) => SHIP.hoverY + 1.5 * Math.sin(t * 1.8);
+/** Centre of stack slot i (0 = sitting in the opening) at scene time t. */
+const stackSlot = (i, t) => [SHIP.x, shipHover(t) + SHIP.openingY + 6 + i * STACK.gap, SHIP.z];
+
+// Puffian colours come in runs (at most 3) so stacks build up. Memoised.
+const PUFF_COLORS = [];
+function puffColor(n) {
+  while (PUFF_COLORS.length <= n) {
+    const i = PUFF_COLORS.length;
+    if (i === 0) {
+      PUFF_COLORS.push(0);
+      continue;
+    }
+    const prev = PUFF_COLORS[i - 1];
+    let run = 1;
+    while (run < 3 && i - 1 - run >= 0 && PUFF_COLORS[i - 1 - run] === prev) run += 1;
+    const same = run < 3 && rnd(i, 7) < 0.55;
+    PUFF_COLORS.push(same ? prev : (prev + 1 + Math.floor(rnd(i, 8) * 3)) % 4);
+  }
+  return PUFF_COLORS[n];
+}
+const runStart = (n) => {
+  let i = n;
+  while (i > 0 && puffColor(i - 1) === puffColor(n)) i -= 1;
+  return i;
+};
+const runEnd = (n) => {
+  let i = n;
+  while (puffColor(i + 1) === puffColor(n)) i += 1;
+  return i;
+};
+const encCycle = (t) => (t - ENC.t0) / ENC.period;
+const isRunStart = (n) => n > 0 && puffColor(n) !== puffColor(n - 1);
+/** The stack slot puffian n lands on: on top of the old colour if it starts a new run. */
+const arrivalSlot = (n) => (isRunStart(n) ? n - runStart(n - 1) : n - runStart(n));
+/** When (global cycle) puffian n starts being sucked in: after the next colour lands, bottom first. */
+const suckStart = (n) => runEnd(n) + 1 + ENC.arrive + STACK.delay + (n - runStart(n)) * STACK.suck;
+/** 0..1 progress of puffian n being sucked into the ship. */
+const suckProg = (n, t) => smooth((encCycle(t) - suckStart(n)) / STACK.suck);
+const puffGone = (n, t) => suckProg(n, t) >= 1;
+/** Puffian n's current (fractional) slot: it slides down as the bubbles below it are sucked in. */
+function slotNow(n, t) {
+  const from = isRunStart(n) ? runStart(n - 1) : runStart(n);
+  let slot = arrivalSlot(n);
+  for (let x = from; x < n; x += 1) slot -= suckProg(x, t);
+  return slot;
+}
+
+/** 0..1 progress of puffian n's pull to the ship (eased: it accelerates, like suction), or -1. */
+function puffPull(n, t) {
+  const v = puffAge(n, t);
+  if (v <= ENC.attract) return -1;
+  const u = clamp((v - ENC.attract) / (ENC.arrive - ENC.attract));
+  return u * u * (1.6 - 0.6 * u);
+}
+
+/** The arc from where the bubble floated to its stack slot: a quadratic Bezier arching up. */
+function pullArc(p0, target) {
+  const mid = [(p0[0] + target[0]) / 2, Math.max(p0[1], target[1]) + 115, (p0[2] + target[2]) / 2];
+  return (u) => [0, 1, 2].map((i) => (1 - u) * (1 - u) * p0[i] + 2 * u * (1 - u) * mid[i] + u * u * target[i]);
+}
+
+/** Size of puffian n's bubble: full while free, shrinking on the way, parked small, gone when flushed. */
+function puffScale(n, t) {
+  const pull = puffPull(n, t);
+  if (pull < 0) return 1;
+  const v = puffAge(n, t);
+  if (v < ENC.arrive) return 1 - (1 - STACK.scale) * pull;
+  return STACK.scale * (1 - suckProg(n, t));
+}
 const PUFF_TONES = [
   'fill-rose-200 dark:fill-rose-300',
   'fill-amber-200 dark:fill-amber-300',
@@ -1934,9 +2024,26 @@ function puffPos(n, t) {
   const caught = Math.min(v, ENC.hit) * ENC.period; // hopping time stops at the hit
   const hop = 7 * Math.abs(Math.sin(caught * 5.2 + n * 1.7));
   const a = (az + 5 * Math.sin(caught * 1.3 + n)) * D2R;
-  const float = v > ENC.hit ? (v - ENC.hit) * ENC.period : 0;
-  const rise = 26 * float + 8 * float * float;
-  return [Math.sin(a) * radius + 3 * Math.sin(float * 3), base + hop + rise, Math.cos(a) * radius];
+  return puffFloat(n, t, a, radius, base + hop);
+}
+
+/** After the hit: float up briefly with a bob, then get pulled along an arc onto the ship's stack. */
+function puffFloat(n, t, a, radius, y) {
+  const v = puffAge(n, t);
+  const floatAt = (vv) => {
+    const fl = vv > ENC.hit ? (vv - ENC.hit) * ENC.period : 0;
+    const rise = 16 * (1 - Math.exp(-fl * 2.6)) + 2 * Math.sin(fl * 6.5);
+    return [Math.sin(a) * radius + 2 * Math.sin(fl * 3), y + rise, Math.cos(a) * radius];
+  };
+  const pull = puffPull(n, t);
+  if (pull < 0) return floatAt(v);
+  if (v < ENC.arrive) return pullArc(floatAt(ENC.attract), stackSlot(arrivalSlot(n), t))(pull);
+  // Parked on the stack (a little sway), sliding down as the ones below go,
+  // then sinking into the opening when its own turn comes.
+  const slot = stackSlot(Math.max(0, slotNow(n, t)), t);
+  const fl = suckProg(n, t);
+  const drop = fl * (slot[1] - (shipHover(t) + SHIP.openingY - 6));
+  return [slot[0] + 0.8 * Math.sin(t * 3 + n) * (1 - fl), slot[1] - drop, slot[2]];
 }
 
 /** Which hand shoots puffian n: the one on its side ('L' is the figure's +x). */
@@ -2069,19 +2176,34 @@ function buildEncounters(skel, frame, cam, trim, t, time) {
   const head = P(skel.headC);
   const nNow = Math.floor((t - ENC.t0) / ENC.period);
 
-  for (let n = Math.max(0, nNow - 2); n <= nNow + 1; n += 1) {
+  for (let n = Math.max(0, nNow - 8); n <= nNow + 1; n += 1) {
     const v = puffAge(n, t);
     const appear = smooth((v + 0.6) / 0.25); // draws on before its cycle starts
-    const fade = 1 - smooth((v - 1.45) / 0.3); // bubble drifts off and fades
-    const alpha = Math.min(appear, fade) * vis;
+    if (puffGone(n, t)) continue; // flushed into the ship
+    const fade = 1;
+    const alpha = appear * vis;
     if (alpha < 0.01) continue;
     const c = P(puffPos(n, t));
     const k = c.k;
-    const r = ENC.r * k;
+    const pull = puffPull(n, t);
+    const shrink = puffScale(n, t);
+    const r = ENC.r * k * shrink;
+    // The arc it is being pulled along, as a trail streaming behind it.
+    if (pull > 0 && v < ENC.arrive) {
+      const v0 = ENC.attract * ENC.period + ENC.t0 + n * ENC.period;
+      const p0 = puffPos(n, v0);
+      const arc = pullArc(p0, stackSlot(arrivalSlot(n), t));
+      const pts = [];
+      for (let j = 0; j <= 18; j += 1) pts.push(P(arc(j / 18)));
+      items.push({
+        key: `pull-trail-${n}`, type: 'stroke', d: smoothPath(pts), w: 1.6 * k, depth: c.d + 0.9, layer: 1,
+        trim: [Math.max(0, pull - 0.32), pull], strokeClass: 'stroke-sky-400 dark:stroke-sky-300', opacity: 0.55 * vis,
+      });
+    }
     const caught = v > ENC.hit;
     const squash = caught ? 1 : 1 - 0.08 * Math.abs(Math.cos(((v * ENC.period) * 5.2) + n * 1.7));
     const body = { x: c.x, y: c.y + r * (1 - squash) * 0.5 };
-    const tone = PUFF_TONES[n % PUFF_TONES.length];
+    const tone = PUFF_TONES[puffColor(n)];
     const drawT = [0, appear];
     items.push({
       key: `puff-${n}`, type: 'shape', d: furPath(body, r, 13, n), w: 1.6 * k, depth: c.d, layer: 1,
@@ -2148,6 +2270,538 @@ function buildEncounters(skel, frame, cam, trim, t, time) {
           });
         }
       }
+    }
+  }
+  return items;
+}
+
+/**
+ * The capture ship (after the game's): a pod hovering on a rocket flame behind
+ * the player's right. A flying-saucer disc at the base, a tall tapered bell
+ * body with a big front window holding the capture gauge (it fills a notch
+ * per captured puffian), a domed cap with a rim on top where bubbles go in,
+ * small side thrusters, and a nozzle underneath with a flickering flame. On
+ * each gulp the pod squashes for a beat and a pulse ring rises from the cap.
+ */
+function buildShip(frame, cam, trim, t, time) {
+  const vis = trim[1] - trim[0];
+  if (vis < 0.002) return [];
+  const items = [];
+  const P = (local) => cam.project(toWorld(local, frame));
+  const tr = (i) => stagger(trim, i, 4, 0.5);
+  const fillOf = (x) => smooth((x[1] - 0.5) / 0.5);
+
+  // Bubbles sucked in so far (smoothly, for the gauge), and the gulp: how
+  // recently one went in (1 = now).
+  const nNow = Math.floor((t - ENC.t0) / ENC.period);
+  let flushed = 0;
+  let gulp = 0;
+  for (let n = 0; n <= nNow; n += 1) {
+    flushed += suckProg(n, t);
+    if (n >= nNow - 8) {
+      // A gulp for each bubble sucked in.
+      const d = (encCycle(t) - suckStart(n)) / (STACK.suck * 1.4);
+      if (d >= 0 && d < 1) gulp = Math.max(gulp, 1 - d);
+    }
+  }
+  const sq = Math.sin(gulp * Math.PI) * 0.1;
+
+  const { x, z } = SHIP;
+  const hover = shipHover(t);
+  const yS = (y) => hover + y * (1 - sq);
+  const pt = (r, a, y) => [x + Math.sin(a) * r * (1 + sq * 0.6), yS(y), z + Math.cos(a) * r * (1 + sq * 0.6)];
+  const ring = (r, y, n = 28) => Array.from({ length: n }, (_, i) => P(pt(r, (i / n) * Math.PI * 2, y)));
+  const center = P([x, hover + 14, z]);
+  const k = center.k;
+  const depth = center.d;
+  const facing = cam.facing(rotY([0, 0, 1], frame.yaw));
+
+  // Ground shadow and the scorch where the flame hits.
+  const sh = ringPoints([x, 0, z], 20, 'y', 24).map((p) => P([p[0], 0, p[2]]));
+  items.push({ key: 'ship-shadow', type: 'shadow', d: smoothPath(sh, true), depth: -10000, layer: -1, opacity: 0.12 * vis });
+
+  // 0. Nozzle under the saucer, and the flame (flickering tongues to the ground).
+  const t0 = tr(0);
+  const nozzle = convexHull([...ring(6, -4, 14), ...ring(4.2, -10, 14)]);
+  items.push({ key: 'ship-nozzle', type: 'shape', d: linePath(nozzle, true), w: 1.6 * k, depth: depth - 0.3, layer: 1, trim: t0, fill: fillOf(t0), tone: 1 });
+  const flameOn = fillOf(t0) * vis;
+  if (flameOn > 0.01) {
+    for (let i = 0; i < 3; i += 1) {
+      const s = i - 1;
+      const len = (hover - 12) * (0.55 + 0.25 * Math.abs(Math.sin(time * 17 + i * 2.3)));
+      const a = P([x + s * 2.2, yS(-10), z]);
+      const m = P([x + s * 3.5 + Math.sin(time * 23 + i) * 1.2, yS(-10) - len * 0.5, z]);
+      const b = P([x + s * 4 + Math.sin(time * 19 + i * 3) * 1.5, yS(-10) - len, z]);
+      items.push({ key: `ship-flame-${i}`, type: 'stroke', d: quadThrough(a, m, b), w: (i === 1 ? 2.4 : 1.6) * k, depth: depth - 0.4, layer: 1, trim: [0, 1], opacity: flameOn, strokeClass: 'stroke-amber-400 dark:stroke-amber-300' });
+    }
+  }
+
+  // 1. The saucer disc (a lens: hull of the rim and its underside), side thrusters, then the bell body.
+  const t1 = tr(1);
+  const rim = ring(25, 2);
+  const saucer = convexHull([...rim, ...ring(12, -5, 20), ...ring(17, 6, 20)]);
+  items.push({ key: 'ship-saucer', type: 'shape', d: linePath(saucer, true), w: 2 * k, depth, layer: 1, trim: t1, fill: fillOf(t1), fillClass: 'fill-sky-100 dark:fill-sky-900' });
+  items.push({ key: 'ship-rim', type: 'stroke', d: smoothPath(rim, true), w: 1.3 * k, depth: depth + 0.01, layer: 1, trim: [0, smooth((t1[1] - 0.4) / 0.6)], opacity: 0.8 });
+  for (const s of [-1, 1]) {
+    const a = P(pt(18, s * Math.PI / 2, 8));
+    const b = P(pt(18, s * Math.PI / 2, 17));
+    items.push({ key: `ship-thruster-${s}`, type: 'capsule', d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`, w: 6 * k, line: 1.6 * k, depth: depth + 0.02 + s * 0.001, layer: 1, trim: t1, innerClass: 'stroke-sky-100 dark:stroke-sky-900' });
+  }
+  const body = convexHull([...ring(15.5, 4, 24), ...ring(14, 18, 24), ...ring(10, 34, 24)]);
+  items.push({ key: 'ship-body', type: 'shape', d: linePath(body, true), w: 2 * k, depth: depth + 0.05, layer: 1, trim: t1, fill: fillOf(t1), fillClass: 'fill-sky-100 dark:fill-sky-900' });
+
+  // 2. The front window with the capture gauge (fills a notch per catch).
+  const t2 = tr(2);
+  if (facing > -0.1) {
+    const rAt = (y) => lerp(15.5, 10, (y - 4) / 30) + 0.4;
+    const win = [];
+    for (let i = 0; i <= 6; i += 1) win.push(P(pt(rAt(9), lerp(-0.55, 0.55, i / 6), 9)));
+    for (let i = 0; i <= 6; i += 1) win.push(P(pt(rAt(29), lerp(0.48, -0.48, i / 6), 29)));
+    const wv = smooth((facing + 0.1) / 0.3);
+    items.push({ key: 'ship-window', type: 'shape', d: smoothPath(win, true), w: 1.6 * k, depth: depth + 0.1, layer: 1, trim: t2, fill: fillOf(t2) * wv, tone: 1, opacity: wv });
+    const level = (flushed % 6) / 6;
+    if (level > 0.01 && fillOf(t2) > 0.5) {
+      const top = lerp(10, 28, level);
+      const gauge = [];
+      for (let i = 0; i <= 6; i += 1) gauge.push(P(pt(rAt(10) + 0.1, lerp(-0.46, 0.46, i / 6), 10)));
+      for (let i = 0; i <= 6; i += 1) gauge.push(P(pt(rAt(top) + 0.1, lerp(0.4, -0.4, i / 6), top)));
+      items.push({ key: 'ship-gauge', type: 'shape', d: smoothPath(gauge, true), w: 0, trim: [0, 0], depth: depth + 0.11, layer: 1, fill: wv * vis, fillClass: 'fill-emerald-300 dark:fill-emerald-400' });
+    }
+  }
+
+  // 3. The cap: a rim band around the opening, and the lid flipped open behind it.
+  const t3 = tr(3);
+  const capRim = ring(11.5, 34, 24);
+  const left = capRim.reduce((m, p) => (p.x < m.x ? p : m));
+  const right = capRim.reduce((m, p) => (p.x > m.x ? p : m));
+  const rx = ((right.x - left.x) / 2) * 0.9;
+  // A domed flip-top lid hinged on the rim's right edge, swung open to the side.
+  const rimTop = ring(10.5, 37, 24);
+  const hinge = rimTop.reduce((m, p) => (p.x > m.x ? p : m));
+  const th = 112 * D2R;
+  const lid = [];
+  for (let i = 0; i <= 16; i += 1) {
+    const ph = (i / 16) * Math.PI;
+    const lx = -rx + rx * Math.cos(ph);
+    const ly = -rx * 0.8 * Math.sin(ph);
+    lid.push({ x: hinge.x + lx * Math.cos(th) - ly * Math.sin(th), y: hinge.y + lx * Math.sin(th) + ly * Math.cos(th) });
+  }
+  const lidC = lid[8];
+  items.push({ key: 'ship-lid', type: 'shape', d: smoothPath(lid, true), w: 1.8 * k, depth: depth - 0.2, layer: 1, trim: t3, fill: fillOf(t3), fillClass: 'fill-sky-100 dark:fill-sky-900' });
+  items.push({ key: 'ship-hinge', type: 'dot', x: hinge.x, y: hinge.y, r: 1.8 * k * fillOf(t3), opacity: 1, depth: depth + 0.23, layer: 1 });
+  items.push({
+    key: 'ship-lid-shine', type: 'stroke',
+    d: `M${f((hinge.x + lidC.x) / 2)},${f((hinge.y + lidC.y) / 2 - rx * 0.5)}Q${f(lidC.x - rx * 0.1)},${f(lidC.y - rx * 0.45)} ${f(lidC.x + rx * 0.05)},${f(lidC.y - rx * 0.05)}`,
+    w: 1.2 * k, depth: depth - 0.19, layer: 1, trim: [0, smooth((t3[1] - 0.6) / 0.4)], strokeClass: 'stroke-white dark:stroke-sky-100',
+  });
+  items.push({ key: 'ship-caprim', type: 'shape', d: linePath(convexHull([...capRim, ...ring(11, 37, 24)]), true), w: 1.6 * k, depth: depth + 0.2, layer: 1, trim: t3, fill: fillOf(t3), tone: 1 });
+  const hole = ring(8.5, 37.2, 24);
+  items.push({ key: 'ship-opening', type: 'shape', d: smoothPath(hole, true), w: 1.3 * k, depth: depth + 0.21, layer: 1, trim: t3, fill: fillOf(t3), fillClass: 'fill-slate-700 dark:fill-slate-950' });
+
+  // The gulp: a pulse ring rising off the cap.
+  if (gulp > 0) {
+    const pulse = ring(8 + 16 * (1 - gulp), 37 + 10 * (1 - gulp), 24);
+    items.push({ key: 'ship-pulse', type: 'stroke', d: smoothPath(pulse, true), w: 1.4 * k, depth: depth + 0.3, layer: 1, trim: [0, 1], opacity: gulp * vis, strokeClass: 'stroke-sky-400 dark:stroke-sky-300' });
+  }
+  return items;
+}
+
+// --- Tiramisu demo: hold it up and step into a sunlit garden ----------------
+//
+// Tiramisu has no strap; it is so thick and heavy you hold it to your face with
+// both hands. What people remember from its demo is the world inside, Epic's
+// Electric Dreams gorge, and how blindingly bright (HDR) it was. So the figure
+// holds the loaf up, sags a little under its weight and slowly looks around,
+// while that gorge grows all around it in the same line style.
+
+function tiramisuLook(t) {
+  return 24 * Math.sin((t - 1.25) * 0.5);
+}
+
+/**
+ * Two-bone IK: arm angles that put hand `key` at figure-local point `target`,
+ * for a pose whose torso is already set. The elbow bends out and down.
+ */
+function reachPose(P, key, target) {
+  const R = RIG;
+  const side = key === 'L' ? 1 : -1;
+  const skel = solveSkeleton(P, R);
+  const chestDir = rotX([0, 1, 0], P.lean);
+  const shoulder = add(add(skel.pelvis, mul(chestDir, R.shoulderUp)), rotY([side * R.shoulderX, 0, 0], P.twist));
+  // Into the arm's own frame (solveSkeleton rotates arms by twist * 0.6).
+  const v = rotY([target[0] - shoulder[0], target[1] - shoulder[1], target[2] - shoulder[2]], -P.twist * 0.6);
+  const l1 = R.upperArm;
+  const l2 = R.foreArm;
+  const len = Math.hypot(...v) || 1;
+  const d = clamp(len, Math.abs(l1 - l2) + 0.5, l1 + l2 - 0.5);
+  const dir = v.map((x) => x / len);
+  const pole0 = [side, -1, -0.4];
+  const pd = pole0[0] * dir[0] + pole0[1] * dir[1] + pole0[2] * dir[2];
+  const perp0 = pole0.map((x, i) => x - dir[i] * pd);
+  const pl = Math.hypot(...perp0) || 1;
+  const perp = perp0.map((x) => x / pl);
+  const along = (l1 * l1 + d * d - l2 * l2) / (2 * d);
+  const h = Math.sqrt(Math.max(0, l1 * l1 - along * along));
+  const elbow = dir.map((x, i) => x * along + perp[i] * h);
+  const hand = dir.map((x) => x * d);
+  const angles = (u) => {
+    const ul = Math.hypot(...u) || 1;
+    const n = u.map((x) => x / ul);
+    return [Math.atan2(n[2], -n[1]) / D2R, Math.asin(clamp(n[0] * side, -1, 1)) / D2R];
+  };
+  const [p1, r1] = angles(elbow);
+  const [p2, r2] = angles(hand.map((x, i) => x - elbow[i]));
+  return { [`a${key}p`]: p1, [`a${key}r`]: r1, [`a${key}bp`]: p2 - p1, [`a${key}br`]: r2 - r1 };
+}
+
+function tiramisuPose(t) {
+  if (t < 0.65) return lerpPose(idlePose(t), VR_REACH, easeInOut(t / 0.65));
+  if (t < 1.25) return VR_REACH;
+  const look = tiramisuLook(t);
+  const sag = 0.5 + 0.5 * Math.sin(t * 0.9); // the weight: hands slowly drop and recover
+  const body = pose({
+    lean: 0, // braced, leaning back a touch
+    twist: look * 0.9,
+    hy: look * 0.1,
+    hp: -4 + 4 * Math.sin(t * 0.33),
+    lRr: 7, lLr: 7, lRk: 9, lLk: 9,
+  });
+  // Hands grip the sides of the (strapless) Tiramisu box, just outside its silhouette.
+  const skel = solveSkeleton(body);
+  const R = RIG.headR;
+  const grip = (side) => add(skel.headC, headRotate([side * 1.32 * R, -0.3 * R - 1.2 * sag, 0.95 * R], skel.headRot));
+  const hold = { ...body, ...reachPose(body, 'R', grip(-1)), ...reachPose(body, 'L', grip(1)) };
+  return lerpPose(VR_REACH, hold, easeInOut((t - 1.25) / 0.6));
+}
+
+function leafPath(c, rx, ry, tilt) {
+  const pts = [];
+  for (let j = 0; j < 12; j += 1) {
+    const u = (j / 12) * Math.PI * 2;
+    const lx = Math.cos(u) * rx;
+    // A pointed leaf: narrower toward the tip.
+    const ly = Math.sin(u) * ry * (0.55 + 0.45 * Math.cos(u * 0.5) ** 2);
+    pts.push({ x: c.x + lx * Math.cos(tilt) - ly * Math.sin(tilt), y: c.y + lx * Math.sin(tilt) + ly * Math.cos(tilt) });
+  }
+  return smoothPath(pts, true);
+}
+
+// The Tiramisu demo's main scene was Epic's "Electric Dreams" sample: a jungle
+// creek gorge. On the left, a raised earth bank whose face is a curtain of
+// hanging roots, with flowering shrubs and a boulder along the top and tall
+// airy trees the sun blazes through. On the right, a tall layered rock cliff
+// with foliage and vines. A karst pillar stands down the gorge, and the floor
+// is a stony creek bed with ferns, grass, wild flowers and a fallen log.
+// World space relative to the figure's root, so it stays put while it turns.
+
+// Walls: the inner (creek-side) edge from the ground up, then the top runs
+// off-stage to the outer side. The left bank is kept low so its trees fit.
+const RAVINE_CLIFFS = [
+  { kind: 'bank', z: -70, outer: -540, top: 74, edge: [[-150, 0], [-138, 14], [-144, 28], [-128, 40], [-134, 54], [-118, 64], [-112, 70]] },
+  { kind: 'cliff', z: -90, outer: 540, top: 156, edge: [[146, 0], [132, 18], [140, 36], [118, 52], [126, 74], [106, 92], [116, 112], [98, 126]] },
+];
+// Ledges across the rock cliff: [y, from (0 = inner edge), length].
+const RAVINE_STRATA = [[18, 0.08, 0.6], [40, 0.02, 0.45], [60, 0.1, 0.7], [82, 0.05, 0.5], [104, 0.12, 0.6]];
+// Trees on the left bank: [x, trunk height, lean, canopy size]. The sun sits in the first.
+const RAVINE_TREES = [[-168, 34, -0.15, 1.2], [-118, 26, 0.45, 0.85], [-226, 24, 0.5, 0.8]];
+// The karst pillar far down the gorge.
+const RAVINE_PILLAR = { z: -300, pts: [[58, 0], [54, 22], [60, 40], [55, 62], [62, 80], [68, 92], [80, 96], [90, 86], [88, 66], [94, 48], [90, 26], [96, 0]] };
+
+/** Height of a wall's top line at x: rising from its inner edge, broken into stepped ledges. */
+function ravineTopY(cl, x) {
+  const top = cl.edge[cl.edge.length - 1];
+  const span = Math.abs(cl.outer - top[0]);
+  const d = Math.abs(x - top[0]);
+  const base = lerp(top[1], cl.top, clamp(d / span / 0.3));
+  const cell = Math.floor(d / 26);
+  const amp = cl.kind === 'cliff' ? 14 : 5;
+  return base + amp * (rnd(cell + (cl.kind === 'cliff' ? 0 : 50), 131) * 2 - 1) * clamp(d / 30);
+}
+
+function blobPath(c, rx, ry) {
+  // A rounded stone: flat-ish bottom, domed top.
+  return `M${f(c.x - rx)},${f(c.y)}C${f(c.x - rx)},${f(c.y - ry * 1.3)} ${f(c.x + rx)},${f(c.y - ry * 1.3)} ${f(c.x + rx)},${f(c.y)}C${f(c.x + rx * 0.7)},${f(c.y + ry * 0.35)} ${f(c.x - rx * 0.7)},${f(c.y + ry * 0.35)} ${f(c.x - rx)},${f(c.y)}Z`;
+}
+
+function buildRavine(frame, cam, trim, time) {
+  const vis = trim[1] - trim[0];
+  if (vis < 0.002) return [];
+  const items = [];
+  const at = (p) => cam.project(add(frame.root, p));
+  const fade = trim[0] > 0 ? 1 - trim[0] : 1;
+  const grow = (a, b) => smooth((trim[1] - a) / (b - a)) * fade;
+  const k = at([0, 0, 0]).k;
+  const bodyD = at([0, 40, 0]).d;
+  const farFade = (d) => 1 - 0.4 * clamp((bodyD - d - 20) / 200);
+  const leafAt = (key, c, size, tilt, tone, depth, layer = 0) => {
+    if (size < 0.01) return;
+    items.push({ key, type: 'shape', d: leafPath(c, 7 * c.k * size, 3.8 * c.k * size, tilt), w: 1 * c.k, trim: [0, size], fill: size, tone, depth, layer });
+  };
+
+  // 1. Banks rise on both sides; their faces are curtains of hanging roots.
+  const bankG = grow(0, 0.45);
+  RAVINE_CLIFFS.forEach((cl, ci) => {
+    if (bankG < 0.002) return;
+    const dir = Math.sign(cl.outer);
+    const top = cl.edge[cl.edge.length - 1];
+    // Jagged, stepped top line (flat ledge per cell, steps between), then an
+    // irregular outer end (which the vignette fades out anyway).
+    const outline = [...cl.edge];
+    const cells = Math.floor(Math.abs(cl.outer - top[0]) / 26);
+    for (let c = 0; c < cells; c += 1) {
+      const x0 = top[0] + dir * c * 26;
+      const y = ravineTopY(cl, x0 + dir * 13);
+      outline.push([x0 + dir * 3, y], [x0 + dir * 23, y + (rnd(c + ci * 40, 141) - 0.5) * 3]);
+    }
+    // The fill is closed; the outline is left open on the outer side (only
+    // the inner edge and the top are inked), so the wall never ends in a line.
+    const open = outline.map(([x, y]) => at([x, y, cl.z]));
+    const poly = [...outline, [cl.outer + dir * 10, cl.top * 0.6], [cl.outer, 0]].map(([x, y]) => at([x, y, cl.z]));
+    items.push({ key: `bank-${ci}`, type: 'shape', d: linePath(poly, true), w: 0, trim: [0, 0], fill: smooth((bankG - 0.4) / 0.6), tone: 0, depth: -7000 + ci, layer: 0 });
+    items.push({ key: `bank-line-${ci}`, type: 'stroke', d: linePath(open), w: 1.8 * k, trim: [0, bankG], depth: -7000 + ci + 0.001, layer: 0, join: 'round' });
+    if (cl.kind === 'cliff') {
+      RAVINE_STRATA.forEach(([y, from, len], si) => {
+        const edgeX = cl.edge.reduce((best, p) => (Math.abs(p[1] - y) < Math.abs(best[1] - y) ? p : best))[0];
+        const x0 = edgeX + dir * (8 + from * 120);
+        const x1 = x0 + dir * len * 160;
+        const a = at([x0, y, cl.z]);
+        const m = at([(x0 + x1) / 2, y + 2 * Math.sin(si * 2.1), cl.z]);
+        const b = at([x1, y - 1.5, cl.z]);
+        items.push({ key: `strata-${ci}-${si}`, type: 'stroke', d: quadThrough(a, m, b), w: 1.1 * k, trim: [0, smooth((bankG - 0.5) / 0.5)], opacity: 0.7, depth: -6990 + ci, layer: 0 });
+        if (si % 2 === 0) {
+          const c0 = at([x0 + dir * 30, y, cl.z]);
+          const c1 = at([x0 + dir * 36, y - 12, cl.z]);
+          items.push({ key: `crack-${ci}-${si}`, type: 'stroke', d: `M${f(c0.x)},${f(c0.y)}L${f(c1.x)},${f(c1.y)}`, w: 1 * k, trim: [0, smooth((bankG - 0.6) / 0.4)], opacity: 0.55, depth: -6990 + ci, layer: 0 });
+        }
+        // Vertical joints up to the next ledge break the layers into blocks.
+        const next = RAVINE_STRATA[si + 1];
+        if (next) {
+          for (let jn = 0; jn < 3; jn += 1) {
+            const jx = edgeX + dir * (28 + 70 * jn + 30 * rnd(si * 3 + jn, 151));
+            const j0 = at([jx, y + 1, cl.z]);
+            const j1 = at([jx + dir * 3 * (rnd(si + jn, 152) - 0.5), next[0] - 1, cl.z]);
+            items.push({ key: `joint-${ci}-${si}-${jn}`, type: 'stroke', d: `M${f(j0.x)},${f(j0.y)}L${f(j1.x)},${f(j1.y)}`, w: 0.9 * k, trim: [0, smooth((bankG - 0.6) / 0.4)], opacity: 0.55, depth: -6990 + ci, layer: 0 });
+          }
+        }
+      });
+      // Bulging rock masses on the face, for relief.
+      [[0.25, 30, 20, 11], [0.55, 74, 26, 13], [0.4, 108, 18, 9]].forEach(([u, y, rx, ry], bi) => {
+        const edgeX = cl.edge.reduce((best, p) => (Math.abs(p[1] - y) < Math.abs(best[1] - y) ? p : best))[0];
+        const c = at([edgeX + dir * (20 + u * 140), y, cl.z + 2]);
+        const g = smooth((bankG - 0.5 - bi * 0.08) / 0.4);
+        if (g < 0.01) return;
+        items.push({ key: `bulge-${ci}-${bi}`, type: 'shape', d: blobPath(c, rx * c.k * g, ry * c.k * g), w: 1.2 * c.k, trim: [0, 1], fill: 1, tone: 1, depth: -6995 + ci + bi * 0.01, layer: 0 });
+      });
+    }
+    // Scree: loose rocks piled along the wall's base.
+    for (let r = 0; r < 12; r += 1) {
+      const g = smooth((bankG - 0.55 - r * 0.02) / 0.35);
+      if (g < 0.01) continue;
+      const x = cl.edge[0][0] + dir * (-12 + 150 * rnd(r + ci * 20, 161));
+      const c = at([x, 0, cl.z + 10 + 26 * rnd(r + ci * 20, 162)]);
+      const rx = (3 + 7 * rnd(r + ci * 20, 163)) * c.k * g;
+      items.push({ key: `scree-${ci}-${r}`, type: 'shape', d: blobPath(c, rx, rx * 0.6), w: 1.1 * c.k, trim: [0, 1], fill: 1, tone: r % 3 ? 0 : 1, depth: -6980 + ci + r * 0.01, layer: 0 });
+    }
+    if (cl.kind === 'cliff') return;
+    const rootG = smooth((bankG - 0.45) / 0.55);
+    if (rootG > 0.01) {
+      for (let r = 0; r < 22; r += 1) {
+        const x = top[0] + dir * (6 + r * 9.5 + 4 * rnd(r + ci * 30, 111));
+        const y0 = ravineTopY(cl, x) - 2;
+        const len = (16 + 34 * rnd(r + ci * 30, 112)) * rootG;
+        const pts = [0, 0.33, 0.66, 1].map((u) => at([x + 2.5 * Math.sin(u * 5 + r) + 1.2 * Math.sin(time * 0.9 + r) * u, y0 - len * u, cl.z + 1]));
+        items.push({ key: `root-${ci}-${r}`, type: 'stroke', d: smoothPath(pts), w: (r % 3 ? 0.9 : 1.4) * k, trim: [0, 1], opacity: 0.75, depth: -6990 + ci + r * 0.001, layer: 0 });
+      }
+    }
+  });
+
+  // 2. The karst pillar far down the gorge.
+  const pillarG = grow(0.15, 0.55);
+  if (pillarG > 0.002) {
+    const pts = RAVINE_PILLAR.pts.map(([x, y]) => at([x, y, RAVINE_PILLAR.z]));
+    items.push({ key: 'pillar', type: 'shape', d: linePath(pts, true), w: 1.4 * k, trim: [0, pillarG], fill: smooth((pillarG - 0.4) / 0.6), tone: 1, opacity: 0.85, depth: -9500, layer: 0 });
+    for (let i = 0; i < 3; i += 1) {
+      const a = at([58 + i * 3, 24 + i * 22, RAVINE_PILLAR.z]);
+      const b = at([78 + i * 3, 27 + i * 22, RAVINE_PILLAR.z]);
+      items.push({ key: `pillar-strata-${i}`, type: 'stroke', d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`, w: 0.9 * k, trim: [0, smooth((pillarG - 0.5) / 0.5)], opacity: 0.6, depth: -9499, layer: 0 });
+    }
+    for (let i = 0; i < 7; i += 1) {
+      const c = at([58 + i * 6, 96 + 5 * Math.abs(Math.sin(i * 2.3)), RAVINE_PILLAR.z]);
+      leafAt(`crown-${i}`, c, smooth((pillarG - 0.6) / 0.4) * 0.9, (i * 61) * D2R, 1, -9490 + i * 0.01);
+    }
+  }
+
+  // 3. Trees on the banks: forking trunks and airy, clumpy canopies.
+  const treeG = grow(0.25, 0.75);
+  RAVINE_TREES.forEach(([x, h, lean, size], ti) => {
+    const g = smooth((treeG - ti * 0.06) / 0.75);
+    if (g < 0.01) return;
+    const cl = RAVINE_CLIFFS[0];
+    const z = cl.z - 14;
+    const y0 = cl.top - 2;
+    const top = [x + lean * h, y0 + h];
+    const base = at([x, y0, z]);
+    const mid = at([x + lean * h * 0.4, y0 + h * 0.5, z]);
+    const tip = at([top[0], y0 + h * g, z]);
+    const depth = -7050 + ti * 0.1;
+    items.push({ key: `trunk-${ti}`, type: 'stroke', d: quadThrough(base, mid, tip), w: 2.8 * k * size, trim: [0, g], depth, layer: 0 });
+    // Forks: each ends in a clump of leaves.
+    const forks = [[-26, 18], [-10, 30], [12, 32], [28, 16], [0, 8]].map(([dx, dy]) => [top[0] + dx * size, top[1] + dy * size]);
+    const crownG = smooth((g - 0.4) / 0.6);
+    forks.forEach(([fx, fy], fi) => {
+      const b0 = at([x + lean * h * 0.75, y0 + h * 0.75, z]);
+      const b1 = at([fx, fy, z]);
+      items.push({ key: `fork-${ti}-${fi}`, type: 'stroke', d: `M${f(b0.x)},${f(b0.y)}L${f(b1.x)},${f(b1.y)}`, w: 1.5 * k * size, trim: [0, crownG], depth: depth + 0.01, layer: 0 });
+      for (let i = 0; i < 9; i += 1) {
+        const a = (i / 9) * Math.PI * 2 + fi * 1.3 + ti;
+        const rr = (i % 2 ? 9 : 4) * size + 2 * rnd(i + fi * 9 + ti * 50, 121);
+        const sway = 1.2 * Math.sin(time * 1.1 + fi + ti + i * 0.3);
+        const c = at([fx + Math.cos(a) * rr + sway, fy + Math.sin(a) * rr * 0.7, z + (i % 3) * 2]);
+        leafAt(`tleaf-${ti}-${fi}-${i}`, c, crownG * size * 0.95, a + 0.5, (i + fi) % 4 ? 0 : 1, depth + 0.02 + fi * 0.01 + i * 0.0005);
+      }
+    });
+  });
+
+  // 4. Along the bank tops: a boulder (left) and flowering shrubs; vines hang over.
+  const shrubG = grow(0.35, 0.8);
+  if (shrubG > 0.01) {
+    const bc = at([-140, 70, -84]);
+    items.push({ key: 'boulder', type: 'shape', d: blobPath(bc, 16 * bc.k * shrubG, 9 * bc.k * shrubG), w: 1.6 * bc.k, trim: [0, 1], fill: 1, tone: 1, depth: -7060, layer: 0 });
+  }
+  RAVINE_CLIFFS.forEach((cl, ci) => {
+    const dir = Math.sign(cl.outer);
+    const top = cl.edge[cl.edge.length - 1];
+    for (let i = 0; i < (cl.kind === 'bank' ? 20 : 16); i += 1) {
+      const s = smooth((shrubG - i * 0.02) / 0.5);
+      const x = top[0] + dir * (i * 10 - 8) + 3 * Math.sin(i * 2.7);
+      const y = ravineTopY(cl, x) + 3 + 7 * Math.abs(Math.sin(i * 1.9));
+      const sway = 1 * Math.sin(time * 1.2 + i);
+      const c = at([x + sway, y, cl.z + 4]);
+      leafAt(`shrub-${ci}-${i}`, c, s, (dir * 30 + i * 47) * D2R, i % 3 ? 0 : 1, -6900 + ci + i * 0.01);
+      if (cl.kind === 'bank' && i % 3 === 1 && s > 0.5) {
+        const fl = at([x + sway + 3, y + 5, cl.z + 5]);
+        const pr = 1.6 * fl.k * smooth((s - 0.5) / 0.5);
+        items.push({ key: `shrubflower-${ci}-${i}`, type: 'shape', d: circlePath(fl, pr), w: 0.9 * fl.k, trim: [0, 1], fill: 1, tone: 1, depth: -6900 + ci + i * 0.01 + 0.005, layer: 0 });
+      }
+    }
+    for (let v = 0; v < 3; v += 1) {
+      const vg = smooth((shrubG - 0.2 - v * 0.08) / 0.5);
+      if (vg < 0.01) continue;
+      const x = top[0] + dir * (8 + v * 34);
+      const y0 = ravineTopY(cl, x);
+      const len = (40 + 22 * rnd(v + ci * 3, 61)) * vg;
+      const pts = [];
+      for (let j = 0; j <= 8; j += 1) {
+        const u = j / 8;
+        const sw = Math.sin(time * 1.1 + v * 1.7 + ci) * 4 * u * u;
+        pts.push(at([x + sw + 3 * Math.sin(u * 7 + v), y0 + 4 - len * u, cl.z + 6]));
+      }
+      items.push({ key: `vine-${ci}-${v}`, type: 'stroke', d: smoothPath(pts), w: 1.2 * k, trim: [0, 1], depth: -6800 + ci + v * 0.01, layer: 0 });
+      for (let j = 2; j < 9; j += 2) {
+        leafAt(`vineleaf-${ci}-${v}-${j}`, pts[j], 0.8 * vg, ((j % 4 ? 1 : -1) * 50 + 90) * D2R, 0, -6800 + ci + v * 0.01 + j * 0.001);
+      }
+    }
+  });
+
+  // 5. The creek bed: stones, a fallen log, ferns, grass and a few wild flowers.
+  for (let i = 0; i < 26; i += 1) {
+    const x = -140 + 280 * rnd(i, 71);
+    const z = -260 + 330 * rnd(i, 72);
+    if (Math.abs(x) < 24 && Math.abs(z) < 22) continue;
+    const g = grow(0.05 + 0.25 * rnd(i, 73), 0.35 + 0.25 * rnd(i, 73));
+    if (g < 0.01) continue;
+    const c = at([x, 0, z]);
+    const rx = (4 + 9 * rnd(i, 74)) * c.k * g;
+    items.push({ key: `stone-${i}`, type: 'shape', d: blobPath(c, rx, rx * 0.5), w: 1.2 * c.k, trim: [0, 1], fill: 1, tone: i % 3 ? 0 : 1, opacity: farFade(c.d) * g, depth: c.d - 1, layer: 1 });
+  }
+  const logG = grow(0.3, 0.6);
+  if (logG > 0.002) {
+    const a = at([-150, 26, -60]);
+    const b = at([-60, 4, -110]);
+    items.push({ key: 'log', type: 'capsule', d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`, w: 8 * k, line: 1.8 * k, trim: [0, logG], depth: Math.min(a.d, b.d) - 2, layer: 1 });
+    items.push({ key: 'log-end', type: 'shape', d: circlePath(b, 3.6 * b.k), w: 1.2 * b.k, trim: [0, smooth((logG - 0.7) / 0.3)], fill: 0, depth: Math.min(a.d, b.d) - 1.9, layer: 1 });
+  }
+  const FERNS = [[-104, -20], [-80, 30], [92, -34], [70, 26], [-30, -120], [110, 40], [-120, 50], [28, -70]];
+  FERNS.forEach(([x, z], i) => {
+    const g = grow(0.4 + i * 0.03, 0.75 + i * 0.03);
+    if (g < 0.01) return;
+    const base = at([x, 0, z]);
+    const op = farFade(base.d);
+    for (let fr = 0; fr < 4; fr += 1) {
+      const dirx = [-1, -0.35, 0.35, 1][fr];
+      const len = (16 + 6 * (fr % 2)) * g;
+      const sway = Math.sin(time * 1.3 + i + fr) * 1.2;
+      const pts = [0, 0.33, 0.66, 1].map((u) => at([x + dirx * len * u + sway * u, len * (1.1 * u - 0.75 * u * u) + 2, z]));
+      let d = smoothPath(pts);
+      for (let j = 1; j <= 5; j += 1) {
+        const u = j / 6;
+        const p = at([x + dirx * len * u + sway * u, len * (1.1 * u - 0.75 * u * u) + 2, z]);
+        const t = 2.6 * (1 - u) * base.k;
+        d += `M${f(p.x - t * 0.7)},${f(p.y - t)}L${f(p.x)},${f(p.y)}L${f(p.x + t * 0.7)},${f(p.y - t)}`;
+      }
+      items.push({ key: `fern-${i}-${fr}`, type: 'stroke', d, w: 1 * base.k, trim: [0, 1], opacity: op * fade, depth: base.d, layer: 1 });
+    }
+  });
+  for (let i = 0; i < 30; i += 1) {
+    const x = -150 + 300 * rnd(i, 81);
+    const z = -240 + 310 * rnd(i, 82);
+    if (Math.abs(x) < 20 && Math.abs(z) < 18) continue;
+    const g = grow(0.1 + 0.3 * rnd(i, 83), 0.6 + 0.3 * rnd(i, 83));
+    if (g < 0.01) continue;
+    const lean = Math.sin(time * 2 + i) * 0.8;
+    let d = '';
+    [[-1.6, 7, 0.6], [0, 9.5, 1.2], [1.8, 6, 1.6]].forEach(([dx, h, tilt]) => {
+      const root = at([x + dx, 0, z]);
+      const bend = at([x + dx + tilt * 0.4 + lean * 0.4, h * 0.55, z]);
+      const tip = at([x + dx + tilt + lean, h, z]);
+      d += `M${f(root.x)},${f(root.y)}Q${f(bend.x)},${f(bend.y)} ${f(tip.x)},${f(tip.y)}`;
+    });
+    const b = at([x, 0, z]);
+    items.push({ key: `grass-${i}`, type: 'stroke', d, w: 1 * b.k, trim: [0, g], opacity: farFade(b.d), depth: b.d - 0.5, layer: 1 });
+  }
+  const FLOWERS = [[-94, 10, 16], [-60, -40, 13], [62, -10, 15], [84, 46, 18], [-40, 52, 12], [40, -90, 13], [120, -10, 14], [-120, -60, 15]];
+  FLOWERS.forEach(([x, z, h], i) => {
+    const g = grow(0.5 + i * 0.03, 0.85 + i * 0.03);
+    if (g < 0.01) return;
+    const base = at([x, 0, z]);
+    const sway = 1.5 * Math.sin(time * 1.4 + i);
+    const top = at([x + sway, h, z]);
+    const mid = at([x + sway * 0.3, h * 0.55, z]);
+    items.push({ key: `fl-stem-${i}`, type: 'stroke', d: quadThrough(base, mid, top), w: 1.1 * base.k, trim: [0, smooth(g / 0.6)], depth: base.d, layer: 1 });
+    const bloom = smooth((g - 0.55) / 0.45);
+    if (bloom < 0.01) return;
+    const pr = 1.9 * base.k * bloom;
+    for (let p = 0; p < 5; p += 1) {
+      const a = (p / 5) * Math.PI * 2 + i;
+      items.push({ key: `fl-petal-${i}-${p}`, type: 'shape', d: circlePath({ x: top.x + Math.cos(a) * pr * 1.1, y: top.y + Math.sin(a) * pr * 1.1 }, pr), w: 0.9 * base.k, trim: [0, 1], fill: 1, tone: 0, depth: base.d + 0.02 + p * 0.001, layer: 1 });
+    }
+    items.push({ key: `fl-c-${i}`, type: 'dot', x: top.x, y: top.y, r: 1 * base.k * bloom, opacity: 1, depth: base.d + 0.03, layer: 1 });
+  });
+
+  // 6. The sun blazing through the big left tree's leaves, as HDR glare: a
+  //    blown-out white core and a soft bloom over the leaves around it, plus a
+  //    thin horizontal flare streak. No symbolic rays.
+  const light = grow(0.55, 1);
+  if (light > 0.01) {
+    const sun = at([-184, 119, -96]);
+    const breathe = 1 + 0.03 * Math.sin(time * 0.7);
+    const br = 28 * k * breathe;
+    items.push({ key: 'glare-bloom', type: 'shape', d: circlePath(sun, br), fillUrl: 'glare', fill: light, trim: [0, 0], w: 0, depth: -6850, layer: 0 });
+    const sx = 80 * k * breathe;
+    const sy = 2 * k;
+    items.push({ key: 'glare-streak', type: 'shape', d: `M${f(sun.x - sx)},${f(sun.y)}a${f(sx)},${f(sy)} 0 1 0 ${f(2 * sx)},0a${f(sx)},${f(sy)} 0 1 0 ${f(-2 * sx)},0`, fillUrl: 'glare', fill: 0.85 * light, trim: [0, 0], w: 0, depth: -6849, layer: 0 });
+  }
+
+  // 7. Leaves drifting down through the gorge, in front of and behind the figure.
+  const drift = grow(0.7, 1);
+  if (drift > 0.01) {
+    for (let i = 0; i < 5; i += 1) {
+      const cyc = (time * 0.12 + i * 0.21) % 1;
+      const z = i % 2 ? 40 : -60;
+      const x = -130 + i * 62 + 24 * Math.sin(time * 0.9 + i * 2) + cyc * 40;
+      const c = at([x, 120 * (1 - cyc), z]);
+      const o = drift * smooth(cyc / 0.15) * (1 - smooth((cyc - 0.85) / 0.15));
+      items.push({ key: `drift-${i}`, type: 'shape', d: leafPath(c, 5 * c.k, 3 * c.k, time * 2 + i), w: 1 * c.k, trim: [0, 1], fill: o, tone: 0, opacity: o, depth: c.d, layer: 1 });
     }
   }
   return items;
@@ -2648,6 +3302,7 @@ export class TrimStickmanSim {
     );
 
     let dog = null;
+    let vignette = null;
     const dogProp = props.find((p) => p.id === 'dog');
     const leashProp = props.find((p) => p.id === 'leash');
     if (dogProp || leashProp) {
@@ -2671,12 +3326,25 @@ export class TrimStickmanSim {
       if (prop.id === 'leash' && dog) items.push(...buildLeash(skel, dog, frame, cam, prop.trim));
       if (prop.id === 'blasters') items.push(...buildBlasters(skel, frame, cam, prop.trim));
       if (prop.id === 'encounters') items.push(...buildEncounters(skel, frame, cam, prop.trim, this.encT, this.time));
+      if (prop.id === 'ship') items.push(...buildShip(frame, cam, prop.trim, this.encT, this.time));
+      if (prop.id === 'ravine') {
+        // Scenery fades out toward its ends (see TrimStage's vignette), and is
+        // split around the figure so it still layers in front of / behind it.
+        const rootD = cam.project(frame.root).d;
+        for (const it of buildRavine(frame, cam, prop.trim, this.time)) {
+          it.scenery = it.layer < 1 || it.depth < rootD ? 'back' : 'front';
+          items.push(it);
+        }
+        const c = cam.project(add(frame.root, [0, 50, 0]));
+        vignette = { x: c.x, y: c.y, rx: 410 * c.k, ry: 235 * c.k };
+      }
     }
 
     items.sort((a, b) => a.layer - b.layer || a.depth - b.depth);
     return {
       items,
       rig: opts.rig ? buildRigOverlay(skel, frame, cam) : null,
+      vignette,
       look: {
         filter: STYLES[this.style]?.filter || null,
         seed: Math.floor(this.time * 8) % 97,

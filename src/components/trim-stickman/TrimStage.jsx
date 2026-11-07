@@ -165,7 +165,7 @@ export default function TrimStage({
   const wrapRef = useRef(null);
   const uid = useId().replace(/:/g, '');
   const filterId = `trim-sketch-${uid}`;
-  const ids = { chrome: `trim-chrome-${uid}` };
+  const ids = { chrome: `trim-chrome-${uid}`, glare: `trim-glare-${uid}`, vig: `trim-vig-${uid}`, vigMask: `trim-vigmask-${uid}` };
   const simInstance = useRef(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
   const [frame, setFrame] = useState(null);
@@ -238,6 +238,7 @@ export default function TrimStage({
     };
   }, [size.w, size.h]);
 
+  const vig = frame?.vignette;
   return (
     <div ref={wrapRef} className={`relative ${className}`}>
       {size.w > 0 && (
@@ -258,6 +259,35 @@ export default function TrimStage({
               <stop offset="0.8" stopColor="#94a3b8" />
               <stop offset="1" stopColor="#e2e8f0" />
             </linearGradient>
+            {/* HDR glare: a blown-out white core fading through warm white to nothing. */}
+            <radialGradient id={ids.glare}>
+              <stop offset="0" stopColor="#ffffff" stopOpacity="1" />
+              <stop offset="0.22" stopColor="#ffffff" stopOpacity="1" />
+              <stop offset="0.5" stopColor="#fffbeb" stopOpacity="0.75" />
+              <stop offset="0.75" stopColor="#fffbeb" stopOpacity="0.3" />
+              <stop offset="1" stopColor="#fffbeb" stopOpacity="0" />
+            </radialGradient>
+            {/* Scenery vignette: an ellipse around the figure, opaque in the
+                middle and fading to nothing, so scenery never ends in a hard edge. */}
+            {vig && (
+              <>
+                <radialGradient
+                  id={ids.vig}
+                  gradientUnits="userSpaceOnUse"
+                  cx={vig.x}
+                  cy={vig.y}
+                  r={vig.rx}
+                  gradientTransform={`translate(${vig.x} ${vig.y}) scale(1 ${vig.ry / vig.rx}) translate(${-vig.x} ${-vig.y})`}
+                >
+                  <stop offset="0" stopColor="#fff" />
+                  <stop offset="0.68" stopColor="#fff" />
+                  <stop offset="1" stopColor="#000" />
+                </radialGradient>
+                <mask id={ids.vigMask} maskUnits="userSpaceOnUse" x={vig.x - vig.rx} y={vig.y - vig.ry} width={vig.rx * 2} height={vig.ry * 2}>
+                  <rect x={vig.x - vig.rx} y={vig.y - vig.ry} width={vig.rx * 2} height={vig.ry * 2} fill={`url(#${ids.vig})`} />
+                </mask>
+              </>
+            )}
           </defs>
           {frame?.look?.filter === 'sketch' && (
             <defs>
@@ -268,9 +298,23 @@ export default function TrimStage({
             </defs>
           )}
           <g filter={frame?.look?.filter === 'sketch' ? `url(#${filterId})` : undefined}>
-            {frame?.items.map((item) => (
+            {vig && (
+              <g mask={`url(#${ids.vigMask})`}>
+                {frame.items.filter((item) => item.scenery === 'back').map((item) => (
+                  <Item key={item.key} item={item} ids={ids} />
+                ))}
+              </g>
+            )}
+            {frame?.items.filter((item) => !vig || !item.scenery).map((item) => (
               <Item key={item.key} item={item} ids={ids} />
             ))}
+            {vig && (
+              <g mask={`url(#${ids.vigMask})`}>
+                {frame.items.filter((item) => item.scenery === 'front').map((item) => (
+                  <Item key={item.key} item={item} ids={ids} />
+                ))}
+              </g>
+            )}
           </g>
           {frame?.rig && <RigOverlay chains={frame.rig} />}
         </svg>

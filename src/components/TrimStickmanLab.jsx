@@ -59,6 +59,15 @@ const SECTIONS = [
       'The laser is a trim window sliding along one line, and the bubble that wraps a hit puffian is a circle drawing itself on, then drifting up and away. The whole game loop is a pure function of time.',
     ],
   },
+  {
+    scene: 'tiramisu',
+    kicker: '07 · Tiramisu',
+    title: 'Stepping into the world',
+    body: [
+      'Tiramisu is too thick and heavy for a strap, so you hold it to your face with both hands. The figure does exactly that: a small reach solver puts its hands on the box, and its elbows sag a little under the weight.',
+      'What people remember is the world inside: Epic’s Electric Dreams gorge, with layered rock cliffs, vines, ferns, and a stony creek bed, and how blindingly bright it was. The gorge grows around the figure in the same line style, and the sun is HDR glare: a bloom that washes out the lines around it.',
+    ],
+  },
 ];
 
 function Toggle({ label, checked, onChange }) {
