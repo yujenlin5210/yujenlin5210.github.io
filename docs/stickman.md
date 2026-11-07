@@ -45,8 +45,8 @@ The `/projects` page has a small character at the bottom of the screen. Each pro
   - `boba3`: traced from reference photos. The front cover (top edge arching up to the centre, rounder lower lobes, a moderate nose arch) is dark glass. The silver chrome is the cover's side wall (its thickness, a gradient fill), flared slightly so a thin edge shows head-on. A dark body sits behind it. Everything wraps gently around the face. The bands are drawn with `bandPath` (a union of the quads between two outlines, outlined by a fat stroke under the fill), not a convex hull, so they follow the nose arch. Dark-mode fills are lighter so it reads as solid against the dark background. Extra detail (cameras, band, forehead cover/hood, knobs) and a flat chrome frame were tried and rejected.
   - `tiramisu` (from a photo): a chunky matte black rounded box (loaf) well forward of the face, with soft front fillets drawn as one solid (no inner front line, which read as see-through), and a small white sensor ring near the top front corner. Side knobs were tried and removed.
   - `varifocal` (Butterscotch Varifocal, from the project cover photo): an angular black box (flat front, bold chamfered corners, darker front face).
+  - `retina` (Butterscotch retina-resolution, from the project cover photo): a wide, flat, softly rounded black box with an exposed circuit board on top (muted gray board, dark chips, silver pads, traces; a green and gold board was too colorful). The front cover sits lower than the body behind it, so the board slopes up from the cover's top edge and reads as a strip above the black front even at the shallow camera tilt (a flat top panel was too thin to see). Board details fade out when the top is edge-on.
   - No headset has a strap or headband. Each is one silhouette; a strap on some but not others read as inconsistent.
-  - Next: retina (Butterscotch retina-resolution) headset.
 
 ### Conventions
 

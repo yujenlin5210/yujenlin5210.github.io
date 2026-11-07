@@ -258,6 +258,7 @@ export const HEADSETS = {
   boba3: { label: 'Boba 3', note: 'Arched dark glass front with a nose arch, silver chrome side band, dark body.', project: 'boba3' },
   tiramisu: { label: 'Tiramisu', note: 'Chunky matte black rounded box with a small white sensor ring.', project: 'tiramisu' },
   varifocal: { label: 'Varifocal', note: 'Angular black box with bold chamfered corners.', project: 'varifocal' },
+  retina: { label: 'Retina', note: 'Wide flat black box with an exposed circuit board on top.', project: 'retina-resolution' },
 };
 export const HEADSET_IDS = Object.keys(HEADSETS);
 
@@ -1782,6 +1783,107 @@ function buildHeadsetVarifocal(skel, frame, cam, trim) {
   return items;
 }
 
+// --- Retina (Butterscotch retina-resolution) headset ------------------------
+//
+// From the project photo: a wide, flat, softly rounded black box (wider and
+// slimmer than Tiramisu). Its signature is the exposed circuit board on top:
+// the front cover sits lower than the body behind it, so the board slopes up
+// from the cover's top edge to the full-height back and reads as a green strip
+// above the black front. A few chips, gold pads and traces sit on the board;
+// they fade out when the top is seen edge-on. No strap, like the other headsets.
+
+const RETINA_OUTLINE = roundRectOutline(48, 4);
+// Indices of the outline's top arc (the board spans it), in outline order.
+const RETINA_TOP = RETINA_OUTLINE.map((p, i) => (p[1] > 0.8 ? i : -1)).filter((i) => i >= 0);
+// Board details in board coordinates: s across (-1..1 of the board width), t from front (0) to back (1).
+const RETINA_CHIPS = [[-0.5, 0.5, 0.2, 0.42], [0.02, 0.55, 0.12, 0.3], [0.45, 0.45, 0.17, 0.5]];
+const RETINA_PADS = [[-0.2, 0.3], [-0.2, 0.7], [0.22, 0.3], [0.22, 0.75], [0.72, 0.6]];
+const RETINA_TRACES = [
+  [[-0.78, 0.25], [-0.32, 0.25], [-0.2, 0.3]],
+  [[-0.29, 0.75], [-0.2, 0.7], [0.22, 0.75], [0.28, 0.7]],
+  [[0.22, 0.3], [0.62, 0.22], [0.78, 0.22]],
+];
+
+function buildHeadsetRetina(skel, frame, cam, trim) {
+  const R = skel.rig.headR;
+  const rot = skel.headRot;
+  const hc = cam.project(toWorld(skel.headC, frame));
+  const k = hc.k;
+  const map = (p) => toWorld(add(skel.headC, headRotate(p, rot)), frame);
+  const dirW = (n) => rotY(headRotate(n, rot), frame.yaw);
+  const faceFacing = cam.facing(dirW([0, 0, 1]));
+  const depth = hc.d + (faceFacing > -0.35 ? 1.5 : -1.5);
+
+  const halfW = 1.16 * R;
+  const halfH = 0.5 * R;
+  const cy = -0.04 * R;
+  const wrapR = 2.4 * R;
+  const zFront = (skel.rig.visorZ ?? 0.62) * R + 0.9 * R;
+  const zLip = zFront - 0.12 * R;
+  const zBack = (skel.rig.visorZ ?? 0.62) * R - 0.05 * R;
+  // A head-local point on the wrapped surface; the top and bottom halves scale
+  // separately so the front cover can sit lower than the body behind it.
+  const local = ([u, v], z, sx, top, bot) => {
+    const a = (u * halfW * sx) / wrapR;
+    return [Math.sin(a) * wrapR, v * halfH * (v > 0 ? top : bot) + cy, z - wrapR * (1 - Math.cos(a))];
+  };
+  const onSurface = (p, z, sx, top, bot) => cam.project(map(local(p, z, sx, top, bot)));
+  const LIP = [zLip, 1, 0.6, 1];
+  const BACK = [zBack, 0.95, 1.12, 0.9];
+  const face = RETINA_OUTLINE.map((p) => onSurface(p, zFront, 0.93, 0.5, 0.86));
+  const lip = RETINA_OUTLINE.map((p) => onSurface(p, ...LIP));
+  const back = RETINA_OUTLINE.map((p) => onSurface(p, ...BACK));
+  // A point on the sloped board: s across, t from the lip (0) to the back (1).
+  const uMax = 0.78;
+  const board = ([s, t]) => {
+    const u = s * uMax;
+    const v = (1 - Math.abs(u) ** 4) ** 0.25;
+    const a = local([u, v], ...LIP);
+    const b = local([u, v], ...BACK);
+    return cam.project(map(a.map((x, i) => x + (b[i] - x) * t)));
+  };
+  const tr = (i) => stagger(trim, i, 3, 0.45);
+  const fillOf = (t) => smooth((t[1] - 0.5) / 0.5);
+  const items = [];
+
+  // 0. The black body: front cover + soft lip + sides, as one solid.
+  const tBody = tr(0);
+  const bodyD = `${bandPath(face, lip)}${bandPath(lip, back)}${quadUnionPath([face])}`;
+  items.push({ key: 'ret-body', type: 'solid', d: bodyD, w: 2 * k, depth, layer: 1, fill: fillOf(tBody), fillClass: 'fill-slate-800 dark:fill-slate-600' });
+
+  // 1. The circuit board: the sloped top between the lip's top arc and the back's.
+  const tBoard = tr(1);
+  const boardOutline = [...RETINA_TOP.map((i) => lip[i]), ...RETINA_TOP.map((i) => back[i]).reverse()];
+  items.push({
+    key: 'ret-board', type: 'shape', d: linePath(boardOutline, true), w: 1.1 * k, depth: depth + 0.01, layer: 1,
+    trim: tBoard, fill: fillOf(tBoard), fillClass: 'fill-slate-600 dark:fill-slate-500', join: 'round',
+  });
+
+  // 2. Board details, only when the top is open enough to the camera to read.
+  const topFacing = cam.facing(dirW([0, 1, 0]));
+  const detail = smooth((topFacing - 0.08) / 0.12) * fillOf(tr(2));
+  if (detail > 0.01) {
+    RETINA_TRACES.forEach((pts, i) => {
+      items.push({
+        key: `ret-trace-${i}`, type: 'stroke', d: linePath(pts.map(board)), w: 0.5 * k, depth: depth + 0.015, layer: 1,
+        trim: [0, 1], strokeClass: 'stroke-slate-400 dark:stroke-slate-300', opacity: detail,
+      });
+    });
+    RETINA_CHIPS.forEach(([s, t, ds, dt], i) => {
+      const quad = [[s - ds, t - dt / 2], [s + ds, t - dt / 2], [s + ds, t + dt / 2], [s - ds, t + dt / 2]].map(board);
+      items.push({
+        key: `ret-chip-${i}`, type: 'shape', d: linePath(quad, true), w: 0.01, depth: depth + 0.02, layer: 1,
+        trim: [0, 0], fill: detail, fillClass: 'fill-slate-900 dark:fill-slate-800',
+      });
+    });
+    RETINA_PADS.forEach((p, i) => {
+      const c = board(p);
+      items.push({ key: `ret-pad-${i}`, type: 'dot', x: c.x, y: c.y, r: 0.035 * R * k, opacity: detail, fillClass: 'fill-slate-200 dark:fill-slate-100', depth: depth + 0.025, layer: 1 });
+    });
+  }
+  return items;
+}
+
 const KART = {
   tub: { x: [-17, 17], y: [5, 17], z: [-26, 30] },
   hood: { x: [-12, 12], y: [16, 22], z: [12, 42] },
@@ -2283,7 +2385,7 @@ export class TrimStickmanSim {
 
     for (const prop of props) {
       if (prop.id === 'headset') {
-        const builder = { boba3: buildHeadsetBoba, tiramisu: buildHeadsetTiramisu, varifocal: buildHeadsetVarifocal }[prop.variant] || buildHeadset;
+        const builder = { boba3: buildHeadsetBoba, tiramisu: buildHeadsetTiramisu, varifocal: buildHeadsetVarifocal, retina: buildHeadsetRetina }[prop.variant] || buildHeadset;
         items.push(...builder(skel, frame, cam, prop.trim));
       }
       if (prop.id === 'kart') {
