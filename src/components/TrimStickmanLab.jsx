@@ -34,11 +34,11 @@ const SECTIONS = [
   },
   {
     scene: 'kart',
-    kicker: '04 · Kart',
+    kicker: '04 · Kart ride',
     title: 'Same rig, different stage',
     body: [
-      'The kart is boxes and rings in the figure’s local space. The wheels are 3D circles: in profile they are circles, and they flatten to ellipses as the kart turns. Spokes show the spin.',
-      'Speed lines are the purest form of the idea: three straight strokes whose trim window loops.',
+      'The kart ride project: riders sit down inside a kart, hit floating item boxes, and throw shells with a flick of the arm. The kart is a bubbly lofted body on chunky tires that turn into ellipses as it steers, and the cap is a crown, brim, and emblem parented to the head.',
+      'The item box comes up ahead because the kart is driving at it: everything happens in the kart’s own frame. The rider smacks the box, a shell pops into the hand, and the arm (solved with the same IK) winds up and flings it ahead, where it skids away spinning.',
     ],
   },
   {

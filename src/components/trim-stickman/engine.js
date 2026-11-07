@@ -186,20 +186,6 @@ function vrPose(t) {
   return lerpPose(VR_REACH, lookPose, easeInOut((t - 1.25) / 0.7));
 }
 
-function kartPose(t) {
-  const seated = pose({
-    sit: 1,
-    lean: 12,
-    hp: -4 + Math.sin(t * 31) * 0.8,
-    hy: 0,
-    lRp: 85, lRk: 25, lRr: 8,
-    lLp: 85, lLk: 25, lLr: 8,
-    aRp: 35, aRr: 14, aRbp: 62, aRbr: -12,
-    aLp: 35, aLr: 14, aLbp: 62, aLbr: -12,
-  });
-  return lerpPose(REST_POSE, seated, easeInOut(t / 0.7));
-}
-
 function dogPose(phi, t) {
   const walk = walkPose(phi, t);
   const hold = { aRp: 34, aRr: 6, aRbp: 6, aRbr: 0, twist: walk.twist * 0.5 };
@@ -236,7 +222,9 @@ export const SCENES = {
     clip: (t) => kartPose(t),
     props: [
       { id: 'kart', on: [0, 1.0] },
+      { id: 'cap', on: [0.5, 1.0] },
       { id: 'speedlines', on: [1.3, 1.5] },
+      { id: 'kartitems', on: [2.0, 2.3] },
     ],
   },
   dog: {
@@ -3388,91 +3376,428 @@ function buildLivingRoom(frame, cam, trim, t) {
   return items;
 }
 
+// --- Kart ride (Mario Kart: Koopa's Challenge project) -------------------------
+//
+// The project was a theme-park kart ride: riders sit in a kart, hit floating
+// item boxes and throw shells with a flick of the arm. Drawn as generic ink
+// line art: a chunky cartoon go-kart the rider sits down inside, a puffy cap
+// with a big plain emblem, a "?" item box and a spinning shell. Everything happens in the
+// kart's own frame: the box comes up ahead (the kart is driving at it), the
+// rider smacks it, a shell pops into the hand, gets wound up and flung ahead.
+
 const KART = {
-  tub: { x: [-17, 17], y: [5, 17], z: [-26, 30] },
-  hood: { x: [-12, 12], y: [16, 22], z: [12, 42] },
-  seat: { x: [-11, 11], y: [16, 34], z: [-27, -21] },
-  wing: { x: [-19, 19], y: [31, 33], z: [-39, -31] },
-  wheels: [
-    [-20, 9, 25], [20, 9, 25], [-20, 9, -19], [20, 9, -19],
-  ],
-  wheelR: 9,
+  // Lofted body sections: [z, half width, half height, centre height]. Bubbly,
+  // with high cockpit sides so the rider sits down inside it.
+  sections: [[41, 7, 5, 11], [35, 12, 7, 12], [25, 13.5, 8, 13], [12, 13.5, 9, 14], [-2, 14, 10, 14], [-14, 14, 10, 15], [-24, 12, 9, 16], [-30, 9, 7, 16]],
+  seat: { x: [-9, 9], y: [18, 38], z: [-21, -17] },
+  engine: { x: [-8, 8], y: [14, 24], z: [-36, -26] },
+  // Chunky cartoon tires: x, y, z, radius, width (big at the back).
+  wheels: [[-15, 8, 26, 8, 7], [15, 8, 26, 8, 7], [-17, 10.5, -17, 10.5, 9], [17, 10.5, -17, 10.5, 9]],
+  wheelR: 10.5,
+  steer: [0, 31, 21], // not scaled: where the hands are
+  seatDrop: -4, // the rider sits low, inside the body
+  scale: 1.25, // the kart is drawn this much bigger than its model coords
 };
 
 function buildKart(skel, frame, cam, trim, spin) {
   const items = [];
-  const toW = (p) => toWorld(p, frame);
+  const S = KART.scale;
+  const toW = (p) => toWorld([p[0] * S, p[1] * S, p[2] * S], frame);
+  const P = (p) => cam.project(toW(p));
+  const Praw = (p) => cam.project(toWorld(p, frame)); // unscaled (steering wheel)
   const rotN = (n) => rotY(n, frame.yaw);
-  const parts = 7;
-  const tr = (i) => stagger(trim, i, parts, 0.5);
+  const tr = (i) => stagger(trim, i, 5, 0.5);
+  const fillOf = (t) => smooth((t[1] - 0.5) / 0.5);
+  // The rider sits inside: the body is drawn over the torso, so only the
+  // upper body shows above the cockpit sides. Wheels sit either side of it.
+  const torsoD = P(mix(skel.pelvis, skel.chest, 0.5)).d;
+  const bodyD = torsoD + 1.5;
 
-  pushBox(items, { key: 'tub', ...KART.tub, toW, rotN, cam, trim: tr(0), skip: ['top'], bias: 0 });
-  pushBox(items, { key: 'hood', ...KART.hood, toW, rotN, cam, trim: tr(1), bias: 7 });
-  pushBox(items, { key: 'seat', ...KART.seat, toW, rotN, cam, trim: tr(2) });
-
-  KART.wheels.forEach((w, i) => {
-    const ring = ringPoints(w, KART.wheelR, 'x', 24).map((p) => cam.project(toW(p)));
-    const c = cam.project(toW(w));
-    const t = tr(3 + Math.min(i, 3));
-    items.push({
-      key: `wheel-${i}`,
-      type: 'shape',
-      d: smoothPath(ring, true),
-      w: 2.4 * c.k,
-      depth: c.d + (w[0] < 0 ? -0.5 : 0.5),
-      layer: 1,
-      trim: t,
-      fill: smooth((t[1] - 0.5) / 0.5),
-    });
-    // Spokes show the wheel spinning (and foreshorten to nothing face-on).
-    const a = spin;
-    const r = KART.wheelR * 0.7;
-    const s1 = [w[0], w[1] + Math.cos(a) * r, w[2] + Math.sin(a) * r];
-    const s2 = [w[0], w[1] - Math.cos(a) * r, w[2] - Math.sin(a) * r];
-    const p1 = cam.project(toW(s1));
-    const p2 = cam.project(toW(s2));
-    items.push({
-      key: `spoke-${i}`,
-      type: 'stroke',
-      d: `M${f(p1.x)},${f(p1.y)}L${f(p2.x)},${f(p2.y)}`,
-      w: 1.6 * c.k,
-      depth: c.d + (w[0] < 0 ? -0.4 : 0.6),
-      layer: 1,
-      trim: [t[0], smooth((t[1] - 0.7) / 0.3)],
-    });
+  // 0. Tires: chunky dark cylinders with a light hub, bolts and a spinning spoke.
+  const t0 = tr(0);
+  KART.wheels.forEach(([x, y, z, r, wd], i) => {
+    const side = Math.sign(x);
+    const near = cam.facing(rotN([side, 0, 0])) > 0;
+    const inner = ringPoints([x - side * wd / 2, y, z], r, 'x', 20).map(P);
+    const outer = ringPoints([x + side * wd / 2, y, z], r, 'x', 20).map(P);
+    const c = P([x, y, z]);
+    // Painter by the wheel's own depth vs the body's (the body sorts at the
+    // torso): outside wheels in front of it, the far ones behind it.
+    const depth = (c.d > torsoD ? Math.max(c.d, bodyD + 0.6) : Math.min(c.d, bodyD - 2.5)) + i * 0.001;
+    items.push({ key: `wheel-${i}`, type: 'shape', d: linePath(convexHull([...inner, ...outer]), true), w: 1.8 * c.k, depth, layer: 1, trim: t0, fill: fillOf(t0), tone: 2 });
+    if (near) {
+      const hx = x + side * (wd / 2 + 0.1);
+      const hub = ringPoints([hx, y, z], r * 0.5, 'x', 16).map(P);
+      items.push({ key: `hub-${i}`, type: 'shape', d: smoothPath(hub, true), w: 1.1 * c.k, depth: depth + 0.01, layer: 1, trim: t0, fill: fillOf(t0), tone: 0 });
+      const sp = [[hx, y + Math.cos(spin) * r * 0.42, z + Math.sin(spin) * r * 0.42], [hx, y - Math.cos(spin) * r * 0.42, z - Math.sin(spin) * r * 0.42]].map(P);
+      items.push({ key: `spoke-${i}`, type: 'stroke', d: `M${f(sp[0].x)},${f(sp[0].y)}L${f(sp[1].x)},${f(sp[1].y)}`, w: 1.1 * c.k, depth: depth + 0.02, layer: 1, trim: [t0[0], smooth((t0[1] - 0.7) / 0.3)], opacity: 0.8 });
+    }
   });
 
-  // Rear wing on two posts.
-  pushBox(items, { key: 'wing', ...KART.wing, toW, rotN, cam, trim: tr(5) });
-  for (const x of [-8, 8]) {
-    const a = cam.project(toW([x, 17, -30]));
-    const b = cam.project(toW([x, 31, -34]));
-    items.push({
-      key: `post${x}`,
-      type: 'stroke',
-      d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`,
-      w: 2 * a.k,
-      depth: (a.d + b.d) / 2,
-      layer: 1,
-      trim: tr(5),
+  // 1. The body: a bubbly loft, with a round emblem plate on the nose.
+  const t1 = tr(1);
+  const pts = [];
+  KART.sections.forEach(([z, hw, hh, yc]) => {
+    for (let i = 0; i < 16; i += 1) {
+      const a = (i / 16) * Math.PI * 2;
+      pts.push(P([Math.cos(a) * hw, yc + Math.sin(a) * hh, z]));
+    }
+  });
+  const k = P([0, 12, 0]).k;
+  items.push({ key: 'kart-body', type: 'shape', d: linePath(convexHull(pts), true), w: 2 * k, depth: bodyD, layer: 1, trim: t1, fill: fillOf(t1), tone: 0, join: 'round' });
+  // The cockpit rim around the rider, on the side facing us.
+  const sideX = cam.facing(rotN([1, 0, 0])) > 0 ? 1 : -1;
+  const rim = [[24, 0.55], [12, 0.92], [0, 1], [-12, 0.95], [-20, 0.6]].map(([z, w]) => P([sideX * 11 * w, 22.5, z]));
+  items.push({ key: 'kart-rim', type: 'stroke', d: smoothPath(rim), w: 1.2 * k, depth: bodyD + 0.01, layer: 1, trim: [0, smooth((t1[1] - 0.5) / 0.5)], opacity: 0.7 });
+  if (cam.facing(rotN([0, 0, 1])) > 0.05) {
+    const b = P([0, 12, 42.5]);
+    items.push({ key: 'kart-emblem', type: 'shape', d: circlePath(b, 5 * b.k), w: 1.4 * b.k, depth: bodyD + 0.02, layer: 1, trim: t1, fill: fillOf(t1), tone: 1 });
+    items.push({ key: 'kart-emblem-in', type: 'stroke', d: circlePath(b, 3 * b.k), w: 1 * b.k, depth: bodyD + 0.03, layer: 1, trim: t1 });
+  }
+
+  // 2. Seat back behind the rider, and the engine block at the back.
+  pushBox(items, { key: 'seat', ...KART.seat, toW, rotN, cam, trim: tr(2), shade: true });
+  pushBox(items, { key: 'engine', ...KART.engine, toW, rotN, cam, trim: tr(2), shade: true, bias: -1 });
+
+  // 3. Exhaust pipes angled up and back from the engine.
+  const t3 = tr(3);
+  for (const x of [-5, 5]) {
+    const a = P([x, 20, -34]);
+    const b = P([x * 1.2, 29, -42]);
+    items.push({ key: `exhaust${x}`, type: 'capsule', d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`, w: 4.4 * a.k, line: 1.4 * a.k, depth: (a.d + b.d) / 2 - 0.5, layer: 1, trim: t3 });
+  }
+
+  // 4. Steering wheel: a tilted ring on a short column, above the cockpit.
+  const wheelC = KART.steer;
+  const ring = ringPoints([0, 0, 0], 5.5, 'z', 20).map((p) => Praw(add(wheelC, rotX(p, -40))));
+  const wc = Praw(wheelC);
+  const col = P([0, 21, 24]);
+  const t4 = tr(4);
+  const steerD = wc.d > torsoD ? Math.max(wc.d, bodyD + 0.3) : torsoD - 6; // behind the rider from the back
+  items.push({ key: 'steer-col', type: 'stroke', d: `M${f(col.x)},${f(col.y)}L${f(wc.x)},${f(wc.y)}`, w: 1.6 * wc.k, depth: steerD - 0.1, layer: 1, trim: t4 });
+  items.push({ key: 'steer', type: 'stroke', d: smoothPath(ring, true), w: 2 * wc.k, depth: steerD, layer: 1, trim: t4 });
+  return items;
+}
+
+/**
+ * The rider's cap (Mario-style, from a reference photo): a tall upright front
+ * panel with a broad arched top edge, standing higher than the softer crown
+ * behind it, which slopes down toward the back like a pillow. A white D-shaped
+ * badge (round on top, flat at the bottom) sits low on the panel, just above a
+ * wide, short brim that curves down.
+ */
+function buildCap(skel, frame, cam, trim) {
+  const vis = trim[1] - trim[0];
+  if (vis < 0.002) return [];
+  const items = [];
+  const R = skel.rig.headR;
+  const rot = skel.headRot;
+  const H = (p) => cam.project(toWorld(add(skel.headC, headRotate(p, rot)), frame));
+  const dirW = (n) => rotY(headRotate(n, rot), frame.yaw);
+  const hc = cam.project(toWorld(skel.headC, frame));
+  const k = hc.k;
+  const fillOf = (t) => smooth((t[1] - 0.5) / 0.5);
+  const tr = (i) => stagger(trim, i, 3, 0.5);
+  const front = cam.facing(dirW([0, 0, 1]));
+  const BAND = 0.06 * R; // the cap sits low, down to the brow
+  // The band ring around the head (lon 0 = front).
+  const bandAt = (lon) => [Math.sin(lon) * R * 1.05, BAND, 0.06 * R + Math.cos(lon) * R * 1.07];
+  // The front panel's arched top edge: highest at the centre, leaning back a little.
+  const panelTop = (lon) => {
+    const b = bandAt(lon);
+    const c = Math.max(0, Math.cos(lon));
+    return [b[0] * 0.97, BAND + R * (0.45 + 0.6 * c ** 0.7), b[2] - 0.12 * R * c];
+  };
+  const crown = [];
+  for (let lon = -90; lon <= 90; lon += 7.5) {
+    const lo = lon * D2R;
+    const top = panelTop(lo);
+    crown.push(H(bandAt(lo)), H(top));
+    // Roll the panel's top over into the crown (rounded, not peaked).
+    const c = Math.max(0, Math.cos(lo));
+    for (const [back, down] of [[0.16, 0.03], [0.36, 0.09], [0.6, 0.2]]) {
+      crown.push(H([top[0] * (1 - 0.05 * back), top[1] - down * R * c, top[2] - back * R * c]));
+    }
+  }
+  // The softer crown behind the panel: a lower dome over the back of the head.
+  for (let lat = 0; lat <= 90; lat += 10) {
+    for (let lon = 90; lon <= 270; lon += 12) {
+      const la = lat * D2R;
+      const lo = lon * D2R;
+      crown.push(H([Math.sin(lo) * Math.cos(la) * R * 1.04, BAND + Math.sin(la) * R * 0.98, Math.cos(lo) * Math.cos(la) * R * 1.02]));
+    }
+  }
+  const t0 = tr(0);
+  items.push({ key: 'cap-crown', type: 'shape', d: linePath(convexHull(crown), true), w: 1.8 * k, depth: hc.d + 0.6, layer: 1, trim: t0, fill: fillOf(t0), tone: 1, join: 'round' });
+  // The seam along the panel's arched top edge (the cap's signature line).
+  if (front > -0.35) {
+    const seam = [];
+    for (let lon = -85; lon <= 85; lon += 8.5) seam.push(H(panelTop(lon * D2R)));
+    items.push({ key: 'cap-seam', type: 'stroke', d: smoothPath(seam), w: 1.2 * k, depth: hc.d + 0.61, layer: 1, trim: [0, smooth((t0[1] - 0.5) / 0.5)], opacity: 0.75 * smooth((front + 0.35) / 0.3) });
+  }
+  // Brim: wide and short, thick, curving down at its edge.
+  const edge = (lon, drop) => {
+    const c = Math.max(0, Math.cos(lon)) ** 1.1;
+    const b = bandAt(lon);
+    return [b[0] * (1 + 0.06 * c), BAND - drop - 0.18 * R * c, b[2] + 0.55 * R * c];
+  };
+  const brim = [];
+  for (let lon = -86; lon <= 86; lon += 7) brim.push(H(bandAt(lon * D2R)), H(edge(lon * D2R, 0)), H(edge(lon * D2R, 0.11 * R)));
+  const t1 = tr(1);
+  items.push({ key: 'cap-brim', type: 'shape', d: linePath(convexHull(brim), true), w: 1.6 * k, depth: hc.d + (front > -0.2 ? 0.7 : -0.7), layer: 1, trim: t1, fill: fillOf(t1), tone: 2, join: 'round' });
+  // The D-shaped badge low on the panel, lying on its (nearly upright) surface.
+  if (front > 0.02) {
+    const vis2 = smooth((front - 0.02) / 0.25);
+    const cy = BAND + 0.52 * R;
+    const cz = bandAt(0)[2] - 0.05 * R;
+    const lean = 0.12; // the panel leans back slightly
+    const at = (x, y) => H([x, cy + y * Math.cos(lean), cz + 0.02 * R - y * Math.sin(lean)]);
+    const r = 0.36 * R;
+    const badge = [];
+    for (let i = 0; i <= 12; i += 1) {
+      const ang = (i / 12) * Math.PI;
+      badge.push(at(Math.cos(ang) * r, Math.sin(ang) * r * 0.95));
+    }
+    badge.push(at(-r, -0.42 * r), at(r, -0.42 * r));
+    const t2 = tr(2);
+    items.push({ key: 'cap-badge', type: 'shape', d: smoothPath(badge, true), w: 1.2 * k, depth: hc.d + 0.65, layer: 1, trim: t2, fill: fillOf(t2) * vis2, tone: 0, opacity: vis2 });
+  }
+  return items;
+}
+
+// The item cycle, in the kart's frame (z ahead, x to the rider's left).
+const KI = { t0: 2.6, period: 4.4 };
+// Cycle phases: box arrives and gets hit, shell held and wound up, thrown, flies.
+const KP = { reach: 0.22, hit: 0.34, wind: 0.5, throw: 0.62, release: 0.67, done: 0.96 };
+const KI_HAND = 'R'; // the throwing hand (the other stays on the wheel)
+const KI_BOX = [-8, 54, 22]; // where the box is when it gets hit
+const KI_BOX_H = 9; // half size of the item box
+
+function kartItemPhase(t) {
+  const c = (t - KI.t0) / KI.period;
+  if (c < 0) return { n: -1, u: -1 };
+  const n = Math.floor(c);
+  return { n, u: c - n };
+}
+
+/** Where the throwing hand aims, through the cycle (null = on the wheel). */
+function kartHandTarget(u) {
+  const keys = [
+    [KP.reach, [-8, 44, 14]],
+    [KP.hit, [KI_BOX[0], KI_BOX[1] - KI_BOX_H, KI_BOX[2] - 4]], // smacks the underside
+    [KP.wind - 0.04, [-23, 34, 4]], // brought down and out beside the shoulder, clear of the head
+    [KP.throw, [-23, 36, -10]], // wound back by the shoulder
+    [KP.release, [-7, 32, 36]], // flung forward and down
+    [KP.release + 0.12, [-6, 32, 21]],
+  ];
+  if (u < keys[0][0] - 0.08 || u > keys[keys.length - 1][0] + 0.1) return null;
+  if (u <= keys[0][0]) return keys[0][1];
+  for (let i = 0; i < keys.length - 1; i += 1) {
+    const [u0, p0] = keys[i];
+    const [u1, p1] = keys[i + 1];
+    if (u <= u1) return mix(p0, p1, smooth((u - u0) / (u1 - u0)));
+  }
+  return keys[keys.length - 1][1];
+}
+
+function kartPose(t) {
+  const seat = pose({
+    sit: 1,
+    bob: KART.seatDrop, // low in the seat, inside the body
+    lean: 8,
+    hp: -4 + Math.sin(t * 31) * 0.8,
+    hy: 0,
+    lRp: 85, lRk: 25, lRr: 8,
+    lLp: 85, lLk: 25, lLr: 8,
+    aRp: 35, aRr: 14, aRbp: 62, aRbr: -12,
+    aLp: 35, aLr: 14, aLbp: 62, aLbr: -12,
+  });
+  // Both hands on the steering wheel rim.
+  const grip = (side) => add(KART.steer, [side * 5, 1, -1]);
+  const seated = { ...seat, ...reachPose(seat, 'R', grip(-1)), ...reachPose(seat, 'L', grip(1)) };
+  let p = lerpPose(REST_POSE, seated, easeInOut(t / 0.7));
+  const { u } = kartItemPhase(t);
+  if (u < 0) return p;
+  // The throwing arm leaves the wheel to hit the box and fling the shell.
+  const w = smooth((u - (KP.reach - 0.08)) / 0.08) * (1 - smooth((u - (KP.release + 0.12)) / 0.1));
+  const target = kartHandTarget(u);
+  if (target && w > 0.001) {
+    const ik = reachPose(seated, KI_HAND, target);
+    p = lerpPose(p, { ...p, ...ik }, w);
+  }
+  // Look up at the box, then follow the throw ahead.
+  const look = smooth((u - 0.12) / 0.15) * (1 - smooth((u - KP.hit) / 0.1));
+  p.hp -= 14 * look;
+  p.twist += -6 * smooth((u - KP.wind) / 0.1) * (1 - smooth((u - KP.release) / 0.08)); // wind-up twist
+  return p;
+}
+
+/** The "?" box, the burst when it's hit, and the shell (in hand, then flung ahead). */
+function buildKartItems(skel, frame, cam, trim, t) {
+  const vis = trim[1] - trim[0];
+  const { n, u } = kartItemPhase(t);
+  if (vis < 0.002 || u < 0) return [];
+  const items = [];
+  const P = (p) => cam.project(toWorld(p, frame));
+
+  // The box: a turning cube floating ahead, coming up as the kart drives at it.
+  if (u < KP.hit) {
+    const a = u / KP.hit;
+    const c = [KI_BOX[0], KI_BOX[1] + 2 * Math.sin(t * 3), lerp(200, KI_BOX[2], a)];
+    const spin = t * 60;
+    const M = (p) => P(add(c, rotY(rotX(p, 18), spin)));
+    const N = (nn) => rotY(rotY(rotX(nn, 18), spin), frame.yaw);
+    const kit = specimenKit(M, N, cam);
+    const h = KI_BOX_H;
+    kit.box('box', [-h, h], [-h, h], [-h, h], { shade: true, w: 1.6 });
+    const cc = P(c);
+    const appear = smooth(a / 0.15) * vis;
+    kit.parts.sort((p1, p2) => p1.depth - p2.depth).forEach((p, i) => {
+      items.push({ key: `itembox-${p.key}`, type: 'shape', d: p.d, w: p.w * cc.k, depth: cc.d + i * 0.002, layer: 1, trim: [0, appear], fill: appear, tone: p.tone, join: 'round' });
+    });
+    // A "?" printed on each side face: an affine map from the face plane to the
+    // screen (two projected face axes), so it turns and foreshortens with the box.
+    [[0, 0, 1], [1, 0, 0], [0, 0, -1], [-1, 0, 0]].forEach((n, fi) => {
+      const facing = kit.facing(n);
+      if (facing < 0.08) return;
+      const u3 = [n[2], 0, -n[0]]; // across the face (left to right as seen from outside)
+      const o = M(n.map((v) => v * (h + 0.05)));
+      const a = M(add(n.map((v) => v * (h + 0.05)), u3));
+      const b = M(add(n.map((v) => v * (h + 0.05)), [0, -1, 0]));
+      const matrix = [a.x - o.x, a.y - o.y, b.x - o.x, b.y - o.y, o.x, o.y];
+      items.push({ key: `itembox-q${fi}`, type: 'text', matrix, x: 0, y: h * 0.5, size: h * 1.45, text: '?', opacity: appear * smooth((facing - 0.08) / 0.25), depth: cc.d + 0.1 + fi * 0.001, layer: 1 });
     });
   }
 
-  // Steering wheel: a tilted ring in front of the driver.
-  const wheelC = [0, 29, 23];
-  const ring = ringPoints([0, 0, 0], 5.5, 'z', 20)
-    .map((p) => add(wheelC, rotX(p, -35)))
-    .map((p) => cam.project(toW(p)));
-  const wc = cam.project(toW(wheelC));
-  items.push({
-    key: 'steer',
-    type: 'stroke',
-    d: smoothPath(ring, true),
-    w: 2 * wc.k,
-    depth: wc.d + 1,
-    layer: 1,
-    trim: tr(6),
-  });
+  // The burst: shards flying out and a flash where the box was.
+  const burst = (u - KP.hit) / 0.12;
+  if (burst > 0 && burst < 1) {
+    const c = P(KI_BOX);
+    for (let i = 0; i < 7; i += 1) {
+      const ang = (i / 7) * Math.PI * 2 + n;
+      const dist = (6 + 16 * smooth(burst)) * c.k;
+      const s = 2.6 * c.k * (1 - burst);
+      const x = c.x + Math.cos(ang) * dist;
+      const y = c.y + Math.sin(ang) * dist;
+      items.push({ key: `shard-${i}`, type: 'shape', d: linePath([{ x: x - s, y: y - s }, { x: x + s, y: y - s * 0.6 }, { x: x + s * 0.6, y: y + s }, { x: x - s * 0.8, y: y + s * 0.7 }], true), w: 1 * c.k, depth: c.d + 1, layer: 1, trim: [0, 1], fill: 1 - burst, tone: 1, opacity: 1 - burst });
+    }
+    const fl = 9 * c.k * (1 - burst);
+    items.push({ key: 'burst-flash', type: 'stroke', d: `M${f(c.x - fl)},${f(c.y)}L${f(c.x + fl)},${f(c.y)}M${f(c.x)},${f(c.y - fl)}L${f(c.x)},${f(c.y + fl)}`, w: 1.4 * c.k, depth: c.d + 1.1, layer: 1, trim: [0, 1], opacity: 1 - burst });
+  }
+
+  // The shell: in the hand from the hit until the release, then flung ahead,
+  // landing and skidding away with little hops, spinning all the while.
+  let shellW = null;
+  let held = false;
+  if (u >= KP.hit + 0.02 && u < KP.release) {
+    shellW = add(skel.arms[KI_HAND][2], [0, 9, 0]);
+    held = true;
+  } else if (u >= KP.release && u < KP.done) {
+    const tRel = KI.t0 + (n + KP.release) * KI.period;
+    const relSkel = solveSkeleton(kartPose(tRel));
+    const p0 = add(relSkel.arms[KI_HAND][2], [0, 9, 0]);
+    const s = (u - KP.release) / (KP.done - KP.release);
+    const land = 0.18;
+    if (s < land) {
+      const q = s / land;
+      shellW = [lerp(p0[0], -2, q), lerp(p0[1], 10, q * q), lerp(p0[2], 70, q)];
+    } else {
+      const q = (s - land) / (1 - land);
+      shellW = [-2, 10 + 5 * Math.abs(Math.sin(q * 9)) * (1 - q), lerp(70, 330, q)];
+    }
+  }
+  if (shellW) {
+    const c = P(shellW);
+    const fade = held ? smooth((u - KP.hit) / 0.06) : 1 - smooth((u - (KP.done - 0.08)) / 0.08);
+    const r = 10 * c.k;
+    const spin = t * 9;
+    // Sort by where the shell really is: held beside the head it must pass in
+    // front of or behind the head (and cap) as the kart turns, not always on top.
+    const headD = P(skel.headC).d;
+    const depth = held ? (c.d > headD ? Math.max(c.d, headD + 1.2) : Math.min(c.d, headD - 1.2)) : c.d + 2;
+    // The shell (from a reference drawing): a near-round ball with a fat
+    // tilted tube rim round its middle, large plates on the top half, and belly
+    // segments with dark holes below the rim. Built as a small 3D ball so the
+    // pattern turns as it spins; the far half of the rim passes behind the ball.
+    const tiltZ = 12 * D2R;
+    const S3 = ([x, y, z]) => {
+      const x1 = x * Math.cos(tiltZ) - y * Math.sin(tiltZ);
+      const y1 = x * Math.sin(tiltZ) + y * Math.cos(tiltZ);
+      const cs = Math.cos(spin);
+      const sn = Math.sin(spin);
+      const xr = x1 * cs + z * sn;
+      const zr = -x1 * sn + z * cs;
+      return { x: c.x + xr * r, y: c.y - y1 * r * 0.98 + zr * r * 0.18, z: zr };
+    };
+    const sph = (lat, lon) => [Math.cos(lat) * Math.sin(lon), Math.sin(lat), Math.cos(lat) * Math.cos(lon)];
+    const RIM_Y = 0.12;
+    const rimPts = Array.from({ length: 40 }, (_, i) => {
+      const a = (i / 40) * Math.PI * 2;
+      return S3([Math.sin(a) * 1.04, RIM_Y, Math.cos(a) * 1.04]);
+    });
+    // Split the rim into the half behind the ball and the half in front.
+    const rimHalf = (wantFront) => {
+      const runs = [];
+      let run = [];
+      rimPts.concat(rimPts.slice(0, 1)).forEach((p) => {
+        if ((p.z >= 0) === wantFront) run.push(p);
+        else if (run.length) {
+          runs.push(run);
+          run = [];
+        }
+      });
+      if (run.length) runs.push(run);
+      return runs.filter((rn) => rn.length > 1).map((rn) => smoothPath(rn)).join('');
+    };
+    const tube = (key, d, dep) => {
+      if (d) items.push({ key, type: 'capsule', d, w: 0.28 * r, line: 1.1 * c.k, depth: dep, layer: 1, trim: [0, fade] });
+    };
+    tube('shell-rim-back', rimHalf(false), depth - 0.01);
+    items.push({ key: 'shell-ball', type: 'shape', d: circlePath(c, r), w: 1.3 * c.k, depth, layer: 1, trim: [0, 1], fill: fade, tone: 0, opacity: fade });
+    // Top plates: a hexagon round the pole and seams out to the rim.
+    let lines = '';
+    const seg = (pts) => {
+      const vis = pts.filter((q) => q.z > -0.05);
+      if (vis.length > 1) lines += smoothPath(vis);
+    };
+    const hex = Array.from({ length: 6 }, (_, i) => sph(62 * D2R, (i / 6) * Math.PI * 2));
+    const hexS = hex.map(S3);
+    lines += linePath(hexS, true);
+    hex.forEach((_, i) => {
+      const lon = (i / 6) * Math.PI * 2;
+      seg([sph(62 * D2R, lon), sph(40 * D2R, lon + 0.08), sph(16 * D2R, lon + 0.12)].map(S3));
+    });
+    // Belly: two curved segment lines below the rim, and dark holes.
+    for (const lat of [-30, -58]) {
+      const arc = [];
+      for (let lon = -180; lon <= 180; lon += 15) arc.push(S3(sph(lat * D2R, lon * D2R)));
+      let run = [];
+      arc.forEach((q) => {
+        if (q.z > 0.02) run.push(q);
+        else {
+          if (run.length > 1) lines += smoothPath(run);
+          run = [];
+        }
+      });
+      if (run.length > 1) lines += smoothPath(run);
+    }
+    items.push({ key: 'shell-lines', type: 'stroke', d: lines, w: 0.8 * c.k, depth: depth + 0.01, layer: 1, trim: [0, 1], opacity: fade });
+    [-0.9, 0.2, 1.3, 2.4, 3.5, 4.6].forEach((lon, i) => {
+      const q = S3(sph(-16 * D2R, lon));
+      if (q.z < 0.25) return;
+      const rx = 0.17 * r * Math.min(1, q.z + 0.2);
+      items.push({ key: `shell-hole-${i}`, type: 'shape', d: `M${f(q.x - rx)},${f(q.y)}a${f(rx)},${f(rx * 0.75)} 0 1 0 ${f(rx * 2)},0a${f(rx)},${f(rx * 0.75)} 0 1 0 ${f(-rx * 2)},0`, w: 0.8 * c.k, depth: depth + 0.015, layer: 1, trim: [0, 1], fill: fade, ink: true, opacity: fade });
+    });
+    tube('shell-rim-front', rimHalf(true), depth + 0.02);
+    // Skid streaks behind it once it's on the ground.
+    if (!held && shellW[1] < 13) {
+      for (let i = 0; i < 2; i += 1) {
+        const a = P([shellW[0] + (i ? 5 : -5), 1, shellW[2] - 9]);
+        const b = P([shellW[0] + (i ? 5 : -5), 1, shellW[2] - 28]);
+        items.push({ key: `shell-skid-${i}`, type: 'stroke', d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`, w: 1.1 * a.k, depth: c.d - 1, layer: 1, trim: [0, 1], opacity: 0.5 * fade });
+      }
+    }
+  }
   return items;
 }
 
@@ -3713,6 +4038,7 @@ export class TrimStickmanSim {
     this.dogMoving = 0;
     this.encT = 0; // First Encounters clock; freezes while its props erase
     this.vfT = 0; // Varifocal clock
+    this.kartT = 0; // kart item cycle clock
     this.examT = 0; // Retina resolution (eye exam) clock
   }
 
@@ -3770,6 +4096,7 @@ export class TrimStickmanSim {
     const scene = SCENES[this.scene];
     if (this.scene === 'encounters') this.encT = this.sceneT;
     if (this.scene === 'varifocal') this.vfT = this.sceneT;
+    if (this.scene === 'kart') this.kartT = this.sceneT;
     if (this.scene === 'retina') this.examT = this.sceneT;
 
     // Presence (body draw-on / erase).
@@ -3905,6 +4232,8 @@ export class TrimStickmanSim {
         items.push(...buildKart(skel, frame, cam, prop.trim, this.spin));
       }
       if (prop.id === 'speedlines') items.push(...buildSpeedLines(frame, cam, prop.trim, this.time));
+      if (prop.id === 'cap') items.push(...buildCap(skel, frame, cam, prop.trim));
+      if (prop.id === 'kartitems') items.push(...buildKartItems(skel, frame, cam, prop.trim, this.kartT));
       if (prop.id === 'dog' && dog) {
         items.push(buildShadow(dogFrame(frame), cam, 13, 0.08 * prop.trim[1]));
         items.push(...buildDog(dog, frame, cam, prop.trim));
@@ -3937,9 +4266,16 @@ export class TrimStickmanSim {
       }
     }
 
-    items.sort((a, b) => a.layer - b.layer || a.depth - b.depth);
+    // The rider's legs are inside the kart once it has drawn on: hide them
+    // (sorting them behind the body still let them poke out below it).
+    const visible = hasKart && hasKart.trim[1] > 0.6 ? items.filter((it) => !/^(leg|foot)/.test(it.key)) : items;
+    if (hasKart) {
+      const legsD = cam.project(toWorld([0, 12, 0], frame)).d - 3.5;
+      for (const it of visible) if (/^(leg|foot)/.test(it.key)) it.depth = legsD;
+    }
+    visible.sort((a, b) => a.layer - b.layer || a.depth - b.depth);
     return {
-      items,
+      items: visible,
       rig: opts.rig ? buildRigOverlay(skel, frame, cam) : null,
       vignette,
       look: {

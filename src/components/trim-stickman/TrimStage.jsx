@@ -101,6 +101,7 @@ function Item({ item, ids }) {
         <text
           x={item.x}
           y={item.y}
+          transform={item.matrix ? `matrix(${item.matrix.map((v) => v.toFixed(3)).join(' ')})` : undefined}
           fontSize={item.size}
           textAnchor="middle"
           fontWeight={700}
