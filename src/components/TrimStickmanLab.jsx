@@ -68,6 +68,15 @@ const SECTIONS = [
       'What people remember is the world inside: Epic’s Electric Dreams gorge, with layered rock cliffs, vines, ferns, and a stony creek bed, and how blindingly bright it was. The gorge grows around the figure in the same line style, and the sun is HDR glare: a bloom that washes out the lines around it.',
     ],
   },
+  {
+    scene: 'varifocal',
+    kicker: '08 · Varifocal',
+    title: 'Small things, up close',
+    body: [
+      'The varifocal prototype let your eyes focus naturally on things near and far. The memorable demo was picking up small 3D models and examining them up close: an F1 car, a pineapple, and a pagoda.',
+      'All three sit on a coffee table. The figure leans down, picks one up, turns it all the way round right beside its face, and puts it back. Each model is real 3D line geometry with fine detail: pagoda eaves and a ringed spire, the pineapple’s diamond lattice and spiky crown, and the car’s wheels, wings, and halo.',
+    ],
+  },
 ];
 
 function Toggle({ label, checked, onChange }) {

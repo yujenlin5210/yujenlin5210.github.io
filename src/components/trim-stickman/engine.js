@@ -270,6 +270,17 @@ export const SCENES = {
       { id: 'ravine', on: [1.3, 3.6] },
     ],
   },
+  varifocal: {
+    label: 'Varifocal',
+    stand: true,
+    speed: () => 0,
+    clip: (t) => varifocalPose(t),
+    props: [
+      { id: 'headset', variant: 'varifocal', on: [0.45, 1.15] },
+      { id: 'table', on: [1.0, 1.5] },
+      { id: 'specimens', on: [1.3, 2.1] },
+    ],
+  },
 };
 
 export const SCENE_IDS = Object.keys(SCENES);
@@ -2807,6 +2818,366 @@ function buildRavine(frame, cam, trim, time) {
   return items;
 }
 
+// --- Varifocal (Butterscotch Varifocal) demo ----------------------------------
+//
+// The demo let you pick up small, delicately detailed 3D objects and examine
+// them up close: an F1 car model, a pineapple and a pagoda were the memorable
+// ones. All three sit on a low coffee table in front of the figure (wearing
+// the Varifocal headset). One at a time, it leans down, picks one up with the
+// nearer hand, lifts it with both hands to beside its face, turns it all the
+// way round while leaning in, and puts it back in its spot. Varifocal is
+// about focusing on things up close, and the fine line detail shows it off.
+
+const VF = {
+  t0: 2.2, // first pick starts (scene time); the table and objects draw on before
+  period: 6.6, // seconds per object
+  table: { z: 20, hw: 34, hd: 8, h: 30 }, // centre z, half width, half depth, height
+};
+const SPECIMENS = ['pagoda', 'pineapple', 'f1'];
+const SPECIMEN_SIZE = { pagoda: 27, pineapple: 25, f1: 8 };
+const SPECIMEN_SCALE = { pagoda: 0.72, pineapple: 0.72, f1: 0.8 };
+// Where each one rests on the table, and its resting turn (degrees).
+const SPECIMEN_SPOT = { pagoda: [-21, 25], pineapple: [0, 0], f1: [21, 70] };
+// Cycle phases (fractions of VF.period).
+const RP = { reach: 0.08, grab: 0.2, lift: 0.34, put: 0.78, down: 0.9 };
+
+/** The object being handled this cycle, and how far through the cycle we are. */
+function vfCycle(t) {
+  const c = (t - VF.t0) / VF.period;
+  if (c < 0) return { idx: -1, u: 0 };
+  const n = Math.floor(c);
+  return { idx: n % SPECIMENS.length, u: c - n };
+}
+
+/** Rest pose of object `id` on the table (its centre). */
+function specimenRest(id) {
+  const h = SPECIMEN_SIZE[id] * SPECIMEN_SCALE[id];
+  return [SPECIMEN_SPOT[id][0], VF.table.h + h / 2 + 0.4, VF.table.z];
+}
+
+/** Hold point beside the face, on the side of the hand that picked it up. */
+function specimenHold(id, t) {
+  const side = SPECIMEN_SPOT[id][0] < 0 ? -1 : 1;
+  return [side * 15 + 2 * Math.sin(t * 0.7), 58 + 1.5 * Math.sin(t * 0.9), 24 + 2.5 * Math.sin(t * 0.5)];
+}
+
+/** Every object's pose: resting, or (the handled one) carried, turned over, put back. */
+function specimenStates(t) {
+  const { idx, u } = vfCycle(t);
+  return SPECIMENS.map((id, i) => {
+    const rest = specimenRest(id);
+    const restSpin = SPECIMEN_SPOT[id][1];
+    if (i !== idx || u < RP.grab || u >= RP.down) return { id, pos: rest, spin: restSpin, tilt: 0, held: 0, examine: 0 };
+    const hold = specimenHold(id, t);
+    let held = 1;
+    if (u < RP.lift) held = easeInOut((u - RP.grab) / (RP.lift - RP.grab));
+    else if (u >= RP.put) held = 1 - easeInOut((u - RP.put) / (RP.down - RP.put));
+    // Turned all the way round while examined (so it goes back at its resting angle).
+    const turn = easeInOut((u - RP.lift) / (RP.put - RP.lift));
+    const examine = smooth((u - RP.lift) / 0.05) * (1 - smooth((u - RP.put + 0.04) / 0.04));
+    return {
+      id,
+      pos: mix(rest, hold, held),
+      spin: restSpin + 360 * turn,
+      tilt: 16 * examine * Math.sin(t * 0.85),
+      held,
+      examine,
+    };
+  });
+}
+
+function varifocalPose(t) {
+  if (t < 0.65) return lerpPose(idlePose(t), VR_REACH, easeInOut(t / 0.65));
+  if (t < 1.25) return VR_REACH;
+  const { idx, u } = vfCycle(t);
+  const target = SPECIMENS[Math.max(0, idx)];
+  const st = specimenStates(t)[Math.max(0, idx)];
+  // Gaze: the object in hand; after putting it down, ease over to the next one
+  // so the head turns smoothly instead of snapping at the start of the cycle.
+  // The turn spans the cycle boundary (from putting down until just before the
+  // next reach), so even the long swing across the table stays gentle.
+  let look = idx < 0 ? specimenRest(target) : st.pos;
+  const span = 1 - RP.down + RP.reach * 0.9;
+  if (idx >= 0 && u >= RP.down) {
+    const next = SPECIMENS[(idx + 1) % SPECIMENS.length];
+    look = mix(specimenRest(target), specimenRest(next), smooth((u - RP.down) / span));
+  } else if (t - VF.t0 >= VF.period && u < RP.reach * 0.9) {
+    const prev = SPECIMENS[(idx + SPECIMENS.length - 1) % SPECIMENS.length];
+    look = mix(specimenRest(prev), specimenRest(target), smooth((u + 1 - RP.down) / span));
+  }
+  const x = SPECIMEN_SPOT[target][0];
+  const hand = x < 0 ? 'R' : 'L';
+  const other = hand === 'L' ? 'R' : 'L';
+  const side = hand === 'L' ? 1 : -1;
+  // Look at the object: turn toward it and pitch down (positive = down) to it.
+  const az = Math.atan2(look[0], look[2]) / D2R;
+  const twist = clamp(az * 0.3, -18, 18);
+  const pitch = Math.atan2(82 - look[1], Math.hypot(look[0], look[2])) / D2R;
+  const reachW = idx < 0 ? 0 : smooth((u - RP.reach) / (RP.grab - RP.reach)) * (1 - smooth((u - RP.down) / (1 - RP.down) * 1.6));
+  const bothW = idx < 0 ? 0 : smooth((u - RP.grab) / (RP.lift - RP.grab)) * (1 - smooth((u - RP.put) / (RP.down - RP.put)));
+  const atTable = reachW * (1 - st.held); // leaning down to the table
+  const body = pose({
+    lean: 2 + 9 * atTable + 3 * st.examine, // bends to the table, leans in to look
+    twist,
+    hy: clamp(az - twist, -60, 60),
+    hp: clamp(pitch * 0.6, -10, 22),
+    hr: 7 * st.examine * Math.sin(t * 0.6), // a curious head tilt
+    lRr: 7, lLr: 7, lRk: 9 + 10 * atTable, lLk: 9 + 10 * atTable,
+  });
+  // The nearer hand comes at it from the figure's side, then both hands hold it.
+  const grabOff = mix([-side * 3, -2, -5], [side * 8, -2, 1], smooth((u - RP.grab) / (RP.lift - RP.grab)));
+  const armsHand = reachPose(body, hand, add(look, grabOff));
+  const armsOther = reachPose(body, other, add(look, [-side * 8, -2, 1]));
+  let out = { ...body };
+  out = lerpPose(out, { ...out, ...armsHand }, reachW);
+  out = lerpPose(out, { ...out, ...armsOther }, bothW);
+  return lerpPose(VR_REACH, out, easeInOut((t - 1.25) / 0.6));
+}
+
+/** All three objects: on the table, or the one in the hands. */
+function buildSpecimens(frame, cam, trim, t) {
+  const vis = trim[1] - trim[0];
+  if (vis < 0.002) return [];
+  const items = [];
+  specimenStates(t).forEach((s, oi) => {
+    const tr0 = stagger(trim, oi, SPECIMENS.length, 0.5);
+    if (tr0[1] < 0.002) return;
+    const h = SPECIMEN_SIZE[s.id];
+    const sc = SPECIMEN_SCALE[s.id];
+    const local = (p) => add(s.pos, rotY(rotX([p[0] * sc, (p[1] - h / 2) * sc, p[2] * sc], s.tilt), s.spin));
+    const M = (p) => cam.project(toWorld(local(p), frame));
+    const N = (n) => rotY(rotY(rotX(n, s.tilt), s.spin), frame.yaw);
+    const kit = specimenKit(M, N, cam);
+    SPECIMEN_MODELS[s.id](kit);
+    const base = M([0, h / 2, 0]);
+    const k = base.k;
+    const parts = kit.parts.map((p, i) => ({ ...p, seq: i }));
+    const n = parts.length;
+    const fillOf = (x) => smooth((x[1] - 0.5) / 0.5) * (1 - tr0[0]);
+    parts.sort((a, b) => a.depth - b.depth).forEach((p, i) => {
+      const tr = stagger(tr0, p.seq, n, 0.9);
+      const item = { key: `spec-${s.id}-${p.key}`, depth: base.d + 2 + i * 0.002, layer: 1 };
+      if (p.type === 'dot') items.push({ ...item, type: 'dot', x: p.x, y: p.y, r: p.r * k * smooth(tr[1]), opacity: p.opacity * (1 - tr0[0]) });
+      else if (p.type === 'stroke') items.push({ ...item, type: 'stroke', d: p.d, w: p.w * k, trim: tr, opacity: p.opacity });
+      else items.push({ ...item, type: 'shape', d: p.d, w: p.w * k, trim: tr, fill: fillOf(tr), tone: p.tone, fillClass: p.fillClass, join: 'round' });
+    });
+  });
+  return items;
+}
+
+/** A low rectangular coffee table in front of the figure. */
+function buildTable(frame, cam, trim) {
+  const vis = trim[1] - trim[0];
+  if (vis < 0.002) return [];
+  const items = [];
+  const P = (local) => cam.project(toWorld(local, frame));
+  const { z, hw, hd, h } = VF.table;
+  const tr = (i) => stagger(trim, i, 2, 0.5);
+  const fillOf = (q) => smooth((q[1] - 0.5) / 0.5);
+  const c = P([0, h, z]);
+  const k = c.k;
+  const sh = [[-hw, 0, z - hd], [hw, 0, z - hd], [hw, 0, z + hd], [-hw, 0, z + hd]].map((p) => P(p));
+  items.push({ key: 'table-shadow', type: 'shadow', d: linePath(sh, true), depth: -10000, layer: -1, opacity: 0.08 * vis });
+  // 0. Four legs (the back ones sort behind the top).
+  const t0 = tr(0);
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz], i) => {
+    const a = P([sx * (hw - 3), h - 2, z + sz * (hd - 2)]);
+    const b = P([sx * (hw - 4), 0, z + sz * (hd - 2.5)]);
+    items.push({ key: `table-leg-${i}`, type: 'stroke', d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`, w: 2.4 * k, depth: (a.d + b.d) / 2 - 0.5, layer: 1, trim: t0 });
+  });
+  // 1. The top: a thin slab (top face, front edge).
+  const t1 = tr(1);
+  const top = [[-hw, h, z - hd], [hw, h, z - hd], [hw, h, z + hd], [-hw, h, z + hd]].map((p) => P(p));
+  const under = [[-hw, h - 2.4, z + hd], [hw, h - 2.4, z + hd]].map((p) => P(p));
+  const slab = convexHull([...top, ...under]);
+  items.push({ key: 'table-top', type: 'shape', d: linePath(slab, true), w: 1.8 * k, depth: c.d, layer: 1, trim: t1, fill: fillOf(t1), tone: 0, join: 'round' });
+  items.push({ key: 'table-edge', type: 'stroke', d: `M${f(top[3].x)},${f(top[3].y)}L${f(top[2].x)},${f(top[2].y)}`, w: 1.1 * k, depth: c.d + 0.01, layer: 1, trim: [0, smooth((t1[1] - 0.5) / 0.5)], opacity: 0.8 });
+  return items;
+}
+
+
+// ---- Specimen models: small 3D line-art objects built from parts ------------
+
+/**
+ * A tiny modelling kit. `M` maps a model point to the screen, `N` maps a model
+ * normal to world (for culling). Parts are collected, then painter-sorted by
+ * their projected centroid and drawn on in creation order.
+ */
+function specimenKit(M, N, cam) {
+  const parts = [];
+  const centroid = (pts) => pts.reduce((s, p) => s + p.d, 0) / pts.length;
+  const kit = {
+    parts,
+    facing: (n) => cam.facing(N(n)),
+    shape(key, pts3, opts = {}) {
+      const pts = pts3.map(M);
+      parts.push({ key, type: 'shape', d: (opts.smooth ? smoothPath : linePath)(pts, true), depth: centroid(pts) + (opts.bias || 0), tone: opts.tone ?? 0, w: opts.w ?? 1.1, fillClass: opts.fillClass });
+    },
+    hull(key, pts3, opts = {}) {
+      const pts = pts3.map(M);
+      parts.push({ key, type: 'shape', d: linePath(convexHull(pts), true), depth: centroid(pts) + (opts.bias || 0), tone: opts.tone ?? 0, w: opts.w ?? 1.1, fillClass: opts.fillClass });
+    },
+    line(key, pts3, opts = {}) {
+      const pts = pts3.map(M);
+      parts.push({ key, type: 'stroke', d: (opts.smooth ? smoothPath : linePath)(pts, Boolean(opts.closed)), depth: centroid(pts) + (opts.bias || 0), w: opts.w ?? 0.8, opacity: opts.opacity ?? 1 });
+    },
+    dot(key, p3, r, opts = {}) {
+      const p = M(p3);
+      parts.push({ key, type: 'dot', x: p.x, y: p.y, r, depth: p.d + (opts.bias || 0), opacity: opts.opacity ?? 1 });
+    },
+    /** A box: only the faces turned to the camera. */
+    box(key, [x0, x1], [y0, y1], [z0, z1], opts = {}) {
+      const c = (x, y, z) => [x, y, z];
+      const faces = [
+        [[0, 1, 0], [c(x0, y1, z0), c(x1, y1, z0), c(x1, y1, z1), c(x0, y1, z1)]],
+        [[0, -1, 0], [c(x0, y0, z0), c(x0, y0, z1), c(x1, y0, z1), c(x1, y0, z0)]],
+        [[1, 0, 0], [c(x1, y0, z0), c(x1, y0, z1), c(x1, y1, z1), c(x1, y1, z0)]],
+        [[-1, 0, 0], [c(x0, y0, z0), c(x0, y1, z0), c(x0, y1, z1), c(x0, y0, z1)]],
+        [[0, 0, 1], [c(x0, y0, z1), c(x0, y1, z1), c(x1, y1, z1), c(x1, y0, z1)]],
+        [[0, 0, -1], [c(x0, y0, z0), c(x1, y0, z0), c(x1, y1, z0), c(x0, y1, z0)]],
+      ];
+      faces.forEach(([n, q], i) => {
+        if (kit.facing(n) > 0.02) kit.shape(`${key}-${i}`, q, { ...opts, tone: opts.shade ? lightTone(N(n)) : opts.tone });
+      });
+    },
+  };
+  return kit;
+}
+
+function pagodaModel(kit) {
+  kit.box('base', [-8, 8], [0, 1.6], [-8, 8], { shade: true });
+  const tiers = 4;
+  for (let i = 0; i < tiers; i += 1) {
+    const yb = 1.6 + i * 5.2;
+    const bw = 5 - i * 0.85;
+    const rw = 8.2 - i * 1.25;
+    const top = (5 - (i + 1) * 0.85) * 0.85;
+    const yr = yb + 3.4;
+    kit.box(`body${i}`, [-bw, bw], [yb, yr], [-bw, bw], { shade: true });
+    // A small window on each face that is turned to us.
+    for (const [n, a] of [[[0, 0, 1], 0], [[1, 0, 0], 90], [[0, 0, -1], 180], [[-1, 0, 0], 270]]) {
+      if (kit.facing(n) < 0.15) continue;
+      const w = (p) => rotY([p[0], p[1], bw + 0.05], a);
+      kit.line(`win${i}-${a}`, [w([-0.8, yb + 0.6]), w([-0.8, yb + 2.2]), w([0, yb + 2.8]), w([0.8, yb + 2.2]), w([0.8, yb + 0.6])], { w: 0.7 });
+    }
+    // Roof: four sloped faces whose lower corners turn up into eaves.
+    for (const a of [0, 90, 180, 270]) {
+      const n = rotY([0, 0.7, 0.7], a);
+      if (kit.facing(n) < 0) continue;
+      const r = (p) => rotY(p, a);
+      kit.shape(`roof${i}-${a}`, [
+        r([-rw - 0.6, yr + 1.1, rw + 0.6]), r([0, yr, rw]), r([rw + 0.6, yr + 1.1, rw + 0.6]),
+        r([top, yr + 2, top]), r([-top, yr + 2, top]),
+      ], { tone: 1, w: 1 });
+    }
+  }
+  const yTop = 1.6 + tiers * 5.2 + 0.2;
+  kit.line('spire', [[0, yTop, 0], [0, yTop + 7.5, 0]], { w: 0.9 });
+  [[1.7, 1.4], [1.3, 2.9], [0.9, 4.3]].forEach(([r, dy], i) => kit.line(`spire-ring${i}`, ringPoints([0, yTop + dy, 0], r, 'y', 14), { closed: true, w: 0.7, smooth: true }));
+  kit.dot('finial', [0, yTop + 8, 0], 0.9);
+}
+
+function pineappleModel(kit) {
+  const C = [0, 9, 0];
+  const R = [6.4, 8.6, 6.4];
+  const onBody = (lat, lon, out = 0) => [
+    C[0] + (R[0] + out) * Math.cos(lat) * Math.sin(lon),
+    C[1] + (R[1] + out) * Math.sin(lat),
+    C[2] + (R[2] + out) * Math.cos(lat) * Math.cos(lon),
+  ];
+  const normal = (lat, lon) => [Math.cos(lat) * Math.sin(lon) / R[0], Math.sin(lat) / R[1], Math.cos(lat) * Math.cos(lon) / R[2]];
+  const samples = [];
+  for (let la = -90; la <= 90; la += 15) for (let lo = 0; lo < 360; lo += 20) samples.push(onBody(la * D2R, lo * D2R));
+  kit.hull('body', samples, { tone: 0, w: 1.3 });
+  // The diamond lattice: two families of spirals, only where they face us.
+  for (const dir of [-1, 1]) {
+    for (let kk = 0; kk < 8; kk += 1) {
+      let run = [];
+      const flush = (i) => {
+        if (run.length > 1) kit.line(`lat${dir}-${kk}-${i}`, run, { w: 0.55, bias: 0.02, opacity: 0.85 });
+        run = [];
+      };
+      for (let i = 0; i <= 24; i += 1) {
+        const lat = (-72 + i * 6) * D2R;
+        const lon = (kk * 45 + dir * (i * 6) * 0.9) * D2R;
+        if (kit.facing(normal(lat, lon)) > 0.05) run.push(onBody(lat, lon, 0.05));
+        else flush(i);
+      }
+      flush(25);
+    }
+  }
+  // A tiny dot in each diamond.
+  for (let la = -54; la <= 54; la += 13.5) {
+    for (let lo = 0; lo < 360; lo += 22.5) {
+      const lat = la * D2R;
+      const lon = (lo + (Math.round(la / 13.5) % 2 ? 11.25 : 0)) * D2R;
+      if (kit.facing(normal(lat, lon)) > 0.25) kit.dot(`eye${la}-${lo}`, onBody(lat, lon, 0.1), 0.45, { bias: 0.03 });
+    }
+  }
+  // The crown: spiky leaves fanning up from the top.
+  const base = C[1] + R[1] - 0.6;
+  for (let j = 0; j < 11; j += 1) {
+    const a = j * (360 / 11) * D2R + 0.3;
+    const inner = j % 2 === 0;
+    const len = inner ? 10.5 : 8;
+    const spread = inner ? 0.35 : 0.8;
+    const edge = (s, side) => {
+      const w = 1.3 * (1 - s);
+      const r = spread * len * s;
+      const y = base + len * (s * 1.05 - 0.3 * s * s * spread);
+      return [Math.sin(a) * r + Math.cos(a) * w * side, y, Math.cos(a) * r - Math.sin(a) * w * side];
+    };
+    const pts = [];
+    for (let s = 0; s <= 1.0001; s += 0.25) pts.push(edge(s, -1));
+    for (let s = 1; s >= -0.0001; s -= 0.25) pts.push(edge(s, 1));
+    kit.shape(`leaf${j}`, pts, { tone: 1, w: 0.9, bias: 0.05 });
+  }
+}
+
+function f1Model(kit) {
+  // Wheels: short cylinders (a hull of their two rims), dark, with a hub ring.
+  [[5.7, 2.6, 8.8, 2.6], [-5.7, 2.6, 8.8, 2.6], [5.9, 3.1, -8.4, 3.1], [-5.9, 3.1, -8.4, 3.1]].forEach(([x, y, z, r], i) => {
+    const inner = ringPoints([x - Math.sign(x) * 1.3, y, z], r, 'x', 16);
+    const outer = ringPoints([x + Math.sign(x) * 1.3, y, z], r, 'x', 16);
+    kit.hull(`wheel${i}`, [...inner, ...outer], { tone: 2, w: 1 });
+    if (kit.facing([Math.sign(x), 0, 0]) > 0.05) kit.line(`hub${i}`, ringPoints([x + Math.sign(x) * 1.35, y, z], r * 0.45, 'x', 12), { closed: true, smooth: true, w: 0.6, bias: 0.01 });
+  });
+  kit.box('floor', [-4.6, 4.6], [0.9, 1.5], [-11, 11], { tone: 1 });
+  // The body: a loft through elliptical sections from the nose to the tail.
+  const sections = [[15.5, 0.5, 0.4, 2.0], [11, 1.3, 1.0, 2.4], [6, 2.0, 1.6, 2.9], [2, 4.4, 2.0, 3.0], [-4, 4.4, 2.0, 3.0], [-9, 2.4, 2.0, 3.4], [-12.5, 1.4, 1.4, 3.6]];
+  const pts = [];
+  sections.forEach(([z, hw, hh, yc]) => {
+    for (let i = 0; i < 12; i += 1) {
+      const a = (i / 12) * Math.PI * 2;
+      pts.push([Math.cos(a) * hw, yc + Math.sin(a) * hh, z]);
+    }
+  });
+  kit.hull('body', pts, { tone: 0, w: 1.2 });
+  kit.line('spine', sections.map(([z, , hh, yc]) => [0, yc + hh + 0.05, z]), { smooth: true, w: 0.6, bias: 0.02, opacity: 0.8 });
+  for (const sx of [-1, 1]) {
+    if (kit.facing([sx, 0, 0]) > 0.1) kit.line(`inlet${sx}`, [[sx * 4.45, 3.9, 3.2], [sx * 4.45, 2.4, 3.2], [sx * 4.45, 2.4, -2]], { w: 0.6, bias: 0.03 });
+  }
+  // Cockpit opening, halo and airbox.
+  kit.shape('cockpit', Array.from({ length: 14 }, (_, i) => {
+    const a = (i / 14) * Math.PI * 2;
+    return [Math.cos(a) * 1.5, 5.05, 1 + Math.sin(a) * 2.4];
+  }), { tone: 2, w: 0.8, smooth: true, bias: 0.05 });
+  kit.line('halo', [[-1.7, 5, 2.6], [-1.3, 6.6, 1.6], [0, 7.1, 0.9], [1.3, 6.6, 1.6], [1.7, 5, 2.6]], { smooth: true, w: 0.9, bias: 0.1 });
+  kit.line('halo-strut', [[0, 7.1, 0.9], [0, 5.2, 3.7]], { w: 0.8, bias: 0.1 });
+  kit.hull('airbox', [...ringPoints([0, 6.3, -1.6], 1.1, 'z', 10), ...ringPoints([0, 4.9, -3.6], 1.8, 'z', 10)], { tone: 0, w: 0.9, bias: 0.06 });
+  // Wings: front wing with endplates, rear wing on two posts.
+  kit.box('fwing', [-7, 7], [0.6, 1.1], [13.4, 16], { tone: 0, w: 0.9 });
+  kit.box('fplateL', [-7.3, -7], [0.6, 2.6], [13.4, 16], { tone: 1, w: 0.8 });
+  kit.box('fplateR', [7, 7.3], [0.6, 2.6], [13.4, 16], { tone: 1, w: 0.8 });
+  kit.line('rpostL', [[-1, 3.9, -12.6], [-1, 7.4, -13.6]], { w: 0.8 });
+  kit.line('rpostR', [[1, 3.9, -12.6], [1, 7.4, -13.6]], { w: 0.8 });
+  kit.box('rwing', [-4.8, 4.8], [7.4, 8.6], [-15, -12.6], { tone: 0, w: 0.9 });
+  kit.box('rplateL', [-5.1, -4.8], [4, 9], [-15, -12.6], { tone: 1, w: 0.8 });
+  kit.box('rplateR', [4.8, 5.1], [4, 9], [-15, -12.6], { tone: 1, w: 0.8 });
+}
+
+const SPECIMEN_MODELS = { pagoda: pagodaModel, pineapple: pineappleModel, f1: f1Model };
+
 const KART = {
   tub: { x: [-17, 17], y: [5, 17], z: [-26, 30] },
   hood: { x: [-12, 12], y: [16, 22], z: [12, 42] },
@@ -3131,6 +3502,7 @@ export class TrimStickmanSim {
     this.lastDog = null;
     this.dogMoving = 0;
     this.encT = 0; // First Encounters clock; freezes while its props erase
+    this.vfT = 0; // Varifocal clock
   }
 
   /** Replays the draw-on of the body. */
@@ -3185,6 +3557,7 @@ export class TrimStickmanSim {
     this.sceneT += dt;
     const scene = SCENES[this.scene];
     if (this.scene === 'encounters') this.encT = this.sceneT;
+    if (this.scene === 'varifocal') this.vfT = this.sceneT;
 
     // Presence (body draw-on / erase).
     const pRate = 1 / 1.1;
@@ -3326,6 +3699,8 @@ export class TrimStickmanSim {
       if (prop.id === 'leash' && dog) items.push(...buildLeash(skel, dog, frame, cam, prop.trim));
       if (prop.id === 'blasters') items.push(...buildBlasters(skel, frame, cam, prop.trim));
       if (prop.id === 'encounters') items.push(...buildEncounters(skel, frame, cam, prop.trim, this.encT, this.time));
+      if (prop.id === 'table') items.push(...buildTable(frame, cam, prop.trim));
+      if (prop.id === 'specimens') items.push(...buildSpecimens(frame, cam, prop.trim, this.vfT));
       if (prop.id === 'ship') items.push(...buildShip(frame, cam, prop.trim, this.encT, this.time));
       if (prop.id === 'ravine') {
         // Scenery fades out toward its ends (see TrimStage's vignette), and is
