@@ -186,12 +186,6 @@ function vrPose(t) {
   return lerpPose(VR_REACH, lookPose, easeInOut((t - 1.25) / 0.7));
 }
 
-function dogPose(phi, t) {
-  const walk = walkPose(phi, t);
-  const hold = { aRp: 34, aRr: 6, aRbp: 6, aRbr: 0, twist: walk.twist * 0.5 };
-  return { ...walk, ...hold };
-}
-
 // ---------------------------------------------------------------------------
 // Scenes: what the figure does while a section is active.
 
@@ -225,15 +219,6 @@ export const SCENES = {
       { id: 'cap', on: [0.5, 1.0] },
       { id: 'speedlines', on: [1.3, 1.5] },
       { id: 'kartitems', on: [2.0, 2.3] },
-    ],
-  },
-  dog: {
-    label: 'Dog walk',
-    speed: (t) => (t < 0.8 ? 0 : 46),
-    clip: (t, phi) => dogPose(phi, t),
-    props: [
-      { id: 'leash', on: [0.15, 0.6] },
-      { id: 'dog', on: [0.45, 1.5] },
     ],
   },
   encounters: {
@@ -278,6 +263,19 @@ export const SCENES = {
     props: [
       { id: 'headset', variant: 'retina', on: [0.45, 1.15] },
       { id: 'room', on: [1.0, 2.6] },
+    ],
+  },
+  pets: {
+    label: 'Pets',
+    stand: true,
+    speed: () => 0,
+    // A full spin while turning into a critter (see PETS_T); added to the standing yaw.
+    spin: (t) => -360 * easeInOut((t - 0.95) / 1.35),
+    clip: (t) => petsPose(t),
+    props: [
+      { id: 'sparkles', on: [0.8, 0.9] },
+      { id: 'pets', on: [2.1, 3.0] },
+      { id: 'hearts', on: [2.1, 2.2] },
     ],
   },
 };
@@ -607,6 +605,42 @@ export function rigForStyle(styleId) {
   return { ...RIG, ...(STYLES[styleId]?.rig || {}) };
 }
 
+/**
+ * A capsule style part-way through turning into the critter (m 0..1): the rig
+ * proportions blend (head sinks into a wider, shorter body, limbs shrink), the
+ * eyes slide to the critter's spots, and `grow`/`merge` drive the ears, tail
+ * and whiskers sprouting and the head folding into the body (buildFigure).
+ * Styles drawn another way (block bot, one-line…) don't morph.
+ */
+export function morphStyle(id, m) {
+  const st = STYLES[id] || STYLES.classic;
+  const rig = rigForStyle(id);
+  if (m <= 0.0005 || st.kind || st.critter) return { st, rig };
+  const cs = STYLES.critter;
+  const cr = rigForStyle('critter');
+  const outRig = {};
+  for (const k of Object.keys(rig)) outRig[k] = lerp(rig[k], cr[k] ?? rig[k], m);
+  const num = (k, d) => lerp(st[k] ?? d, cs[k] ?? d, m);
+  return {
+    rig: outRig,
+    st: {
+      ...st,
+      limbW: num('limbW', 2.5),
+      legW: num('legW', 3),
+      outline: num('outline', 2.5),
+      feet: num('feet', 0),
+      eyeSpread: num('eyeSpread', 40),
+      eyeLift: num('eyeLift', 0.12),
+      eyeScale: num('eyeScale', 1),
+      eyeInset: num('eyeInset', 0.9),
+      hands: st.hands ? st.hands * (1 - m) : 0,
+      critter: true,
+      grow: m,
+      merge: m,
+    },
+  };
+}
+
 /** Camera-facing runs of a 3D ring, as stroke items (the back half is skipped). */
 function pushFrontArcs(items, { key, pts, normals, P, cam, frame, w, depth, trim }) {
   const vis = normals.map((n) => cam.facing(rotY(n, frame.yaw)) > 0);
@@ -627,7 +661,7 @@ function pushFrontArcs(items, { key, pts, normals, P, cam, frame, w, depth, trim
 }
 
 export function buildFigure(skel, frame, cam, trim, opts = {}) {
-  const st = STYLES[opts.style] || STYLES.classic;
+  const st = opts.st || STYLES[opts.style] || STYLES.classic;
   if (st.kind === 'oneline') return buildOneLine(skel, frame, cam, trim, st);
   if (st.kind === 'contour') return buildContour(skel, frame, cam, trim, st);
   if (st.kind === 'blocky') return buildBlocky(skel, frame, cam, trim, st);
@@ -706,10 +740,24 @@ export function buildFigure(skel, frame, cam, trim, opts = {}) {
   const headTrim = tr('head');
   const headDepth = st.head === 'none' ? torsoDepth : hc.d;
   if (st.head !== 'none') {
-    items.push({
-      key: 'head', type: 'shape', d: circlePath(hc, R.headR * hc.k), w: Math.max(st.outline, 0.01) * hc.k,
-      depth: hc.d, layer: 1, trim: headTrim, fill: fillOf(headTrim), ink: st.head === 'solid',
-    });
+    // While morphing into the critter the head sinks into the body. It slides
+    // from on top of the torso to under it (crossfaded so nothing pops), so the
+    // torso covers its lower half and its top becomes the body's round top.
+    const under = smooth(((st.merge ?? 0) - 0.4) / 0.45);
+    const headD = circlePath(hc, R.headR * hc.k);
+    const headW = Math.max(st.outline, 0.01) * hc.k;
+    if (under < 0.999) {
+      items.push({
+        key: 'head', type: 'shape', d: headD, w: headW, depth: hc.d, layer: 1, trim: headTrim,
+        fill: fillOf(headTrim) * (1 - under), opacity: under > 0 ? 1 - under : undefined, ink: st.head === 'solid',
+      });
+    }
+    if (under > 0.001) {
+      items.push({
+        key: 'head-under', type: 'shape', d: headD, w: headW, depth: torsoDepth - 0.05, layer: 1, trim: headTrim,
+        fill: fillOf(headTrim) * under, opacity: under, ink: st.head === 'solid',
+      });
+    }
   }
   if (st.wire && st.head !== 'none') {
     for (const [axis, name] of [['y', 'eq'], ['x', 'mer']]) {
@@ -735,7 +783,7 @@ export function buildFigure(skel, frame, cam, trim, opts = {}) {
       items.push({
         key: `eye${side}`, type: 'dot', x: e.x, y: e.y,
         r: 1.7 * (st.eyeScale || 1) * e.k * smooth(faceTrim[1] * 1.4),
-        opacity: vis, depth: headDepth + 0.1, layer: 1, paper: st.eyes === 'paper',
+        opacity: vis, depth: Math.max(headDepth, torsoDepth) + 0.1, layer: 1, paper: st.eyes === 'paper',
       });
     }
   }
@@ -748,7 +796,7 @@ export function buildFigure(skel, frame, cam, trim, opts = {}) {
 
   for (const key of ['R', 'L']) {
     pushLimb(`arm${key}`, skel.arms[key], st.limbW, (c, depth, t) => {
-      if (!st.hands) return;
+      if (!st.hands || st.hands < 0.6) return;
       const ht = [t[0], smooth((t[1] - 0.7) / 0.3)];
       items.push({ key: `hand${key}`, type: 'shape', d: circlePath(c, st.hands * c.k), w: st.outline * c.k, depth: depth + 0.05, layer: 1, trim: ht, fill: fillOf(ht) });
     });
@@ -934,24 +982,30 @@ function pushCritterBits(items, skel, frame, cam, trim, st, time, hideFace = fal
   const rot = skel.headRot;
   const onHead = (v, s = 1) => add(skel.headC, mul(headRotate(norm(v), rot), R.headR * s));
   const bodyDepth = P(mix(skel.pelvis, skel.chest, 0.5)).d;
+  // `grow` < 1 while morphing into the critter: ears push out from one spot on
+  // the head, the tail grows from the rump, and the nose and whiskers fade in.
+  const g = st.grow ?? 1;
+  if (g < 0.04) return;
+  const sprout = (v) => [lerp(0.55 * Math.sign(v[0]), v[0], g), lerp(0.8, v[1], g), lerp(0.08, v[2], g)];
 
   [-1, 1].forEach((side) => {
-    const a = P(onHead([side * 0.3, 0.92, 0.1]));
-    const tip = P(onHead([side * 0.62, 1.0, 0.05], 1.55));
-    const b = P(onHead([side * 0.78, 0.55, 0.05]));
+    const a = P(onHead(sprout([side * 0.3, 0.92, 0.1])));
+    const tip = P(onHead(sprout([side * 0.62, 1.0, 0.05]), lerp(1.02, 1.55, g)));
+    const b = P(onHead(sprout([side * 0.78, 0.55, 0.05])));
     const depth = Math.min(bodyDepth - 0.5, (a.d + b.d + tip.d) / 3);
     items.push({ key: `ear${side}`, type: 'shape', d: linePath([a, tip, b], true), w: st.outline * a.k, depth, layer: 1, trim, fill: smooth((trim[1] - 0.5) / 0.5) });
   });
 
   const wag = 9 * Math.sin(time * 7);
-  const t0 = P(add(skel.pelvis, rotY([0, -2, -R.torsoW / 2 + 2], skel.twist)));
-  const t1 = P(add(skel.pelvis, rotY([wag * 0.4, 6, -R.torsoW / 2 - 9], skel.twist)));
-  const t2 = P(add(skel.pelvis, rotY([wag, 18, -R.torsoW / 2 - 11], skel.twist)));
+  const tailAt = (v) => P(add(skel.pelvis, rotY(mix([0, -2, -R.torsoW / 2 + 2], v, g), skel.twist)));
+  const t0 = tailAt([0, -2, -R.torsoW / 2 + 2]);
+  const t1 = tailAt([wag * 0.4, 6, -R.torsoW / 2 - 9]);
+  const t2 = tailAt([wag, 18, -R.torsoW / 2 - 11]);
   items.push({ key: 'tail', type: 'stroke', d: smoothPath([t0, t1, t2]), w: st.limbW * 1.1 * t0.k, depth: t1.d, layer: 1, trim });
 
   const fwd = headRotate([0, -0.12, 1], rot);
   const facing = cam.facing(rotY(norm(fwd), frame.yaw));
-  const vis = smooth((facing - 0.05) / 0.3);
+  const vis = smooth((facing - 0.05) / 0.3) * smooth((g - 0.45) / 0.5);
   if (vis > 0.01 && !hideFace) {
     const n = P(onHead([0, -0.12, 1]));
     items.push({ key: 'nose', type: 'dot', x: n.x, y: n.y, r: 2.1 * n.k * smooth(trim[1]), opacity: vis, depth: bodyDepth + 2, layer: 1 });
@@ -3824,62 +3878,72 @@ function buildSpeedLines(frame, cam, trim, time) {
   return items;
 }
 
-// --- Dog: the same rig ideas, four legs ------------------------------------
+// --- Pets: dogs and cats on one four-legged rig ----------------------------
 
-const DOG_OFFSET = [-15, 0, 32];
-
-function dogFrame(frame) {
-  return { yaw: frame.yaw, root: add(frame.root, rotY(DOG_OFFSET, frame.yaw)) };
-}
-
-function solveDog(phi, time, moving) {
+export function solvePet(phi, time, moving, sit = 0, kind = 'dog') {
   const amp = 26 * moving;
   const legs = [];
   let minFoot = Infinity;
   const defs = [
-    ['FL', 1, 8, 0],
-    ['FR', -1, 8, Math.PI],
-    ['BL', 1, -8, Math.PI],
-    ['BR', -1, -8, 0],
+    ['FL', 1, 6.5, 0],
+    ['FR', -1, 6.5, Math.PI],
+    ['BL', 1, -6.5, Math.PI],
+    ['BR', -1, -6.5, 0],
   ];
   for (const [name, side, z, offset] of defs) {
     const ph = phi * 2 + offset;
     const p = amp * Math.sin(ph);
     const k = 6 + 30 * moving * Math.max(0, Math.cos(ph));
     const front = z > 0;
-    const hip = [side * 3, 0, z];
-    const chain = solveLimb(hip, 6.5, 6.5, p, 4, front ? p - k : p + k, 4, side);
+    // Sitting: the hind hips drop and the hind legs fold (thigh forward, shin back).
+    const hip = [side * 3, front ? 0 : -5.5 * sit, z + (front ? 0 : 4.5 * sit)];
+    const chain = front
+      ? solveLimb(hip, 5.5, 5.5, p, 4, p - k * (1 - sit), 4, side)
+      : solveLimb(hip, 5.5, 5.5, lerp(p, 80, sit), 4 + 8 * sit, lerp(p + k, 20, sit), 4 + 4 * sit, side);
     legs.push({ name, chain });
     minFoot = Math.min(minFoot, chain[2][1]);
   }
   const lift = -minFoot + Math.abs(Math.sin(phi * 2)) * 0.8 * moving;
   const shift = (pt) => [pt[0], pt[1] + lift, pt[2]];
+  const up = (pt) => shift([pt[0], pt[1] + 3.5 * sit, pt[2] - 1.5 * sit]); // head end rises when sitting
+  const cat = kind === 'cat';
+  const sw = Math.sin(time * 2.1);
   return {
-    hind: shift([0, 2, -9]),
-    chest: shift([0, 3, 9]),
-    head: shift([0, 11, 15]),
-    snout: [shift([0, 9.5, 18]), shift([0, 9, 23])],
-    ears: [-1, 1].map((s) => [shift([s * 3.5, 16, 14]), shift([s * 6, 12.5, 11.5])]),
-    tail: [shift([0, 4, -14]), shift([4 * Math.sin(time * 12), 12, -19])],
-    collar: shift([0, 8, 13]),
+    kind,
+    hind: shift([0, 2 - 5.5 * sit, -7 + 4.5 * sit]),
+    chest: up([0, 3, 7]),
+    head: up([0, 11.5, 12.5]),
+    snout: [up([0, 9.5, 18]), up([0, 9, 23])],
+    ears: [-1, 1].map((s) => [up([s * 3.5, 16, 14]), up([s * 6, 12.5, 11.5])]),
+    tail: cat
+      ? [shift([0, 3 - 4 * sit, -11 + 3 * sit]), shift([2.5 * sw, 12 - 3 * sit, -18 + 5 * sit]), shift([6 * sw, 20 - 4 * sit, -15 + 4 * sit])]
+      : [shift([0, 4 - 4 * sit, -12 + 3 * sit]), shift([4 * Math.sin(time * 12), 12 - 4 * sit, -17 + 4 * sit])],
+    collar: up([0, 8, 13]),
+    earSwing: Math.sin(phi * 2) * moving,
     headTurn: 10 * Math.sin(time * 0.9),
     legs: legs.map((l) => ({ ...l, chain: l.chain.map(shift) })),
   };
 }
 
-function buildDog(dog, frame, cam, trim) {
+/**
+ * A dog or cat on the same four-legged rig, in its own frame `df`, scaled by
+ * `scale`. Dogs get a snout and floppy ears; cats a short face, pointed ears,
+ * whiskers and a tall curling tail.
+ */
+export function buildPet(dog, df, cam, trim, { scale = 1, key = 'pet' } = {}) {
   const items = [];
-  const df = dogFrame(frame);
-  const P = (p) => cam.project(toWorld(p, df));
+  const cat = dog.kind === 'cat';
+  const P = (p) => cam.project(toWorld(mul(p, scale), df));
   const parts = 6;
   const tr = (i) => stagger(trim, i, parts, 0.5);
   const center = P(mix(dog.hind, dog.chest, 0.5));
+  const sc = scale;
 
   dog.legs.forEach((leg, i) => {
     const [a, b, c] = leg.chain.map(P);
-    const depth = (a.d + b.d + c.d) / 3 - 2;
+    const depth = (a.d + b.d + c.d) / 3 - 2 * sc;
     items.push({
-      key: `dog-leg-${leg.name}`,
+      key: `${key}-leg-${leg.name}`,
       type: 'stroke',
       d: quadThrough(a, b, c),
       w: 2.4 * b.k,
@@ -3893,99 +3957,250 @@ function buildDog(dog, frame, cam, trim) {
   const h = P(dog.hind);
   const c = P(dog.chest);
   items.push({
-    key: 'dog-body',
+    key: `${key}-body`,
     type: 'capsule',
     d: `M${f(h.x)},${f(h.y)}L${f(c.x)},${f(c.y)}`,
-    w: 11 * h.k,
+    w: (cat ? 9.5 : 12) * sc * h.k,
     line: 2.2 * h.k,
     depth: (h.d + c.d) / 2,
     layer: 1,
     trim: tr(2),
   });
 
-  const [t0, t1] = dog.tail.map(P);
-  const tm = P(mix(dog.tail[0], dog.tail[1], 0.5).map((v, i) => (i === 1 ? v - 2 : v)));
+  const tailPts = dog.tail.map(P);
+  const tailD = tailPts.length > 2
+    ? smoothPath(tailPts)
+    : quadThrough(tailPts[0], P(mix(dog.tail[0], dog.tail[1], 0.5).map((v, i) => (i === 1 ? v - 2 : v))), tailPts[1]);
   items.push({
-    key: 'dog-tail',
+    key: `${key}-tail`,
     type: 'stroke',
-    d: quadThrough(t0, tm, t1),
-    w: 2.2 * t0.k,
-    depth: t0.d - 1,
+    d: tailD,
+    w: 2.2 * tailPts[0].k,
+    depth: tailPts[0].d - 1 * sc,
     layer: 1,
     trim: tr(3),
   });
 
   const hd = P(dog.head);
+  const headR = cat ? 7 : 7.8;
   const headTrim = tr(4);
   items.push({
-    key: 'dog-head',
+    key: `${key}-head`,
     type: 'shape',
-    d: circlePath(hd, 6.5 * hd.k),
+    d: circlePath(hd, headR * sc * hd.k),
     w: 2.2 * hd.k,
-    depth: hd.d + 2,
+    depth: hd.d + 2 * sc,
     layer: 1,
     trim: headTrim,
     fill: smooth((headTrim[1] - 0.55) / 0.45),
   });
-  const [s0, s1] = dog.snout.map(P);
-  items.push({
-    key: 'dog-snout',
-    type: 'capsule',
-    d: `M${f(s0.x)},${f(s0.y)}L${f(s1.x)},${f(s1.y)}`,
-    w: 5.5 * s0.k,
-    line: 2 * s0.k,
-    depth: s1.d + 2.5,
-    layer: 1,
-    trim: tr(5),
-  });
-  dog.ears.forEach(([e0, e1], i) => {
-    const a = P(e0);
-    const b = P(e1);
-    items.push({
-      key: `dog-ear-${i}`,
-      type: 'stroke',
-      d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`,
-      w: 3 * a.k,
-      depth: hd.d + (a.d - hd.d) * 2 + 2,
-      layer: 1,
-      trim: tr(5),
+  if (cat) {
+    // Pointed ears standing up off the top of the head.
+    [-1, 1].forEach((side) => {
+      const at = (v) => P(add(dog.head, mul(v, headR)));
+      const a = at([side * 0.18, 0.88, 0.05]);
+      const tip = at([side * 0.66, 1.5, -0.05]);
+      const b = at([side * 0.82, 0.5, 0.02]);
+      const et = tr(5);
+      items.push({ key: `${key}-ear${side}`, type: 'shape', d: linePath([a, tip, b], true), w: 2 * a.k, depth: hd.d + 1.9 * sc, layer: 1, trim: et, fill: smooth((et[1] - 0.5) / 0.5) });
     });
-  });
+    // Whiskers and a nose, when the face is toward us.
+    const fv = smooth((cam.facing(rotY([0, -0.1, 1], df.yaw)) + 0.2) / 0.4);
+    if (fv > 0.02) {
+      const nose = P(add(dog.head, [0, -1.2, headR * 0.98]));
+      items.push({ key: `${key}-nose`, type: 'dot', x: nose.x, y: nose.y, r: 1.1 * nose.k * smooth(tr(5)[1]), opacity: fv, depth: hd.d + 2.2 * sc, layer: 1 });
+      let wh = '';
+      [-1, 1].forEach((side) => [0.6, -0.6].forEach((dy) => {
+        const w0 = P(add(dog.head, [side * 2.2, -1.6 + dy * 0.4, headR * 0.92]));
+        const w1 = P(add(dog.head, [side * 9, -1.2 + dy * 1.6, headR * 0.5]));
+        wh += `M${f(w0.x)},${f(w0.y)}L${f(w1.x)},${f(w1.y)}`;
+      }));
+      items.push({ key: `${key}-whiskers`, type: 'stroke', d: wh, w: 0.8 * hd.k, depth: hd.d + 2.2 * sc, layer: 1, trim: tr(5), opacity: fv });
+    }
+  } else {
+    // Floppy ears: ink teardrops hanging down the sides of the head (the
+    // strongest "dog" cue), swinging a little as it trots.
+    const R0 = headR;
+    const at = (v) => P(add(dog.head, mul(v, R0)));
+    const flop = dog.earSwing || 0;
+    [-1, 1].forEach((side) => {
+      const sideFacing = cam.facing(rotY([side, 0, 0], df.yaw));
+      const pts = [
+        at([side * 0.72, 0.78, 0.2]),
+        at([side * 1.0, 0.3, -0.45]),
+        at([side * (1.1 + 0.05 * flop), -0.62, -0.25 + 0.15 * flop]),
+        at([side * 1.08, -0.78, 0.18 + 0.15 * flop]),
+        at([side * 0.98, -0.05, 0.4]),
+      ];
+      items.push({ key: `${key}-ear${side}`, type: 'shape', d: smoothPath(pts, true), w: 1.6 * hd.k, depth: hd.d + (sideFacing > -0.35 ? 2.4 : -0.6) * sc, layer: 1, trim: tr(5), fill: smooth((tr(5)[1] - 0.4) / 0.6), ink: true });
+    });
+    // No muzzle tube: a big ink nose on the front of the face and a small
+    // "w" mouth under it. The nose sits just proud of the head, so in profile
+    // it pokes out like a snout tip.
+    const fv = smooth((cam.facing(rotY([0, -0.1, 1], df.yaw)) + 0.55) / 0.35);
+    if (fv > 0.02) {
+      const n = at([0, -0.18, 1.02]);
+      const side = Math.abs(cam.facing(rotY([1, 0, 0], df.yaw)));
+      const nr = 0.3 * R0 * sc * n.k * smooth(tr(5)[1]);
+      const nrx = nr * (1.15 - 0.35 * side);
+      items.push({ key: `${key}-nose`, type: 'shape', d: `M${f(n.x - nrx)},${f(n.y)}a${f(nrx)},${f(nr * 0.78)} 0 1 0 ${f(nrx * 2)},0a${f(nrx)},${f(nr * 0.78)} 0 1 0 ${f(-nrx * 2)},0`, w: 1 * n.k, depth: hd.d + 2.35 * sc, layer: 1, trim: [0, 1], fill: fv, ink: true, opacity: fv });
+      const mv = smooth((cam.facing(rotY([0, -0.3, 1], df.yaw)) - 0.1) / 0.3);
+      if (mv > 0.02) {
+        const c0 = at([0, -0.36, 0.94]);
+        const l = at([-0.26, -0.5, 0.86]);
+        const r = at([0.26, -0.5, 0.86]);
+        const lm = at([-0.12, -0.55, 0.88]);
+        const rm = at([0.12, -0.55, 0.88]);
+        items.push({ key: `${key}-mouth`, type: 'stroke', d: `M${f(l.x)},${f(l.y)}Q${f(lm.x)},${f(lm.y)} ${f(c0.x)},${f(c0.y)}Q${f(rm.x)},${f(rm.y)} ${f(r.x)},${f(r.y)}`, w: 1.2 * hd.k, depth: hd.d + 2.34 * sc, layer: 1, trim: tr(5), opacity: mv });
+      }
+    }
+  }
   // One eye per side, hidden when that side turns away.
   for (const side of [-1, 1]) {
-    const dirL = [side * 0.55, 0.3, 0.78];
+    const dirL = cat ? [side * 0.55, 0.3, 0.78] : [side * 0.42, 0.38, 0.82];
     const vis = smooth((cam.facing(rotY(dirL, df.yaw)) - 0.1) / 0.3);
     if (vis < 0.02) continue;
-    const e = P(add(dog.head, mul(dirL, 6)));
+    const e = P(add(dog.head, mul(dirL, headR * 0.92)));
     items.push({
-      key: `dog-eye${side}`,
+      key: `${key}-eye${side}`,
       type: 'dot',
       x: e.x,
       y: e.y,
       r: 1.2 * e.k * smooth(tr(5)[1]),
       opacity: vis,
-      depth: hd.d + 2.1,
+      depth: hd.d + 2.1 * sc,
       layer: 1,
     });
   }
   return items;
 }
 
-function buildLeash(skel, dog, frame, cam, trim) {
-  const hand = cam.project(toWorld(skel.arms.R[2], frame));
-  const collar = cam.project(toWorld(dog.collar, dogFrame(frame)));
-  const mid = { x: (hand.x + collar.x) / 2, y: Math.max(hand.y, collar.y) + 8 * hand.k };
-  const qx = 2 * mid.x - (hand.x + collar.x) / 2;
-  const qy = 2 * mid.y - (hand.y + collar.y) / 2;
-  return [{
-    key: 'leash',
-    type: 'stroke',
-    d: `M${f(hand.x)},${f(hand.y)}Q${f(qx)},${f(qy)} ${f(collar.x)},${f(collar.y)}`,
-    w: 1.4 * hand.k,
-    depth: (hand.d + collar.d) / 2 + 3,
-    layer: 1,
-    trim,
-  }];
+// --- Pets: The Secret Life of Pets, Off the Leash ---------------------------
+//
+// The ride turns guests into puppies and kittens, then they get adopted. The
+// figure spins and morphs into the critter (rig + style blend, see
+// morphStyle), and cats and dogs trot in from both sides, sit around it, and
+// send hearts its way.
+
+const PETS_T = { morph: 1.0, morphDur: 1.3, arrive: 2.5 };
+const PET_WALK = 1.6;
+// World-anchored around the figure (+z is toward the viewer).
+const PETS = [
+  { kind: 'dog', spot: [-64, -10], from: [-300, -10], scale: 2.0, delay: 0, sit: 1 },
+  { kind: 'cat', spot: [62, -8], from: [300, -8], scale: 1.8, delay: 0.25, sit: 1 },
+  { kind: 'dog', spot: [-110, 22], from: [-320, 30], scale: 1.55, delay: 0.55, sit: 1 },
+  { kind: 'cat', spot: [106, 22], from: [320, 30], scale: 1.65, delay: 0.8, sit: 0 },
+  { kind: 'dog', spot: [-156, -16], from: [-340, -20], scale: 1.9, delay: 1.05, sit: 0 },
+  { kind: 'cat', spot: [150, -14], from: [340, -20], scale: 1.6, delay: 1.3, sit: 1 },
+];
+
+function petsPose(t) {
+  const base = idlePose(t);
+  // Surprise while transforming: arms flung out, looking up.
+  const wow = window01(t, 0.8, 1.15) * (1 - window01(t, 2.1, 2.6));
+  const surprised = pose({ ...base, aRp: 10, aLp: 10, aRr: 75, aLr: 75, aRbp: 0, aLbp: 0, aRbr: 25, aLbr: 25, hp: -10, hy: 0, lean: -2 });
+  const out = lerpPose(base, surprised, wow);
+  // Afterwards: little happy hops, paws up, looking round at the pets.
+  const happy = window01(t, 2.4, 2.9);
+  const hop = Math.max(0, Math.sin((t - 2.4) * 6.5)) ** 1.5 * (0.5 + 0.5 * Math.max(0, Math.sin((t - 2.4) * 0.9)));
+  out.bob += 5 * hop * happy;
+  out.hy = lerp(out.hy, 32 * Math.sin(t * 0.8), happy);
+  out.hr = lerp(out.hr, 8 * Math.sin(t * 1.6), happy);
+  out.aRr = lerp(out.aRr, 40 + 10 * hop, happy);
+  out.aLr = lerp(out.aLr, 40 + 10 * hop, happy);
+  return out;
+}
+
+function angleLerp(a, b, t) {
+  const d = ((b - a + 540) % 360) - 180;
+  return a + d * t;
+}
+
+function petState(p, i, t, time) {
+  const u = clamp((t - PETS_T.arrive - p.delay) / PET_WALK);
+  const q = 1 - (1 - u) ** 2; // trot in, slowing down
+  const x = lerp(p.from[0], p.spot[0], q);
+  const z = lerp(p.from[1], p.spot[1], q);
+  const dist = Math.hypot(p.spot[0] - p.from[0], p.spot[1] - p.from[1]);
+  const moving = 1 - smooth((u - 0.75) / 0.25);
+  const heading = Math.atan2(p.spot[0] - p.from[0], p.spot[1] - p.from[1]) / D2R;
+  const toFigure = angleLerp(Math.atan2(-p.spot[0], -p.spot[1]) / D2R, 0, 0.42);
+  const yaw = angleLerp(heading, toFigure, smooth((u - 0.7) / 0.3));
+  const settled = t - PETS_T.arrive - p.delay - PET_WALK;
+  const sit = p.sit * smooth((settled - 0.1) / 0.5);
+  const phi = ((q * dist) / p.scale / 26) * Math.PI;
+  const dog = solvePet(phi, time + i * 1.7, moving, sit, p.kind);
+  return { dog, x, z, yaw, settled };
+}
+
+function petFrame(frame, st) {
+  return { yaw: st.yaw, root: add(frame.root, [st.x, 0, st.z]) };
+}
+
+function buildPets(frame, cam, trim, t, time) {
+  const items = [];
+  PETS.forEach((p, i) => {
+    if (t < PETS_T.arrive + p.delay) return;
+    const st = petState(p, i, t, time);
+    const pf = petFrame(frame, st);
+    // Each pet draws on as it trots in.
+    const own = smooth((t - PETS_T.arrive - p.delay) / 0.9);
+    const tt = [trim[0], Math.min(trim[1], own)];
+    items.push({ ...buildShadow(pf, cam, 9 * p.scale, 0.08 * tt[1]), key: `pet${i}-shadow` });
+    items.push(...buildPet(st.dog, pf, cam, tt, { scale: p.scale, key: `pet${i}` }));
+  });
+  return items;
+}
+
+function heartPath(c, r) {
+  const { x, y } = c;
+  return `M${f(x)},${f(y + r * 0.75)}C${f(x - r * 1.25)},${f(y - r * 0.1)} ${f(x - r * 0.75)},${f(y - r * 1.15)} ${f(x)},${f(y - r * 0.45)}`
+    + `C${f(x + r * 0.75)},${f(y - r * 1.15)} ${f(x + r * 1.25)},${f(y - r * 0.1)} ${f(x)},${f(y + r * 0.75)}Z`;
+}
+
+/** Hearts float up from each settled pet and drift over to the critter. */
+function buildHearts(skel, frame, cam, trim, t, time) {
+  const items = [];
+  const target = toWorld(add(skel.headC, [0, skel.rig.headR + 16, 0]), frame);
+  const PERIOD = 2.8;
+  const LIFE = 1.9;
+  PETS.forEach((p, i) => {
+    const st = petState(p, i, t, time);
+    if (st.settled < 0.4) return;
+    const local = st.settled - 0.4 - i * 0.37;
+    if (local < 0) return;
+    const u = (local % PERIOD) / LIFE;
+    if (u >= 1) return;
+    const pf = petFrame(frame, st);
+    const from = toWorld(mul(add(st.dog.head, [0, 9, 0]), p.scale), pf);
+    const pos = mix(from, target, smooth(u));
+    pos[1] += Math.sin(u * Math.PI) * 22 + Math.sin(u * 9 + i) * 1.5;
+    const c = cam.project(pos);
+    const vis = smooth(u / 0.15) * (1 - smooth((u - 0.75) / 0.25));
+    const r = (3.2 + 2.2 * smooth(u / 0.3)) * c.k;
+    items.push({ key: `heart-${i}`, type: 'shape', d: heartPath(c, r), w: 1.4 * c.k, depth: c.d + 40, layer: 1, trim: [0, trim[1]], fill: vis * trim[1], tone: 1, opacity: vis });
+  });
+  return items;
+}
+
+/** Four-point twinkles popping around the figure while it transforms. */
+function buildSparkles(skel, frame, cam, trim, t) {
+  const items = [];
+  const mid = mix(skel.pelvis, skel.headC, 0.5);
+  for (let i = 0; i < 9; i += 1) {
+    const t0 = PETS_T.morph - 0.1 + i * 0.14;
+    const u = (t - t0) / 0.55;
+    if (u <= 0 || u >= 1) continue;
+    const a = i * 2.4;
+    const rad = 34 + (i % 3) * 8;
+    const m0 = cam.project(toWorld(mid, frame));
+    const c = { x: m0.x + Math.cos(a) * rad * m0.k, y: m0.y + Math.sin(a) * rad * 0.9 * m0.k, d: m0.d, k: m0.k };
+    const r = (4 + (i % 2) * 2.5) * c.k * Math.sin(u * Math.PI);
+    const d = `M${f(c.x)},${f(c.y - r)}Q${f(c.x)},${f(c.y)} ${f(c.x + r)},${f(c.y)}Q${f(c.x)},${f(c.y)} ${f(c.x)},${f(c.y + r)}`
+      + `Q${f(c.x)},${f(c.y)} ${f(c.x - r)},${f(c.y)}Q${f(c.x)},${f(c.y)} ${f(c.x)},${f(c.y - r)}Z`;
+    items.push({ key: `sparkle-${i}`, type: 'shape', d, w: 1 * c.k, depth: c.d + 30, layer: 1, trim: [0, 1], fill: trim[1], ink: true, opacity: trim[1] });
+  }
+  return items;
 }
 
 function buildShadow(frame, cam, radius, opacity) {
@@ -4034,12 +4249,13 @@ export class TrimStickmanSim {
     this.presence = present ? 1 : 0;
     this.presenceTarget = present ? 1 : 0;
     this.lastSkel = null;
-    this.lastDog = null;
-    this.dogMoving = 0;
     this.encT = 0; // First Encounters clock; freezes while its props erase
     this.vfT = 0; // Varifocal clock
     this.kartT = 0; // kart item cycle clock
     this.examT = 0; // Retina resolution (eye exam) clock
+    this.petsT = 0; // Pets clock
+    this.morph = 0; // 0 = the chosen style, 1 = turned into the critter (pets)
+    this.standYaw = yaw;
   }
 
   /** Replays the draw-on of the body. */
@@ -4075,6 +4291,7 @@ export class TrimStickmanSim {
       // Standing scenes face the viewer, unless the scene sets its own facing.
       const towardViewer = Math.sin(this.yaw * D2R) >= 0 ? 18 : -18;
       this.yawTarget = nearestEquivalent(next.faceYaw ?? towardViewer, this.yaw);
+      this.standYaw = this.yawTarget;
     } else {
       this.resumeHeading();
     }
@@ -4098,6 +4315,12 @@ export class TrimStickmanSim {
     if (this.scene === 'varifocal') this.vfT = this.sceneT;
     if (this.scene === 'kart') this.kartT = this.sceneT;
     if (this.scene === 'retina') this.examT = this.sceneT;
+    if (this.scene === 'pets') this.petsT = this.sceneT;
+
+    // Pets: the figure turns into the critter, and back when the scene ends.
+    const morphTo = this.scene === 'pets' && this.sceneT > PETS_T.morph ? 1 : 0;
+    const mRate = 1 / PETS_T.morphDur;
+    this.morph += clamp(morphTo - this.morph, -mRate * dt, mRate * dt);
 
     // Presence (body draw-on / erase).
     const pRate = 1 / 1.1;
@@ -4106,9 +4329,8 @@ export class TrimStickmanSim {
     // Speed eases toward the scene's target.
     const targetSpeed = scene.speed(this.sceneT);
     this.speed += (targetSpeed - this.speed) * (1 - Math.exp(-dt * 3));
-    this.phi += dt * Math.PI * 2 * (Math.max(this.speed, 0) / rigForStyle(this.style).stride);
+    this.phi += dt * Math.PI * 2 * (Math.max(this.speed, 0) / this.look().rig.stride);
     this.spin += dt * (this.speed / KART.wheelR);
-    this.dogMoving += ((this.speed > 5 ? 1 : 0) - this.dogMoving) * (1 - Math.exp(-dt * 4));
 
     // Turning: yaw always decreases by 180 at an edge, so the figure turns
     // through the front at the right edge and through the back at the left,
@@ -4126,6 +4348,7 @@ export class TrimStickmanSim {
         if (settled && this.rx > halfWidth - margin && heading > 0.5) this.yawTarget -= 180;
         if (settled && this.rx < -halfWidth + margin && heading < -0.5) this.yawTarget -= 180;
       }
+      if (scene.spin && scene.stand) this.yawTarget = this.standYaw + scene.spin(this.sceneT);
       const w = this.scene === 'kart' ? 3.2 : 4.2;
       this.yawVel += (w * w * (this.yawTarget - this.yaw) - 2 * w * this.yawVel) * dt;
       this.yaw += this.yawVel * dt;
@@ -4153,6 +4376,11 @@ export class TrimStickmanSim {
 
     for (const o of this.outgoing) o.t += dt;
     this.outgoing = this.outgoing.filter((o) => o.t < PROP_EXIT);
+  }
+
+  /** The current drawing style and rig, part-way to the critter while morphing. */
+  look() {
+    return morphStyle(this.style, easeInOut(this.morph));
   }
 
   variantOf(propId) {
@@ -4195,7 +4423,8 @@ export class TrimStickmanSim {
    */
   frame(view, opts = {}) {
     const cam = makeCamera(view);
-    const skel = solveSkeleton(this.pose, rigForStyle(this.style));
+    const look = this.look();
+    const skel = solveSkeleton(this.pose, look.rig);
     const frame = { yaw: this.yaw, root: [this.rx, 0, this.rz] };
     const props = this.propTrims();
     const presenceTrim = [0, easeInOut(this.presence)];
@@ -4209,18 +4438,13 @@ export class TrimStickmanSim {
     items.push(
       ...buildFigure(skel, frame, cam, presenceTrim, {
         style: this.style,
+        st: look.st,
         time: this.time,
         hideEyes: hasHeadset && hasHeadset.trim[1] - hasHeadset.trim[0] > 0.55,
       }),
     );
 
-    let dog = null;
     let vignette = null;
-    const dogProp = props.find((p) => p.id === 'dog');
-    const leashProp = props.find((p) => p.id === 'leash');
-    if (dogProp || leashProp) {
-      dog = solveDog(this.phi, this.time, this.dogMoving);
-    }
 
     for (const prop of props) {
       if (prop.id === 'headset') {
@@ -4234,13 +4458,11 @@ export class TrimStickmanSim {
       if (prop.id === 'speedlines') items.push(...buildSpeedLines(frame, cam, prop.trim, this.time));
       if (prop.id === 'cap') items.push(...buildCap(skel, frame, cam, prop.trim));
       if (prop.id === 'kartitems') items.push(...buildKartItems(skel, frame, cam, prop.trim, this.kartT));
-      if (prop.id === 'dog' && dog) {
-        items.push(buildShadow(dogFrame(frame), cam, 13, 0.08 * prop.trim[1]));
-        items.push(...buildDog(dog, frame, cam, prop.trim));
-      }
-      if (prop.id === 'leash' && dog) items.push(...buildLeash(skel, dog, frame, cam, prop.trim));
       if (prop.id === 'blasters') items.push(...buildBlasters(skel, frame, cam, prop.trim));
       if (prop.id === 'encounters') items.push(...buildEncounters(skel, frame, cam, prop.trim, this.encT, this.time));
+      if (prop.id === 'pets') items.push(...buildPets(frame, cam, prop.trim, this.petsT, this.time));
+      if (prop.id === 'hearts') items.push(...buildHearts(skel, frame, cam, prop.trim, this.petsT, this.time));
+      if (prop.id === 'sparkles') items.push(...buildSparkles(skel, frame, cam, prop.trim, this.petsT));
       if (prop.id === 'table') items.push(...buildTable(frame, cam, prop.trim));
       if (prop.id === 'specimens') items.push(...buildSpecimens(frame, cam, prop.trim, this.vfT));
       if (prop.id === 'ship') items.push(...buildShip(frame, cam, prop.trim, this.encT, this.time));

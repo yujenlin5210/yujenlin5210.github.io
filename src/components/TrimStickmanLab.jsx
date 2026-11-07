@@ -42,17 +42,8 @@ const SECTIONS = [
     ],
   },
   {
-    scene: 'dog',
-    kicker: '05 · Dog walk',
-    title: 'And it scales to new characters',
-    body: [
-      'The dog uses the same pieces: a capsule body, a circle head, and four two-bone legs on a trot cycle. The leash is one trimmed curve from hand to collar.',
-      'Adding an action is a pose function plus an optional prop builder, with no new path art.',
-    ],
-  },
-  {
     scene: 'encounters',
-    kicker: '06 · First Encounters',
+    kicker: '05 · First Encounters',
     title: 'Aiming is just solving for a direction',
     body: [
       'The Boba 3 demo game: fluffy puffians pop up around the player, who turns, aims, and fires. The aiming arm is solved straight at the target in 3D, the torso and head twist toward it, and the pose blends to the next target before it is shot.',
@@ -61,7 +52,7 @@ const SECTIONS = [
   },
   {
     scene: 'tiramisu',
-    kicker: '07 · Tiramisu',
+    kicker: '06 · Tiramisu',
     title: 'Stepping into the world',
     body: [
       'Tiramisu is too thick and heavy for a strap, so you hold it to your face with both hands. The figure does exactly that: a small reach solver puts its hands on the box, and its elbows sag a little under the weight.',
@@ -70,7 +61,7 @@ const SECTIONS = [
   },
   {
     scene: 'varifocal',
-    kicker: '08 · Varifocal',
+    kicker: '07 · Varifocal',
     title: 'Small things, up close',
     body: [
       'The varifocal prototype let your eyes focus naturally on things near and far. The memorable demo was picking up small 3D models and examining them up close: an F1 car, a pineapple, and a pagoda.',
@@ -79,11 +70,20 @@ const SECTIONS = [
   },
   {
     scene: 'retina',
-    kicker: '09 · Retina resolution',
+    kicker: '08 · Retina resolution',
     title: 'Reading the 20/20 line',
     body: [
       'The retina-resolution prototype was proven with a virtual eye chart: at retinal resolution you can read the 20/20 line, and below it, in VR. So the figure takes an eye exam in a living room, with its back to us, facing the TV and the chart beside it.',
       'It reads down the chart, pointing at each row, nodding, and leaning in as the letters shrink. The letters are real text, so the bottom rows are only a couple of pixels tall: on a sharp enough screen, you can still read them.',
+    ],
+  },
+  {
+    scene: 'pets',
+    kicker: '09 · Pets',
+    title: 'A transform, not a redraw',
+    body: [
+      'The Secret Life of Pets ride used face tracking to turn guests into puppies and kittens on their way to being adopted. So the figure turns into the critter, and it is one continuous change, not a swap: the rig’s proportions blend toward the critter’s, the head sinks into a rounder body, ears and a tail grow out, and whiskers fade in.',
+      'Then cats and dogs trot in and sit around it, all built from one four-legged rig (a capsule body, a circle head, and four two-bone legs on a trot cycle), and hearts float its way. Scroll on and it turns back into you.',
     ],
   },
 ];
