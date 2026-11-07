@@ -248,6 +248,17 @@ export const SCENES = {
       { id: 'dog', on: [0.45, 1.5] },
     ],
   },
+  encounters: {
+    label: 'First Encounters',
+    stand: true,
+    speed: () => 0,
+    clip: (t) => encounterPose(t),
+    props: [
+      { id: 'headset', variant: 'boba3', on: [0.45, 1.15] },
+      { id: 'blasters', on: [1.15, 1.6] },
+      { id: 'encounters', on: [1.4, 1.8] },
+    ],
+  },
 };
 
 export const SCENE_IDS = Object.keys(SCENES);
@@ -1884,6 +1895,264 @@ function buildHeadsetRetina(skel, frame, cam, trim) {
   return items;
 }
 
+// --- First Encounters (Boba 3 project) ---------------------------------------
+//
+// The Boba 3 demo game: fluffy "puffians" pop up around the player, who turns,
+// aims a chunky blaster and fires; a hit puffian is wrapped in a bubble that
+// floats away. Everything is a pure function of scene time (deterministic),
+// on a fixed cycle: puffian n spawns, is aimed at, shot, bubbled, and floats.
+
+const ENC = {
+  t0: 1.9, // first shot cycle starts here (scene time)
+  period: 1.7, // seconds per puffian
+  fire: 0.28, // cycle phase: laser leaves the muzzle
+  hit: 0.42, // cycle phase: laser reaches the puffian, bubble starts
+  retarget: 0.7, // cycle phase: start turning to the next puffian
+  r: 8, // puffian radius
+};
+const PUFF_TONES = [
+  'fill-rose-200 dark:fill-rose-300',
+  'fill-amber-200 dark:fill-amber-300',
+  'fill-violet-200 dark:fill-violet-300',
+  'fill-sky-200 dark:fill-sky-300',
+];
+const rnd = (n, k) => {
+  const x = Math.sin(n * 12.9898 + k * 78.233) * 43758.5453;
+  return x - Math.floor(x);
+};
+
+/** Cycle progress of puffian n at scene time t (0 = cycle start, ENC.hit = hit). */
+const puffAge = (n, t) => (t - ENC.t0) / ENC.period - n;
+
+/** Puffian n's figure-local centre at scene time t (hopping, then floating in its bubble). */
+function puffPos(n, t) {
+  const side = (n % 2 === 0 ? 1 : -1) * (rnd(n, 1) < 0.8 ? 1 : -1);
+  const az = side * (52 + 40 * rnd(n, 2));
+  const radius = 78 + 22 * rnd(n, 3);
+  const base = 16 + 38 * rnd(n, 4);
+  const v = puffAge(n, t);
+  const caught = Math.min(v, ENC.hit) * ENC.period; // hopping time stops at the hit
+  const hop = 7 * Math.abs(Math.sin(caught * 5.2 + n * 1.7));
+  const a = (az + 5 * Math.sin(caught * 1.3 + n)) * D2R;
+  const float = v > ENC.hit ? (v - ENC.hit) * ENC.period : 0;
+  const rise = 26 * float + 8 * float * float;
+  return [Math.sin(a) * radius + 3 * Math.sin(float * 3), base + hop + rise, Math.cos(a) * radius];
+}
+
+/** Which hand shoots puffian n: the one on its side ('L' is the figure's +x). */
+const puffHand = (n) => (puffPos(n, ENC.t0 + n * ENC.period)[0] > 0 ? 'L' : 'R');
+
+/** A pose aiming hand `key` straight at a figure-local point. */
+function aimPose(target, key) {
+  const az = Math.atan2(target[0], target[2]) / D2R;
+  const twist = clamp(az * 0.3, -24, 24);
+  const side = key === 'L' ? 1 : -1;
+  // Direction from the (roughly placed) shoulder, in the arm's pre-twist frame.
+  const shoulder = rotY([side * RIG.shoulderX, 46, 0], twist);
+  const d0 = rotY([target[0] - shoulder[0], target[1] - shoulder[1], target[2] - shoulder[2]], -twist * 0.6);
+  const len = Math.hypot(...d0) || 1;
+  const d = d0.map((x) => x / len);
+  const r = Math.asin(clamp(d[0] * side, -1, 1)) / D2R;
+  const p = Math.atan2(d[2], -d[1]) / D2R;
+  const other = key === 'L' ? 'R' : 'L';
+  return pose({
+    lean: 2,
+    twist,
+    hy: clamp(az, -75, 75) - twist,
+    hp: -3,
+    [`a${key}p`]: p, [`a${key}r`]: r, [`a${key}bp`]: 4, [`a${key}br`]: 0,
+    // The other blaster held ready at the hip, pointing forward.
+    [`a${other}p`]: 30, [`a${other}r`]: 12, [`a${other}bp`]: 52, [`a${other}br`]: -6,
+    lRr: 9, lLr: 9, lRk: 10, lLk: 10,
+  });
+}
+
+function aimAt(n, t) {
+  return aimPose(puffPos(n, t), puffHand(n));
+}
+
+function encounterPose(t) {
+  if (t < 1.25) return vrPose(t);
+  const n = Math.max(0, Math.floor((t - ENC.t0) / ENC.period));
+  const u = Math.max(0, puffAge(n, t));
+  let aim = aimAt(n, t);
+  if (u > ENC.retarget) aim = lerpPose(aim, aimAt(n + 1, t), easeInOut((u - ENC.retarget) / (1 - ENC.retarget)));
+  // A little recoil right after each shot.
+  const kick = Math.max(0, 1 - Math.abs(u - ENC.fire - 0.04) / 0.06);
+  const key = puffHand(n);
+  aim[`a${key}bp`] -= 14 * kick;
+  aim.lean -= 2 * kick;
+  return lerpPose(VR_REACH, aim, easeInOut((t - 1.25) / 0.6));
+}
+
+/** Blaster geometry for one hand, in figure-local space. */
+function blasterAxes(skel, key) {
+  const [, elbow, hand] = skel.arms[key];
+  const fwd0 = [hand[0] - elbow[0], hand[1] - elbow[1], hand[2] - elbow[2]];
+  const fl = Math.hypot(...fwd0) || 1;
+  const fwd = fwd0.map((x) => x / fl);
+  // "Up" for the gun: world up with the barrel direction removed.
+  const dot = fwd[1];
+  const up0 = [-fwd[0] * dot, 1 - fwd[1] * dot, -fwd[2] * dot];
+  const ul = Math.hypot(...up0) || 1;
+  const up = up0.map((x) => x / ul);
+  const at = (a, b) => add(hand, add(mul(fwd, a), mul(up, b)));
+  return { hand, at, muzzle: at(14, 0) };
+}
+
+/** Sort depth an arm gets in buildFigure, so the blaster layers with its hand. */
+function armSortDepth(skel, frame, cam, key) {
+  const P = (local) => cam.project(toWorld(local, frame));
+  const bodyD = P(mix(skel.pelvis, skel.chest, 0.5)).d;
+  const torsoSortD = Math.min(bodyD, P(skel.headC).d - 1);
+  return attachedDepth({ key: `arm${key}`, yaw: frame.yaw, cam, chain: skel.arms[key], bodyD: torsoSortD });
+}
+
+function buildBlasters(skel, frame, cam, trim) {
+  const items = [];
+  const P = (local) => cam.project(toWorld(local, frame));
+  ['R', 'L'].forEach((key, i) => {
+    const t = stagger(trim, i, 2, 0.4);
+    if (t[1] < 0.002) return;
+    const g = blasterAxes(skel, key);
+    const depth = armSortDepth(skel, frame, cam, key) + 0.5;
+    const fillOf = (x) => smooth((x[1] - 0.5) / 0.5);
+    // Chunky barrel (pale blue, like the game's toy blasters), held mid-body.
+    const a = P(g.at(-6, 0));
+    const b = P(g.at(13, 0));
+    const k = a.k;
+    items.push({
+      key: `blaster-${key}`, type: 'capsule', d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`,
+      w: 8.5 * k, line: 2 * k, depth, layer: 1, trim: t, innerClass: 'stroke-sky-100 dark:stroke-sky-900',
+    });
+    // Round drum on top toward the back, then a muzzle ring at the tip.
+    const dt = [t[0], smooth((t[1] - 0.3) / 0.7)];
+    const drum = P(g.at(-1.5, 5.5));
+    items.push({
+      key: `blaster-drum-${key}`, type: 'shape', d: circlePath(drum, 4.6 * k), w: 2 * k, depth: depth + 0.01, layer: 1,
+      trim: dt, fill: fillOf(dt), fillClass: 'fill-white dark:fill-slate-800',
+    });
+    items.push({ key: `blaster-drum-dot-${key}`, type: 'dot', x: drum.x, y: drum.y, r: 1.5 * k * fillOf(dt), opacity: 1, depth: depth + 0.02, layer: 1 });
+    const tip = P(g.at(14, 0));
+    items.push({
+      key: `blaster-muzzle-${key}`, type: 'shape', d: circlePath(tip, 3.2 * k), w: 1.8 * k, depth: depth + 0.03, layer: 1,
+      trim: dt, fill: fillOf(dt), fillClass: 'fill-white dark:fill-slate-800',
+    });
+  });
+  return items;
+}
+
+/** A fluffy outline: scalloped tufts around a circle. */
+function furPath(c, r, n = 14, phase = 0) {
+  const pt = (ang, rad) => ({ x: c.x + Math.cos(ang) * rad, y: c.y + Math.sin(ang) * rad });
+  const step = (Math.PI * 2) / n;
+  const start = -Math.PI / 2 + phase;
+  let d = '';
+  for (let i = 0; i <= n; i += 1) {
+    const ang = start + i * step;
+    const p = pt(ang, r);
+    if (i === 0) {
+      d += `M${f(p.x)},${f(p.y)}`;
+    } else {
+      const q = pt(ang - step / 2, r * 1.28);
+      d += `Q${f(q.x)},${f(q.y)} ${f(p.x)},${f(p.y)}`;
+    }
+  }
+  return `${d}Z`;
+}
+
+function buildEncounters(skel, frame, cam, trim, t, time) {
+  const items = [];
+  const vis = trim[1] - trim[0];
+  if (vis < 0.002 || t < ENC.t0 - ENC.period) return items;
+  const P = (local) => cam.project(toWorld(local, frame));
+  const head = P(skel.headC);
+  const nNow = Math.floor((t - ENC.t0) / ENC.period);
+
+  for (let n = Math.max(0, nNow - 2); n <= nNow + 1; n += 1) {
+    const v = puffAge(n, t);
+    const appear = smooth((v + 0.6) / 0.25); // draws on before its cycle starts
+    const fade = 1 - smooth((v - 1.45) / 0.3); // bubble drifts off and fades
+    const alpha = Math.min(appear, fade) * vis;
+    if (alpha < 0.01) continue;
+    const c = P(puffPos(n, t));
+    const k = c.k;
+    const r = ENC.r * k;
+    const caught = v > ENC.hit;
+    const squash = caught ? 1 : 1 - 0.08 * Math.abs(Math.cos(((v * ENC.period) * 5.2) + n * 1.7));
+    const body = { x: c.x, y: c.y + r * (1 - squash) * 0.5 };
+    const tone = PUFF_TONES[n % PUFF_TONES.length];
+    const drawT = [0, appear];
+    items.push({
+      key: `puff-${n}`, type: 'shape', d: furPath(body, r, 13, n), w: 1.6 * k, depth: c.d, layer: 1,
+      trim: drawT, fill: smooth((appear - 0.5) / 0.5) * fade, fillClass: tone, opacity: fade,
+    });
+    // Big googly eyes on top, looking at the player (rolling once caught).
+    const look = caught
+      ? { x: Math.cos(time * 9 + n), y: Math.sin(time * 9 + n) }
+      : (() => {
+        const dx = head.x - c.x;
+        const dy = head.y - c.y;
+        const l = Math.hypot(dx, dy) || 1;
+        return { x: dx / l, y: dy / l };
+      })();
+    const eyeVis = smooth((appear - 0.7) / 0.3) * fade;
+    for (const s of [-1, 1]) {
+      const e = { x: body.x + s * r * 0.36, y: body.y - r * 0.38 };
+      const er = r * 0.36;
+      items.push({ key: `puff-${n}-eye${s}`, type: 'dot', x: e.x, y: e.y, r: er * eyeVis, fillClass: 'fill-white', opacity: 1, depth: c.d + 0.01, layer: 1 });
+      items.push({ key: `puff-${n}-eye-ring${s}`, type: 'shape', d: circlePath(e, er), w: 1.1 * k, depth: c.d + 0.02, layer: 1, trim: [0, eyeVis], fill: 0 });
+      items.push({ key: `puff-${n}-pupil${s}`, type: 'dot', x: e.x + look.x * er * 0.45, y: e.y + look.y * er * 0.45, r: er * 0.45 * eyeVis, fillClass: 'fill-slate-900', opacity: 1, depth: c.d + 0.03, layer: 1 });
+    }
+
+    // Laser: a short bolt travelling from the muzzle to the puffian.
+    const hand = puffHand(n);
+    const head0 = (v - ENC.fire) / (ENC.hit - ENC.fire);
+    if (head0 > 0 && head0 < 1.6) {
+      const m = P(blasterAxes(skel, hand).muzzle);
+      const bt = [clamp(head0 - 0.55), clamp(head0)];
+      if (bt[1] - bt[0] > 0.002) {
+        items.push({
+          key: `laser-${n}`, type: 'stroke', d: `M${f(m.x)},${f(m.y)}L${f(c.x)},${f(c.y)}`, w: 2.2 * k,
+          depth: Math.max(m.d, c.d) + 2, layer: 1, trim: bt, strokeClass: 'stroke-sky-400 dark:stroke-sky-300', opacity: vis,
+        });
+      }
+    }
+
+    // Bubble: draws around the puffian on the hit, then carries it away.
+    if (caught) {
+      const bv = (v - ENC.hit) / 0.12;
+      const br = r * 1.75;
+      const grow = 0.6 + 0.4 * smooth(bv);
+      const bt = [0, clamp(bv)];
+      items.push({
+        key: `bubble-${n}`, type: 'shape', d: circlePath(c, br * grow), w: 1.4 * k, depth: c.d + 1, layer: 1,
+        trim: bt, fill: 0.35 * smooth(bv) * alpha, fillClass: 'fill-sky-100 dark:fill-sky-400', opacity: alpha,
+      });
+      const shine = { x: c.x - br * 0.45 * grow, y: c.y - br * 0.45 * grow };
+      items.push({
+        key: `bubble-shine-${n}`, type: 'stroke',
+        d: `M${f(shine.x - br * 0.12)},${f(shine.y + br * 0.22)}Q${f(shine.x - br * 0.1)},${f(shine.y - br * 0.08)} ${f(shine.x + br * 0.22)},${f(shine.y - br * 0.12)}`,
+        w: 1.4 * k, depth: c.d + 1.01, layer: 1, trim: [0, smooth(bv - 0.5)], opacity: alpha, strokeClass: 'stroke-white dark:stroke-sky-100',
+      });
+      // A burst of little bubbles on impact.
+      const burst = (v - ENC.hit) / 0.3;
+      if (burst < 1) {
+        for (let i = 0; i < 5; i += 1) {
+          const ang = (i / 5) * Math.PI * 2 + rnd(n, 10 + i) * 0.8;
+          const dist = br * (1 + 0.9 * smooth(burst));
+          const p = { x: c.x + Math.cos(ang) * dist, y: c.y + Math.sin(ang) * dist };
+          items.push({
+            key: `fizz-${n}-${i}`, type: 'shape', d: circlePath(p, (1.2 + rnd(n, 20 + i)) * k), w: 1 * k, depth: c.d + 1.02, layer: 1,
+            trim: [0, 1], fill: 0, opacity: (1 - burst) * vis,
+          });
+        }
+      }
+    }
+  }
+  return items;
+}
+
 const KART = {
   tub: { x: [-17, 17], y: [5, 17], z: [-26, 30] },
   hood: { x: [-12, 12], y: [16, 22], z: [12, 42] },
@@ -2207,6 +2476,7 @@ export class TrimStickmanSim {
     this.lastSkel = null;
     this.lastDog = null;
     this.dogMoving = 0;
+    this.encT = 0; // First Encounters clock; freezes while its props erase
   }
 
   /** Replays the draw-on of the body. */
@@ -2230,7 +2500,7 @@ export class TrimStickmanSim {
       const end = smooth((this.sceneT - prop.on[0]) / (prop.on[1] - prop.on[0]));
       const start = Math.max(prop.on[0], this.swapAt[prop.id] ?? -Infinity);
       const shown = smooth((this.sceneT - start) / (prop.on[1] - prop.on[0]));
-      if (shown > 0.001) this.outgoing.push({ id: prop.id, variant: this.variantOf(prop.id), t: 0, end: shown });
+      if (shown > 0.001) this.outgoing.push({ id: prop.id, variant: prop.variant ?? this.variantOf(prop.id), t: 0, end: shown });
     }
     this.blendFrom = this.pose;
     this.blendT = 0;
@@ -2260,6 +2530,7 @@ export class TrimStickmanSim {
     this.time += dt;
     this.sceneT += dt;
     const scene = SCENES[this.scene];
+    if (this.scene === 'encounters') this.encT = this.sceneT;
 
     // Presence (body draw-on / erase).
     const pRate = 1 / 1.1;
@@ -2325,7 +2596,7 @@ export class TrimStickmanSim {
   setHeadset(id) {
     if (!HEADSETS[id] || id === this.headset) return;
     const worn = SCENES[this.scene].props.find((p) => p.id === 'headset');
-    if (worn) {
+    if (worn && !worn.variant) {
       const start = Math.max(worn.on[0], this.swapAt.headset ?? -Infinity);
       const shown = smooth((this.sceneT - start) / (worn.on[1] - worn.on[0]));
       if (shown > 0.001) {
@@ -2342,7 +2613,7 @@ export class TrimStickmanSim {
     for (const prop of SCENES[this.scene].props) {
       const start = Math.max(prop.on[0], this.swapAt[prop.id] ?? -Infinity);
       const end = smooth((this.sceneT - start) / (prop.on[1] - prop.on[0]));
-      if (end > 0.001) list.push({ id: prop.id, variant: this.variantOf(prop.id), trim: [0, end] });
+      if (end > 0.001) list.push({ id: prop.id, variant: prop.variant ?? this.variantOf(prop.id), trim: [0, end] });
     }
     for (const o of this.outgoing) {
       if (list.some((p) => p.id === o.id && p.variant === o.variant)) continue;
@@ -2398,6 +2669,8 @@ export class TrimStickmanSim {
         items.push(...buildDog(dog, frame, cam, prop.trim));
       }
       if (prop.id === 'leash' && dog) items.push(...buildLeash(skel, dog, frame, cam, prop.trim));
+      if (prop.id === 'blasters') items.push(...buildBlasters(skel, frame, cam, prop.trim));
+      if (prop.id === 'encounters') items.push(...buildEncounters(skel, frame, cam, prop.trim, this.encT, this.time));
     }
 
     items.sort((a, b) => a.layer - b.layer || a.depth - b.depth);

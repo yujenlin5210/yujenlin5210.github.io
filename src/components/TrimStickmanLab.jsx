@@ -29,7 +29,7 @@ const SECTIONS = [
     title: 'Props draw themselves on',
     body: [
       'Every path uses pathLength="1" plus a dash array, which makes it a Trim Paths control: [start, end] from 0 to 1. Props trim on when a section starts and erase themselves when it ends, while the pose crossfades underneath.',
-      'The headset is a real box parented to the head (backface-culled, depth-sorted) plus a strap ring split into arcs, so each arc sits in front of or behind the head on its own.',
+      'The headset is a solid shape parented to the head and depth-sorted with it, so it wraps around the face as the head turns. Pick a different headset below and the old one erases while the new one draws on.',
     ],
   },
   {
@@ -48,6 +48,15 @@ const SECTIONS = [
     body: [
       'The dog uses the same pieces: a capsule body, a circle head, and four two-bone legs on a trot cycle. The leash is one trimmed curve from hand to collar.',
       'Adding an action is a pose function plus an optional prop builder, with no new path art.',
+    ],
+  },
+  {
+    scene: 'encounters',
+    kicker: '06 · First Encounters',
+    title: 'Aiming is just solving for a direction',
+    body: [
+      'The Boba 3 demo game: fluffy puffians pop up around the player, who turns, aims, and fires. The aiming arm is solved straight at the target in 3D, the torso and head twist toward it, and the pose blends to the next target before it is shot.',
+      'The laser is a trim window sliding along one line, and the bubble that wraps a hit puffian is a circle drawing itself on, then drifting up and away. The whole game loop is a pure function of time.',
     ],
   },
 ];
