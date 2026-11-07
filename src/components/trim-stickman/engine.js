@@ -3501,7 +3501,7 @@ function buildCap(skel, frame, cam, trim) {
   const front = cam.facing(dirW([0, 0, 1]));
   const BAND = 0.06 * R; // the cap sits low, down to the brow
   // The band ring around the head (lon 0 = front).
-  const bandAt = (lon) => [Math.sin(lon) * R * 1.05, BAND, 0.06 * R + Math.cos(lon) * R * 1.07];
+  const bandAt = (lon) => [Math.sin(lon) * R * 1.02, BAND, 0.04 * R + Math.cos(lon) * R * 1.03];
   // The front panel's arched top edge: highest at the centre, leaning back a little.
   const panelTop = (lon) => {
     const b = bandAt(lon);
@@ -3524,11 +3524,11 @@ function buildCap(skel, frame, cam, trim) {
     for (let lon = 90; lon <= 270; lon += 12) {
       const la = lat * D2R;
       const lo = lon * D2R;
-      crown.push(H([Math.sin(lo) * Math.cos(la) * R * 1.04, BAND + Math.sin(la) * R * 0.98, Math.cos(lo) * Math.cos(la) * R * 1.02]));
+      crown.push(H([Math.sin(lo) * Math.cos(la) * R * 1.02, BAND + Math.sin(la) * R * 0.97, Math.cos(lo) * Math.cos(la) * R * 1.01]));
     }
   }
   const t0 = tr(0);
-  items.push({ key: 'cap-crown', type: 'shape', d: linePath(convexHull(crown), true), w: 1.8 * k, depth: hc.d + 0.6, layer: 1, trim: t0, fill: fillOf(t0), tone: 1, join: 'round' });
+  items.push({ key: 'cap-crown', type: 'shape', d: linePath(convexHull(crown), true), w: 1.8 * k, depth: hc.d + 0.6, layer: 1, trim: t0, fill: fillOf(t0), tone: 0, join: 'round' });
   // The seam along the panel's arched top edge (the cap's signature line).
   if (front > -0.35) {
     const seam = [];
@@ -3544,7 +3544,7 @@ function buildCap(skel, frame, cam, trim) {
   const brim = [];
   for (let lon = -86; lon <= 86; lon += 7) brim.push(H(bandAt(lon * D2R)), H(edge(lon * D2R, 0)), H(edge(lon * D2R, 0.11 * R)));
   const t1 = tr(1);
-  items.push({ key: 'cap-brim', type: 'shape', d: linePath(convexHull(brim), true), w: 1.6 * k, depth: hc.d + (front > -0.2 ? 0.7 : -0.7), layer: 1, trim: t1, fill: fillOf(t1), tone: 2, join: 'round' });
+  items.push({ key: 'cap-brim', type: 'shape', d: linePath(convexHull(brim), true), w: 1.6 * k, depth: hc.d + (front > -0.2 ? 0.7 : -0.7), layer: 1, trim: t1, fill: fillOf(t1), tone: 1, join: 'round' });
   // The D-shaped badge low on the panel, lying on its (nearly upright) surface.
   if (front > 0.02) {
     const vis2 = smooth((front - 0.02) / 0.25);
@@ -3560,7 +3560,7 @@ function buildCap(skel, frame, cam, trim) {
     }
     badge.push(at(-r, -0.42 * r), at(r, -0.42 * r));
     const t2 = tr(2);
-    items.push({ key: 'cap-badge', type: 'shape', d: smoothPath(badge, true), w: 1.2 * k, depth: hc.d + 0.65, layer: 1, trim: t2, fill: fillOf(t2) * vis2, tone: 0, opacity: vis2 });
+    items.push({ key: 'cap-badge', type: 'shape', d: smoothPath(badge, true), w: 1.2 * k, depth: hc.d + 0.65, layer: 1, trim: t2, fill: fillOf(t2) * vis2, tone: 1, opacity: vis2 });
   }
   return items;
 }
