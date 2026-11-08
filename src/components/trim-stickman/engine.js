@@ -278,6 +278,18 @@ export const SCENES = {
       { id: 'hearts', on: [2.1, 2.2] },
     ],
   },
+  stranger: {
+    label: 'Stranger Things',
+    stand: true,
+    faceYaw: 100, // in profile, facing the creature on screen-right (keep equal to ST.faceYaw)
+    speed: () => 0,
+    clip: (t) => strangerPose(t),
+    props: [
+      { id: 'spores', on: [0.2, 1.4] },
+      { id: 'demogorgon', on: [0.4, 1.4] },
+      { id: 'power', on: [0.4, 0.5] },
+    ],
+  },
 };
 
 export const SCENE_IDS = Object.keys(SCENES);
@@ -4203,6 +4215,435 @@ function buildSparkles(skel, frame, cam, trim, t) {
   return items;
 }
 
+// --- Stranger Things: the end of season 1 ---------------------------------
+//
+// The figure holds one arm out at a Demogorgon. Ripples pulse from the hand,
+// the creature is lifted off its feet, shaking, with its head flowered open,
+// and then it burns away: each part erases toward the body, shedding ash that
+// drifts up and away. A little nosebleed for the effort. On a loop: the
+// creature comes back out of the Upside Down after a beat.
+
+const ST = {
+  t0: 0.4, // first cycle starts here (scene time)
+  period: 9.4,
+  faceYaw: 100,
+  at: [92, -22], // the creature, world-anchored around the figure (+z toward the viewer)
+  emerge: [0, 1.1], // draws on
+  roar: [1.0, 1.6], // head petals open
+  raise: [1.3, 1.9], // the figure's arm comes up
+  lift: [1.9, 2.7], // creature lifted off its feet
+  burn: 4.2, // first part starts burning away
+  burnStep: 0.3, // stagger between parts
+  burnDur: 1.1,
+  ashLife: 2.2,
+  lower: [6.6, 7.4], // the arm comes down
+};
+// Parts burn away in this order (extremities first).
+const DEMO_PARTS = ['petals', 'claws', 'arms', 'body', 'legs'];
+const DEMO_SKIN = 'stroke-slate-300 dark:stroke-slate-600'; // limb tube interior
+const DEMO_FILL = 'fill-slate-300 dark:fill-slate-600';
+const DEMO_CHAR = 'fill-slate-600 dark:fill-slate-400'; // charred, just before it crumbles
+const DEMO_CHAR_SKIN = 'stroke-slate-600 dark:stroke-slate-400';
+const sub3 = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const ST_YAW = (() => {
+  const toFigure = Math.atan2(-ST.at[0], -ST.at[1]) / D2R;
+  return toFigure * 0.65; // turned partly toward the viewer
+})();
+
+function stCycle(t) {
+  if (t < ST.t0) return -1;
+  return (t - ST.t0) % ST.period;
+}
+function burnWindow(part) {
+  const i = DEMO_PARTS.indexOf(part);
+  return [ST.burn + i * ST.burnStep, ST.burn + i * ST.burnStep + ST.burnDur];
+}
+const burnProg = (c, part) => {
+  const [a, b] = burnWindow(part);
+  return clamp((c - a) / (b - a));
+};
+// How strongly the power is gripping the creature (0..1).
+const stGrip = (c) => window01(c, ST.lift[0] - 0.2, ST.lift[0] + 0.3) * (1 - window01(c, ST.burn + 1.2, ST.burn + 1.8));
+
+function strangerPose(t) {
+  const c = stCycle(t);
+  const base = idlePose(t);
+  if (c < 0) return base;
+  // The arm points at the creature's chest (figure-local target).
+  const target = rotY([ST.at[0], 74, ST.at[1]], -ST.faceYaw);
+  const aim = aimPose(target, 'R');
+  const strain = stGrip(c);
+  const tremble = strain * (1.6 * Math.sin(t * 47) + 1.1 * Math.sin(t * 31));
+  const power = pose({
+    ...aim,
+    aRp: aim.aRp + tremble,
+    aRr: aim.aRr + tremble * 0.6,
+    aRbp: 2,
+    // The other arm hangs, fist clenched, slightly out.
+    aLp: 4, aLr: 14, aLbp: 6, aLbr: 0,
+    hp: -7 + strain * 3,
+    hr: strain * 5 * Math.sin(t * 2),
+    lean: 3 + strain * 2,
+    lRr: 11, lLr: 11, lRk: 12, lLk: 12,
+  });
+  const up = window01(c, ST.raise[0], ST.raise[1]) * (1 - window01(c, ST.lower[0], ST.lower[1]));
+  const out = lerpPose(base, power, up);
+  // Spent afterwards: a slight slump.
+  const slump = window01(c, ST.lower[0], ST.lower[1]) * (1 - window01(c, ST.period - 0.6, ST.period));
+  out.lean += 4 * slump;
+  out.hp += 6 * slump;
+  return out;
+}
+
+/** The creature's skeleton (creature-local, +z forward) at cycle time c. */
+function demoSkel(c, time) {
+  const menace = window01(c, 0.3, 1.2);
+  const open = window01(c, ST.roar[0], ST.roar[1]) * (1 - 0.25 * stGrip(c));
+  const grip = stGrip(c);
+  const lift = window01(c, ST.lift[0], ST.lift[1]) * (1 - window01(c, ST.burn + 1.4, ST.burn + 2));
+  const shake = grip * (Math.sin(time * 53) * 1.2 + Math.sin(time * 37) * 0.8);
+  const breathe = Math.sin(time * 1.7);
+  const flail = Math.sin(time * 9);
+
+  const legs = {};
+  let minFoot = Infinity;
+  for (const [key, side] of [['R', -1], ['L', 1]]) {
+    const hip = [side * 6, 0, 0];
+    const p = lerp(6 - 4 * menace, 18 + 8 * Math.sin(time * 6 + side), lift);
+    const r = lerp(7 + 3 * menace, 10, lift);
+    const k = lerp(16 + 10 * menace, 34, lift);
+    legs[key] = solveLimb(hip, 30, 30, p, r, p - k, r, side);
+    minFoot = Math.min(minFoot, legs[key][2][1]);
+  }
+  const pelvis = [shake, -minFoot + lift * 14 + breathe * 0.6, 0];
+  for (const key of ['R', 'L']) legs[key] = legs[key].map((q) => add(pelvis, q));
+  // Hunched forward; arched back when gripped.
+  const lean = lerp(18 + 6 * menace, -16, smooth(grip * 1.2));
+  const spine = rotX([0, 1, 0], lean);
+  const chest = add(pelvis, mul(spine, 34));
+  const neck = add(chest, mul(rotX([0, 1, 0], lean * 1.5 + 10), 10));
+  // The head (a flower of petals) points forward, raised to roar, thrown back when gripped.
+  const el = lerp(lerp(-12, 18, open), 62, smooth(grip * 1.2)) * D2R;
+  const fwd = [0.12 * shake, Math.sin(el), Math.cos(el)];
+  const arms = {};
+  for (const [key, side] of [['R', -1], ['L', 1]]) {
+    const sh = add(chest, [side * 12, -2, 0]);
+    const p = lerp(lerp(8, 34, menace), -24 + 12 * flail * side, grip);
+    const r = lerp(lerp(12, 34, menace), 58 + 12 * flail, grip);
+    const bp = lerp(lerp(26, 42, menace), 30, grip);
+    arms[key] = solveLimb(sh, 26, 26, p, r, p + bp, r, side).map((q) => q);
+  }
+  return { pelvis, chest, neck, fwd, open, arms, legs };
+}
+
+function demoFrame(frame) {
+  return { yaw: ST_YAW, root: add(frame.root, [ST.at[0], 0, ST.at[1]]) };
+}
+
+function buildDemogorgon(frame, cam, trim, t, time) {
+  const c = stCycle(t);
+  if (c < 0 || c > burnWindow(DEMO_PARTS[DEMO_PARTS.length - 1])[1] + ST.ashLife) return [];
+  const items = [];
+  const df = demoFrame(frame);
+  const sk = demoSkel(c, time);
+  const P = (q) => cam.project(toWorld(q, df));
+  const emerge = smooth((c - ST.emerge[0]) / (ST.emerge[1] - ST.emerge[0]));
+  const shown = Math.min(trim[1], emerge);
+  // Parts draw on in sequence (body first) and burn away (extremities first).
+  const order = ['body', 'legs', 'arms', 'claws', 'petals'];
+  const tr = (part) => {
+    const on = stagger([0, shown], order.indexOf(part), order.length, 0.5);
+    return [Math.max(on[0], trim[0]), on[1]];
+  };
+  // Crumbling: each part fades out as its ash flakes break off (see below).
+  const fade = (part) => 1 - smooth((burnProg(c, part) - 0.12) / 0.45);
+  const fillOf = (part) => smooth((tr(part)[1] - 0.6) / 0.4) * fade(part);
+  // Charring: the creature darkens just before it crumbles.
+  const charA = window01(c, ST.burn - 0.7, ST.burn + 0.1);
+  const skin = charA > 0.5 ? DEMO_CHAR_SKIN : DEMO_SKIN;
+  const bodyD = P(mix(sk.pelvis, sk.chest, 0.5)).d;
+
+  // Legs and arms are drawn from the extremity inward, so they burn away toward the body.
+  for (const key of ['R', 'L']) {
+    const [hip, knee, foot] = sk.legs[key].map(P);
+    const side = key === 'R' ? -1 : 1;
+    const sideF = cam.facing(rotY([side, 0, 0], df.yaw));
+    const depth = bodyD + (sideF > 0 ? 3 : -3);
+    items.push({ key: `demo-leg${key}`, type: 'capsule', d: quadThrough(foot, knee, hip), w: 5.5 * knee.k, line: 2 * knee.k, depth, layer: 1, trim: tr('legs'), innerClass: skin, opacity: fade('legs') });
+    // Two toe claws.
+    let toes = '';
+    for (const a of [-0.35, 0.35]) {
+      const tip = P(add(sk.legs[key][2], [Math.sin(a) * 7, -0.5, Math.cos(a) * 7]));
+      toes += `M${f(foot.x)},${f(foot.y)}L${f(tip.x)},${f(tip.y)}`;
+    }
+    items.push({ key: `demo-toes${key}`, type: 'stroke', d: toes, w: 2 * foot.k, depth, layer: 1, trim: tr('claws'), opacity: fade('legs') });
+  }
+  for (const key of ['R', 'L']) {
+    const chain = sk.arms[key];
+    const [sh, el, ha] = chain.map(P);
+    const side = key === 'R' ? -1 : 1;
+    const sideF = cam.facing(rotY([side, 0, 0], df.yaw));
+    const depth = bodyD + (sideF > 0 ? 4 : -4);
+    items.push({ key: `demo-arm${key}`, type: 'capsule', d: quadThrough(ha, el, sh), w: 4.2 * el.k, line: 1.9 * el.k, depth, layer: 1, trim: tr('arms'), innerClass: skin, opacity: fade('arms') });
+    // Long curved claws fanning out from the hand along the forearm.
+    const dir = norm([chain[2][0] - chain[1][0], chain[2][1] - chain[1][1], chain[2][2] - chain[1][2]]);
+    let claws = '';
+    [-1, 0, 1].forEach((j) => {
+      const spread = add(dir, [j * 0.45, -0.25, j * 0.2 * side]);
+      const mid = P(add(chain[2], mul(norm(spread), 6)));
+      const tip = P(add(chain[2], add(mul(norm(spread), 11), [0, -4, 0])));
+      claws += `M${f(ha.x)},${f(ha.y)}Q${f(mid.x)},${f(mid.y)} ${f(tip.x)},${f(tip.y)}`;
+    });
+    items.push({ key: `demo-claws${key}`, type: 'stroke', d: claws, w: 1.5 * ha.k, depth: depth + 0.1, layer: 1, trim: tr('claws'), opacity: fade('claws') });
+  }
+
+  // Body: a tapered grey torso (broad shoulders, narrow waist, hips) built as
+  // a screen-space silhouette around the spine, so it keeps its volume from any
+  // side. The outline starts at the neck, so it burns away from the top.
+  const p1 = P(sk.chest);
+  const pn = P(sk.neck);
+  const bt = tr('body');
+  const spineAt = [
+    [sk.neck, 3.2, 3],
+    [add(sk.chest, mul(norm(sub3(sk.neck, sk.chest)), 1)), 12.5, 6],
+    [mix(sk.chest, sk.pelvis, 0.3), 9.5, 6],
+    [mix(sk.chest, sk.pelvis, 0.65), 5.8, 5],
+    [sk.pelvis, 7.5, 5.5],
+    [add(sk.pelvis, [0, -6, 0]), 3.5, 3.5],
+  ];
+  const leftS = [];
+  const rightS = [];
+  spineAt.forEach(([q, wx, wz], i) => {
+    const c0 = P(q);
+    const nb = P(spineAt[Math.min(i + 1, spineAt.length - 1)][0]);
+    const pb = P(spineAt[Math.max(i - 1, 0)][0]);
+    let tx = nb.x - pb.x;
+    let ty = nb.y - pb.y;
+    const tl = Math.hypot(tx, ty) || 1;
+    tx /= tl;
+    ty /= tl;
+    const nx = -ty;
+    const ny = tx;
+    const L = P(add(q, [wx, 0, 0]));
+    const D = P(add(q, [0, 0, wz]));
+    const lw = (L.x - c0.x) * nx + (L.y - c0.y) * ny;
+    const dw = (D.x - c0.x) * nx + (D.y - c0.y) * ny;
+    const half = Math.hypot(lw, dw);
+    leftS.push({ x: c0.x + nx * half, y: c0.y + ny * half });
+    rightS.push({ x: c0.x - nx * half, y: c0.y - ny * half });
+  });
+  const torsoPts = [...leftS, ...rightS.reverse()];
+  const torsoD = smoothPath(torsoPts, true);
+  items.push({ key: 'demo-body', type: 'shape', d: torsoD, w: 2.2 * p1.k, depth: bodyD, layer: 1, trim: bt, fill: fillOf('body'), fillClass: DEMO_FILL, join: 'round', opacity: fade('body') });
+  if (charA > 0.01) items.push({ key: 'demo-body-char', type: 'shape', d: torsoD, w: 0, depth: bodyD + 0.01, layer: 1, trim: [0, 0], fill: fillOf('body') * charA, fillClass: DEMO_CHAR });
+  // Ribs: a few short ticks across the chest.
+  if (bt[1] - bt[0] > 0.3) {
+    let ribs = '';
+    for (let i = 0; i < 3; i += 1) {
+      const y = mix(sk.chest, sk.pelvis, 0.15 + i * 0.15);
+      const a = P(add(y, [-4, 0, 6]));
+      const b = P(add(y, [4, 0, 6]));
+      ribs += `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`;
+    }
+    const rv = smooth((cam.facing(rotY([0, 0, 1], df.yaw)) + 0.3) / 0.4) * fillOf('body');
+    if (rv > 0.02) items.push({ key: 'demo-ribs', type: 'stroke', d: ribs, w: 1.1 * p1.k, depth: bodyD + 0.1, layer: 1, trim: [0, 1], opacity: rv * 0.7 });
+  }
+
+  // The head: five petals around the mouth, a closed bud that flowers open.
+  const fwd = norm(sk.fwd);
+  const upRef = Math.abs(fwd[1]) > 0.9 ? [0, 0, 1] : [0, 1, 0];
+  const u = norm(cross(upRef, fwd));
+  const v = cross(fwd, u);
+  const base = add(sk.neck, mul(fwd, 3));
+  const spreadA = lerp(10, 78, sk.open) * D2R;
+  const petals = [];
+  for (let i = 0; i < 5; i += 1) {
+    const ang = (i / 5) * Math.PI * 2 + 0.3;
+    const radial = add(mul(u, Math.cos(ang)), mul(v, Math.sin(ang)));
+    const tang = cross(fwd, radial);
+    const dir = add(mul(fwd, Math.cos(spreadA)), mul(radial, Math.sin(spreadA)));
+    const L = 25;
+    const W = 8.5;
+    const at = (along, across, lift = 0) => add(base, add(add(mul(dir, along), mul(tang, across)), mul(radial, lift)));
+    const pts = [at(0, -1.5), at(L * 0.4, -W), at(L * 0.8, -W * 0.55), at(L, 0, 1), at(L * 0.8, W * 0.55), at(L * 0.4, W), at(0, 1.5)].map(P);
+    // Inner face (with teeth) faces the axis: its normal is -radial tilted forward.
+    const innerN = add(mul(fwd, Math.sin(spreadA)), mul(radial, -Math.cos(spreadA)));
+    const inner = cam.facing(rotY(innerN, df.yaw)) > 0;
+    const tip = P(at(L, 0));
+    petals.push({ i, pts, inner, d: tip.d, dir, tang, at });
+  }
+  const pt = tr('petals');
+  const pf = fillOf('petals');
+  // The throat: a dark ring at the centre of the open flower.
+  if (sk.open > 0.15) {
+    const ring = ringPoints(base, 3.6 * sk.open, 'y', 14).map((q) => {
+      const rel = [q[0] - base[0], q[1] - base[1], q[2] - base[2]];
+      return P(add(base, add(mul(u, rel[0]), mul(v, rel[2]))));
+    });
+    items.push({ key: 'demo-throat', type: 'shape', d: smoothPath(ring, true), w: 1 * pn.k, depth: P(base).d + 0.05, layer: 1, trim: pt, fill: pf * sk.open, ink: true, opacity: sk.open * fade('petals') });
+  }
+  petals.forEach((pe) => {
+    items.push({ key: `demo-petal${pe.i}`, type: 'shape', d: smoothPath(pe.pts, true), w: 1.6 * pn.k, depth: pe.d + 0.1, layer: 1, trim: pt, fill: pf, opacity: fade('petals'), ...(pe.inner && sk.open > 0.3 ? { tone: 0 } : { fillClass: charA > 0.5 ? DEMO_CHAR : DEMO_FILL }) });
+    // Teeth: little ticks along the inside of an open petal.
+    if (pe.inner && sk.open > 0.3) {
+      let teeth = '';
+      for (let j = 1; j <= 4; j += 1) {
+        for (const sd of [-1, 1]) {
+          const a = P(pe.at(j * 3.6, sd * 3.6, 0.2));
+          const b = P(pe.at(j * 3.6 + 1, sd * 1.4, 0.4));
+          teeth += `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`;
+        }
+      }
+      items.push({ key: `demo-teeth${pe.i}`, type: 'stroke', d: teeth, w: 1 * pn.k, depth: pe.d + 0.11, layer: 1, trim: pt, opacity: smooth((sk.open - 0.3) / 0.4) * fade('petals') });
+    }
+  });
+
+  // Ash: the creature crumbles into flakes. Each part breaks up into many
+  // small flakes spread through its volume, extremities first; a flake hangs
+  // in place for a moment (the body cracking apart), then drifts up and away,
+  // tumbling and fading.
+  const ASH_N = { petals: 40, claws: 14, arms: 44, body: 90, legs: 48 };
+  DEMO_PARTS.forEach((part, pi) => {
+    const [b0, b1] = burnWindow(part);
+    if (c < b0) return;
+    const N = ASH_N[part];
+    for (let j = 0; j < N; j += 1) {
+      const h = (k) => {
+        const x = Math.sin((pi * 97 + j * 13 + k * 7.1) * 12.9898) * 43758.5453;
+        return x - Math.floor(x);
+      };
+      const fr = h(1);
+      const spawn = b0 + (b1 - b0) * 0.55 * (0.6 * fr + 0.4 * h(2));
+      const age = c - spawn;
+      if (age < 0 || age > ST.ashLife) continue;
+      const at = demoPartPoint(demoSkel(spawn, time - age), part, fr, h(3), h(4), h(5));
+      const HOLD = 0.3 + 0.2 * h(22);
+      const go = Math.max(0, age - HOLD); // hangs in place first, holding the creature's shape
+      const drift = [
+        go * (16 + 14 * h(6)) + go * go * 6 + Math.sin(go * 3 + j) * 2.5 * go,
+        go * (14 + 16 * h(7)) + go * go * 9,
+        go * (h(8) - 0.5) * 16,
+      ];
+      const q = P(add(add(at, drift), [0, -Math.min(age, HOLD) * 4, 0]));
+      const life = 1 - smooth(age / ST.ashLife);
+      const size = (1.1 + 1.6 * h(9)) * q.k * (0.55 + 0.45 * life);
+      const rot = h(10) * 6.28 + go * (3 + 5 * h(11));
+      const flutter = 0.45 + 0.55 * Math.abs(Math.cos(go * 4 + j));
+      const pts = [0, 1, 2, 3].map((k) => {
+        const a = rot + k * 1.57 + (h(12 + k) - 0.5) * 0.9;
+        const r = size * (0.55 + 0.6 * h(16 + k));
+        return { x: q.x + Math.cos(a) * r, y: q.y + Math.sin(a) * r * flutter };
+      });
+      const op = smooth(age / 0.08) * life * (0.6 + 0.4 * h(20)) * trim[1];
+      items.push({ key: `demo-ash-${pi}-${j}`, type: 'shape', d: linePath(pts, true), w: 0.5 * q.k, depth: q.d + 20, layer: 1, trim: [0, 0], fill: op, fillClass: h(21) > 0.35 ? DEMO_CHAR : 'fill-slate-400 dark:fill-slate-500' });
+    }
+  });
+  return items;
+}
+
+/**
+ * A point inside one of the creature's parts (fr: 0 at the extremity, 1 at the
+ * body), spread through its volume by r1..r3; creature-local.
+ */
+function demoPartPoint(sk, part, fr, r1, r2, r3) {
+  const key = r1 > 0.5 ? 'R' : 'L';
+  const jitter = (rad) => [(r2 - 0.5) * 2 * rad, (r3 - 0.5) * 2 * rad, (((r2 * 7.3 + r3) % 1) - 0.5) * 2 * rad];
+  const along = ([a, b, c2]) => (fr < 0.5 ? mix(c2, b, fr * 2) : mix(b, a, fr * 2 - 1));
+  if (part === 'petals') {
+    const fwd = norm(sk.fwd);
+    return add(add(sk.neck, mul(fwd, 3 + 20 * (1 - fr))), jitter(4 + 8 * sk.open * (1 - fr)));
+  }
+  if (part === 'claws') return add(add(sk.arms[key][2], mul(norm(sub3(sk.arms[key][2], sk.arms[key][1])), 8 * (1 - fr))), jitter(3));
+  if (part === 'arms') return add(along(sk.arms[key]), jitter(2.2));
+  if (part === 'legs') return add(along(sk.legs[key]), jitter(2.8));
+  // Body: through the torso, wider at the shoulders.
+  const q = mix(sk.neck, add(sk.pelvis, [0, -4, 0]), fr);
+  const w = fr < 0.15 ? 4 : fr < 0.4 ? 11 : fr < 0.7 ? 6 : 7;
+  return add(q, [(r2 - 0.5) * 2 * w, (r3 - 0.5) * 4, (((r2 * 5.1 + r3) % 1) - 0.5) * 9]);
+}
+
+/** Ripples pulsing from the outstretched hand, and a nosebleed from the strain. */
+function buildPower(skel, frame, cam, trim, t, time) {
+  const c = stCycle(t);
+  if (c < 0) return [];
+  const items = [];
+  const grip = stGrip(c);
+  const hand = cam.project(toWorld(skel.arms.R[2], frame));
+  const df = demoFrame(frame);
+  if (grip > 0.02) {
+    const sk = demoSkel(c, time);
+    const tgt = cam.project(toWorld(mix(sk.pelvis, sk.chest, 0.7), df));
+    const dx = tgt.x - hand.x;
+    const dy = tgt.y - hand.y;
+    const dist = Math.hypot(dx, dy) || 1;
+    const dir = Math.atan2(dy, dx);
+    for (let i = 0; i < 3; i += 1) {
+      const q = ((time * 1.4 + i / 3) % 1);
+      const r = dist * (0.12 + 0.82 * q);
+      const half = (0.42 - 0.18 * q);
+      const a0 = dir - half;
+      const a1 = dir + half;
+      const x0 = hand.x + Math.cos(a0) * r;
+      const y0 = hand.y + Math.sin(a0) * r;
+      const x1 = hand.x + Math.cos(a1) * r;
+      const y1 = hand.y + Math.sin(a1) * r;
+      const op = grip * Math.sin(q * Math.PI) * 0.8 * trim[1];
+      items.push({ key: `power-ripple-${i}`, type: 'stroke', d: `M${f(x0)},${f(y0)}A${f(r)},${f(r)} 0 0 1 ${f(x1)},${f(y1)}`, w: (1.8 - q) * hand.k, depth: (hand.d + tgt.d) / 2 + 10, layer: 1, trim: [0, 1], opacity: op });
+    }
+  }
+  // The open palm: fingers spread toward the creature while the arm is up.
+  const palm = window01(c, ST.raise[0] + 0.3, ST.raise[1]) * (1 - window01(c, ST.lower[0], ST.lower[0] + 0.4));
+  if (palm > 0.02) {
+    const [, el, ha] = skel.arms.R;
+    const dir = norm(sub3(ha, el));
+    const side = norm(cross(dir, [0, 1, 0]));
+    const upv = cross(side, dir);
+    let fingers = '';
+    [-1.1, -0.4, 0.3, 1.0].forEach((a, i) => {
+      const len = 4.2 * palm * (i === 0 ? 0.8 : 1);
+      const d = norm(add(add(mul(dir, 0.75), mul(upv, Math.sin(a) * 0.9)), mul(side, Math.cos(a) * 0.25)));
+      const q = cam.project(toWorld(add(ha, mul(d, len)), frame));
+      fingers += `M${f(hand.x)},${f(hand.y)}L${f(q.x)},${f(q.y)}`;
+    });
+    items.push({ key: 'power-palm', type: 'stroke', d: fingers, w: 1.6 * hand.k, depth: hand.d + 0.5, layer: 1, trim: [0, trim[1]], opacity: palm });
+  }
+  // The nosebleed: a short drip under the nose, from the grip until the arm comes down.
+  const bleed = window01(c, ST.lift[1], ST.lift[1] + 0.6) * (1 - window01(c, ST.lower[1], ST.lower[1] + 0.5));
+  if (bleed > 0.01) {
+    const R = skel.rig.headR;
+    const fwd = headRotate([0, -0.25, 1], skel.headRot);
+    // Still shows in profile, where the nose is on the head's outline.
+    const vis = smooth((cam.facing(rotY(norm(fwd), frame.yaw)) + 0.45) / 0.3);
+    if (vis > 0.02) {
+      const at = (v) => cam.project(toWorld(add(skel.headC, headRotate(mul(v, R), skel.headRot)), frame));
+      // Just off the face, so it doesn't merge into the head outline in profile.
+      const a = at([0.14, -0.3, 1.1]);
+      const b = at([0.15, -0.3 - 0.34 * bleed, 1.08]);
+      items.push({ key: 'power-nosebleed', type: 'stroke', d: `M${f(a.x)},${f(a.y)}L${f(b.x)},${f(b.y)}`, w: 2 * a.k, depth: cam.project(toWorld(skel.headC, frame)).d + 1, layer: 1, trim: [0, 1], opacity: vis * trim[1] });
+    }
+  }
+  return items;
+}
+
+/** Upside Down spores: motes drifting slowly through the air. */
+function buildSpores(frame, cam, trim, time) {
+  const items = [];
+  for (let i = 0; i < 18; i += 1) {
+    const seed = Math.sin(i * 78.233) * 43758.5453;
+    const r1 = seed - Math.floor(seed);
+    const r2 = (r1 * 9.17) % 1;
+    const r3 = (r1 * 3.71 + r2) % 1;
+    const span = 150;
+    const y = ((r2 * span + time * (4 + 5 * r3)) % span) + 5;
+    const x = -130 + r1 * 300 + Math.sin(time * 0.5 + i) * 8;
+    const z = -60 + r3 * 90;
+    const q = cam.project(add(frame.root, [x, y, z]));
+    const fadeY = smooth(Math.min(y - 5, span + 5 - y) / 25);
+    items.push({ key: `spore-${i}`, type: 'dot', x: q.x, y: q.y, r: (0.8 + 1.1 * r3) * q.k, opacity: 0.45 * fadeY * trim[1], depth: q.d, layer: 1 });
+  }
+  return items;
+}
+
 function buildShadow(frame, cam, radius, opacity) {
   const ring = ringPoints([0, 0, 0], radius, 'y', 24).map((p) => cam.project(toWorld([p[0], 0, p[2] * 0.9], frame)));
   return {
@@ -4254,6 +4695,7 @@ export class TrimStickmanSim {
     this.kartT = 0; // kart item cycle clock
     this.examT = 0; // Retina resolution (eye exam) clock
     this.petsT = 0; // Pets clock
+    this.strangeT = 0; // Stranger Things clock
     this.morph = 0; // 0 = the chosen style, 1 = turned into the critter (pets)
     this.standYaw = yaw;
   }
@@ -4316,6 +4758,7 @@ export class TrimStickmanSim {
     if (this.scene === 'kart') this.kartT = this.sceneT;
     if (this.scene === 'retina') this.examT = this.sceneT;
     if (this.scene === 'pets') this.petsT = this.sceneT;
+    if (this.scene === 'stranger') this.strangeT = this.sceneT;
 
     // Pets: the figure turns into the critter, and back when the scene ends.
     const morphTo = this.scene === 'pets' && this.sceneT > PETS_T.morph ? 1 : 0;
@@ -4460,6 +4903,9 @@ export class TrimStickmanSim {
       if (prop.id === 'kartitems') items.push(...buildKartItems(skel, frame, cam, prop.trim, this.kartT));
       if (prop.id === 'blasters') items.push(...buildBlasters(skel, frame, cam, prop.trim));
       if (prop.id === 'encounters') items.push(...buildEncounters(skel, frame, cam, prop.trim, this.encT, this.time));
+      if (prop.id === 'demogorgon') items.push(...buildDemogorgon(frame, cam, prop.trim, this.strangeT, this.time));
+      if (prop.id === 'power') items.push(...buildPower(skel, frame, cam, prop.trim, this.strangeT, this.time));
+      if (prop.id === 'spores') items.push(...buildSpores(frame, cam, prop.trim, this.time));
       if (prop.id === 'pets') items.push(...buildPets(frame, cam, prop.trim, this.petsT, this.time));
       if (prop.id === 'hearts') items.push(...buildHearts(skel, frame, cam, prop.trim, this.petsT, this.time));
       if (prop.id === 'sparkles') items.push(...buildSparkles(skel, frame, cam, prop.trim, this.petsT));

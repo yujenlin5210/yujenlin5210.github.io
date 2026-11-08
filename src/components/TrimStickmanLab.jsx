@@ -86,6 +86,15 @@ const SECTIONS = [
       'Then cats and dogs trot in and sit around it, all built from one four-legged rig (a capsule body, a circle head, and four two-bone legs on a trot cycle), and hearts float its way. Scroll on and it turns back into you.',
     ],
   },
+  {
+    scene: 'stranger',
+    kicker: '10 · Stranger Things',
+    title: 'Burning away, one line at a time',
+    body: [
+      'The Stranger Things pop-up tracked your skeleton, so you could use your powers the way Eleven does at the end of season 1. The figure holds one arm out, palm open, ripples pulse from the hand, and the Demogorgon is lifted off its feet, shaking, its head flowered open.',
+      'Then it chars and dissolves into ash. Each part shatters into a few dozen flakes spawned through its volume, petals and claws first, then arms, body, and legs. The flakes hold the creature’s shape for a moment as the solid part fades out beneath them, then drift up into the spores. A nosebleed for the effort, and after a beat it comes back for another round.',
+    ],
+  },
 ];
 
 function Toggle({ label, checked, onChange }) {

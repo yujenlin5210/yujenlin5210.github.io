@@ -42,7 +42,7 @@ function Item({ item, ids }) {
       if (isHidden(item.trim)) return null;
       const t = trimProps(item.trim);
       return (
-        <g>
+        <g opacity={item.opacity}>
           <path d={item.d} pathLength={1} fill="none" stroke="currentColor" strokeWidth={item.w + item.line} strokeLinecap="round" {...t} />
           <path d={item.d} pathLength={1} fill="none" className={item.innerClass || 'stroke-white dark:stroke-slate-950'} strokeWidth={Math.max(item.w - item.line, 0)} strokeLinecap="round" {...t} />
         </g>
