@@ -48,6 +48,7 @@ export default function ProjectStickman() {
       <TrimStage
         className="h-40 w-full"
         scene={scene}
+        styleId="sketch"
         scale={1}
         groundRatio={0.84}
         roam
