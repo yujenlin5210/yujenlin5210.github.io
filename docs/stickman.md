@@ -2,9 +2,9 @@
 
 Last updated: 2026-11-03
 
-The `/projects` page has a small character at the bottom of the screen. Each project can set `animation:` in its frontmatter; scrolling a project into view swaps the character's action (`CinematicProject` → `activeAnimationId` store → `Stickman`). The character has been built three times. This doc covers what each one is, where it lives, and what's next.
+The `/projects` page has a small character at the bottom of the screen. Each project can set `animation:` in its frontmatter; scrolling a project into view swaps the character's action (`CinematicProject` → `activeAnimationId` store → `ProjectStickman`). The character has been built three times. This doc covers what each one is, where it lives, and what's next.
 
-## 1. Production stickman (live on `/projects`)
+## 1. First production stickman (replaced on `/projects`; code still in the repo)
 
 - `src/components/Stickman.jsx`, with one hook per action in `src/components/stickman-actions/` (`registry.js` maps `animation` ids such as `varifocal`, `mario-kart`, `retina-resolution`, `secret-pets`, `boba3`, `tiramisu`).
 - Flat 2D: hand-authored SVG path strings tweened by Framer Motion, plus a "rubber hose" quadratic for reaching limbs. Turning around is a `scaleX` flip.
@@ -18,7 +18,7 @@ The `/projects` page has a small character at the bottom of the screen. Each pro
 - Lesson learned: shaping limbs with lateral control-point offsets (`armCurveX`) projected asymmetrically and bent the right-facing arm backwards. The fix was a compensating offset. The general problem is that heuristic offsets on top of a projection fight each other.
 - Never wired to `/projects`.
 
-## 3. Trim-path engine (`2026-11-03-trim-path-stickman`) — current direction
+## 3. Trim-path engine (`2026-11-03-trim-path-stickman`) — live on `/projects`
 
 - `src/components/trim-stickman/engine.js` (rig, clips, scenes, styles, props, simulation) and `TrimStage.jsx` (rAF loop + SVG renderer). The lab UI is `TrimStickmanLab.jsx`.
 - Pipeline: `pose (numbers) → solveSkeleton (true 3D joints, FK) → draw items → project (tilted camera, mild perspective) → SVG`.
@@ -103,6 +103,7 @@ The `/projects` page has a small character at the bottom of the screen. Each pro
 ### Next
 
 1. Pick a character style (or a new one) and refine it.
-2. Port the project actions (varifocal, boba3, tiramisu, retina, pets, mario-kart) to scenes and props.
-3. Swap `/projects` from `Stickman.jsx` to `TrimStage`, keeping the `activeAnimationId` store contract.
-4. Once ported, retire generations 1–2 and their lab posts or mark them historical.
+2. Done: every project action is a scene (`PROJECT_SCENES` maps frontmatter `animation` ids to scenes; Stranger Things got `animation: stranger-things`).
+3. Done: `/projects` uses `ProjectStickman.jsx` (mounted by `Layout.astro`), which reads the same `activeAnimationId` store. It is event based: each scene declares its ending event in scene time (`endsAt()`, read with `sceneEnd(id)`): the sixth bubble captured (First Encounters), the F1 car put back down (Varifocal), the bottom chart row read before switching eyes (Retina), every pet arrived and sending hearts (Pets), the Demogorgon fully ash (Stranger Things), and simply 10 s for Tiramisu. The sim reports it as `debug.ended`; the band then switches to walk, the figure turns back to normal and walks for `WALK_BREAK` seconds of sim time (`debug.sceneT`), then the scene starts again. Sim time pauses with the stage, so a hidden tab never drifts out of step. The kart ride is the exception: it has no ending event and keeps looping while its project is in view.
+- Standing scenes build their set (gorge, room, table and objects, ship, puffians) at the scene's facing (`sceneYaw()`, the yaw the figure is turning to), not the live yaw, so a scene that starts mid-turn doesn't swing round with the figure. Outgoing props keep the facing of the scene they came from. Projects without an animation just walk.
+4. Retire generation 1 (`Stickman.jsx`, `stickman-actions/`, now unused) and generation 2, and mark their lab posts historical.

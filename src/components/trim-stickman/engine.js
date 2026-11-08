@@ -212,6 +212,7 @@ export const SCENES = {
   },
   kart: {
     label: 'Kart',
+    // No ending event: the kart ride keeps looping while its project is in view.
     speed: (t) => (t < 1.1 ? 0 : 150),
     clip: (t) => kartPose(t),
     props: [
@@ -223,6 +224,8 @@ export const SCENES = {
   },
   encounters: {
     label: 'First Encounters',
+    // Ends when the sixth puffian's bubble is captured by the ship.
+    endsAt: () => ENC.t0 + ENC.period * (5 + ENC.arrive),
     stand: true,
     speed: () => 0,
     clip: (t) => encounterPose(t),
@@ -235,6 +238,8 @@ export const SCENES = {
   },
   tiramisu: {
     label: 'Tiramisu',
+    // No event to wait for: a long look round the gorge.
+    endsAt: () => 10,
     stand: true,
     speed: () => 0,
     clip: (t) => tiramisuPose(t),
@@ -245,6 +250,8 @@ export const SCENES = {
   },
   varifocal: {
     label: 'Varifocal',
+    // Ends when the last object (the F1 car) is put back on the table.
+    endsAt: () => VF.t0 + VF.period * (SPECIMENS.length - 1 + RP.down),
     stand: true,
     speed: () => 0,
     clip: (t) => varifocalPose(t),
@@ -256,6 +263,8 @@ export const SCENES = {
   },
   retina: {
     label: 'Retina resolution',
+    // Ends when the bottom row has been read, before switching to the other eye.
+    endsAt: () => EXAM.t0 + CHART_ROWS.length * EXAM.rowTime,
     stand: true,
     faceYaw: 132, // three-quarter back view, facing the TV wall and chart (keep equal to EXAM.faceYaw)
     speed: () => 0,
@@ -267,6 +276,8 @@ export const SCENES = {
   },
   pets: {
     label: 'Pets',
+    // Ends once every pet has arrived and sent its first heart (adopted).
+    endsAt: () => PETS_T.arrive + PETS[PETS.length - 1].delay + PET_WALK + 2.3,
     stand: true,
     speed: () => 0,
     // A full spin while turning into a critter (see PETS_T); added to the standing yaw.
@@ -280,6 +291,8 @@ export const SCENES = {
   },
   stranger: {
     label: 'Stranger Things',
+    // Ends when the Demogorgon has fully turned to ash.
+    endsAt: () => ST.t0 + burnWindow(DEMO_PARTS[DEMO_PARTS.length - 1])[1] + 0.3,
     stand: true,
     faceYaw: 100, // in profile, facing the creature on screen-right (keep equal to ST.faceYaw)
     speed: () => 0,
@@ -293,6 +306,26 @@ export const SCENES = {
 };
 
 export const SCENE_IDS = Object.keys(SCENES);
+
+/** Project `animation` ids (frontmatter) -> scenes. Projects without one just walk. */
+export const PROJECT_SCENES = {
+  'mario-kart': 'kart',
+  boba3: 'encounters',
+  tiramisu: 'tiramisu',
+  varifocal: 'varifocal',
+  'retina-resolution': 'retina',
+  'secret-pets': 'pets',
+  'stranger-things': 'stranger',
+};
+
+/**
+ * Scene time (s) of a scene's ending event: the point where one showing is
+ * complete (the F1 car is put down, the creature is ash…). null for scenes that
+ * keep looping: walk, and the kart ride. The sim reports it as `debug.ended`.
+ */
+export function sceneEnd(id) {
+  return SCENES[id]?.endsAt ? SCENES[id].endsAt() : null;
+}
 
 /** VR headset variants for the `headset` prop (project = frontmatter animation id). */
 export const HEADSETS = {
@@ -4534,7 +4567,7 @@ function buildDemogorgon(frame, cam, trim, t, time) {
         const r = size * (0.55 + 0.6 * h(16 + k));
         return { x: q.x + Math.cos(a) * r, y: q.y + Math.sin(a) * r * flutter };
       });
-      const op = smooth(age / 0.08) * life * (0.6 + 0.4 * h(20)) * trim[1];
+      const op = smooth(age / 0.08) * life * (0.6 + 0.4 * h(20)) * (trim[1] - trim[0]);
       items.push({ key: `demo-ash-${pi}-${j}`, type: 'shape', d: linePath(pts, true), w: 0.5 * q.k, depth: q.d + 20, layer: 1, trim: [0, 0], fill: op, fillClass: h(21) > 0.35 ? DEMO_CHAR : 'fill-slate-400 dark:fill-slate-500' });
     }
   });
@@ -4721,7 +4754,7 @@ export class TrimStickmanSim {
       const end = smooth((this.sceneT - prop.on[0]) / (prop.on[1] - prop.on[0]));
       const start = Math.max(prop.on[0], this.swapAt[prop.id] ?? -Infinity);
       const shown = smooth((this.sceneT - start) / (prop.on[1] - prop.on[0]));
-      if (shown > 0.001) this.outgoing.push({ id: prop.id, variant: prop.variant ?? this.variantOf(prop.id), t: 0, end: shown });
+      if (shown > 0.001) this.outgoing.push({ id: prop.id, variant: prop.variant ?? this.variantOf(prop.id), t: 0, end: shown, yaw: this.sceneYaw() });
     }
     this.blendFrom = this.pose;
     this.blendT = 0;
@@ -4826,6 +4859,15 @@ export class TrimStickmanSim {
     return morphStyle(this.style, easeInOut(this.morph));
   }
 
+  /**
+   * The facing a standing scene's set is built in: the direction the figure is
+   * turning to, not its live yaw, so scenery and props don't swing round with
+   * the figure when the scene starts mid-turn. null for moving scenes.
+   */
+  sceneYaw() {
+    return SCENES[this.scene].stand ? this.standYaw : null;
+  }
+
   variantOf(propId) {
     return propId === 'headset' ? this.headset : null;
   }
@@ -4851,11 +4893,11 @@ export class TrimStickmanSim {
     for (const prop of SCENES[this.scene].props) {
       const start = Math.max(prop.on[0], this.swapAt[prop.id] ?? -Infinity);
       const end = smooth((this.sceneT - start) / (prop.on[1] - prop.on[0]));
-      if (end > 0.001) list.push({ id: prop.id, variant: prop.variant ?? this.variantOf(prop.id), trim: [0, end] });
+      if (end > 0.001) list.push({ id: prop.id, variant: prop.variant ?? this.variantOf(prop.id), trim: [0, end], yaw: this.sceneYaw() });
     }
     for (const o of this.outgoing) {
       if (list.some((p) => p.id === o.id && p.variant === o.variant)) continue;
-      list.push({ id: o.id, variant: o.variant, trim: [easeInOut(o.t / PROP_EXIT) * o.end, o.end] });
+      list.push({ id: o.id, variant: o.variant, trim: [easeInOut(o.t / PROP_EXIT) * o.end, o.end], yaw: o.yaw });
     }
     return list;
   }
@@ -4890,6 +4932,8 @@ export class TrimStickmanSim {
     let vignette = null;
 
     for (const prop of props) {
+      // Scenery and props that belong to the set (not the body) use the scene's facing.
+      const sf = prop.yaw == null ? frame : { yaw: prop.yaw, root: frame.root };
       if (prop.id === 'headset') {
         const builder = { boba3: buildHeadsetBoba, tiramisu: buildHeadsetTiramisu, varifocal: buildHeadsetVarifocal, retina: buildHeadsetRetina }[prop.variant] || buildHeadset;
         items.push(...builder(skel, frame, cam, prop.trim));
@@ -4902,19 +4946,19 @@ export class TrimStickmanSim {
       if (prop.id === 'cap') items.push(...buildCap(skel, frame, cam, prop.trim));
       if (prop.id === 'kartitems') items.push(...buildKartItems(skel, frame, cam, prop.trim, this.kartT));
       if (prop.id === 'blasters') items.push(...buildBlasters(skel, frame, cam, prop.trim));
-      if (prop.id === 'encounters') items.push(...buildEncounters(skel, frame, cam, prop.trim, this.encT, this.time));
+      if (prop.id === 'encounters') items.push(...buildEncounters(skel, sf, cam, prop.trim, this.encT, this.time));
       if (prop.id === 'demogorgon') items.push(...buildDemogorgon(frame, cam, prop.trim, this.strangeT, this.time));
       if (prop.id === 'power') items.push(...buildPower(skel, frame, cam, prop.trim, this.strangeT, this.time));
       if (prop.id === 'spores') items.push(...buildSpores(frame, cam, prop.trim, this.time));
       if (prop.id === 'pets') items.push(...buildPets(frame, cam, prop.trim, this.petsT, this.time));
       if (prop.id === 'hearts') items.push(...buildHearts(skel, frame, cam, prop.trim, this.petsT, this.time));
       if (prop.id === 'sparkles') items.push(...buildSparkles(skel, frame, cam, prop.trim, this.petsT));
-      if (prop.id === 'table') items.push(...buildTable(frame, cam, prop.trim));
-      if (prop.id === 'specimens') items.push(...buildSpecimens(frame, cam, prop.trim, this.vfT));
-      if (prop.id === 'ship') items.push(...buildShip(frame, cam, prop.trim, this.encT, this.time));
+      if (prop.id === 'table') items.push(...buildTable(sf, cam, prop.trim));
+      if (prop.id === 'specimens') items.push(...buildSpecimens(sf, cam, prop.trim, this.vfT));
+      if (prop.id === 'ship') items.push(...buildShip(sf, cam, prop.trim, this.encT, this.time));
       if (prop.id === 'room') {
         // The room is scenery: faded toward its ends like the gorge, all behind the figure.
-        for (const it of buildLivingRoom(frame, cam, prop.trim, this.examT)) {
+        for (const it of buildLivingRoom(sf, cam, prop.trim, this.examT)) {
           it.scenery = 'back';
           items.push(it);
         }
@@ -4925,7 +4969,7 @@ export class TrimStickmanSim {
         // Scenery fades out toward its ends (see TrimStage's vignette), and is
         // split around the figure so it still layers in front of / behind it.
         const rootD = cam.project(frame.root).d;
-        for (const it of buildRavine(frame, cam, prop.trim, this.time)) {
+        for (const it of buildRavine(sf, cam, prop.trim, this.time)) {
           it.scenery = it.layer < 1 || it.depth < rootD ? 'back' : 'front';
           items.push(it);
         }
@@ -4955,6 +4999,9 @@ export class TrimStickmanSim {
         scene: this.scene,
         speed: this.speed,
         kart: Boolean(hasKart),
+        sceneT: this.sceneT,
+        // The scene's ending event has happened (see sceneEnd).
+        ended: SCENES[this.scene].endsAt ? this.sceneT >= SCENES[this.scene].endsAt() : false,
       },
     };
   }

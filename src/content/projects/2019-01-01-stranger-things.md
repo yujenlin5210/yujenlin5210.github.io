@@ -10,6 +10,7 @@ organization: Universal Creative
 role: Software Developer
 cover: cover.jpg
 title-cover: cover.jpg
+animation: stranger-things
 tags: [project-feature, Theme-Entertainment, Kinect, Voice Recognition]
 ---
 
